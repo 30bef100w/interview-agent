@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拷打链生成流程</title>
+<style>
+:root {
+  --bg: #F4F7FE;
+  --surface: #FFFFFF;
+  --surface-2: #EAF0FB;
+  --border: #D3DCF0;
+  --text: #1B2038;
+  --text-2: #596182;
+  --accent: #2455D4;
+  --accent-soft: #E0E9FF;
+  --code-bg: #EDF1FD;
+  --green: #0A7D4E;
+  --green-bg: #E0F5EC;
+  --amber: #92560A;
+  --amber-bg: #FEF3DC;
+  --step-line: #C5D4F5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #080B16; --surface: #101524; --surface-2: #171D2F;
+    --border: #252D46; --text: #DCE3F5; --text-2: #7280A8;
+    --accent: #5080F0; --accent-soft: #162044; --code-bg: #131928;
+    --green: #34D399; --green-bg: #0C2820;
+    --amber: #FBBF24; --amber-bg: #231A08; --step-line: #1E2E5A;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #080B16; --surface: #101524; --surface-2: #171D2F;
+  --border: #252D46; --text: #DCE3F5; --text-2: #7280A8;
+  --accent: #5080F0; --accent-soft: #162044; --code-bg: #131928;
+  --green: #34D399; --green-bg: #0C2820;
+  --amber: #FBBF24; --amber-bg: #231A08; --step-line: #1E2E5A;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px; line-height: 1.65; padding: 2.5rem 1.25rem 5rem;
+}
+.wrap { max-width: 920px; margin: 0 auto; }
+code, pre, .mono { font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace; }
+.eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: .5rem; }
+.page-header { margin-bottom: 2.5rem; }
+.page-header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -.02em; color: var(--text); line-height: 1.2; }
+.page-header p { margin-top: .5rem; color: var(--text-2); font-size: 15px; }
+.pipeline-scroll { overflow-x: auto; margin-bottom: 3rem; padding-bottom: .5rem; }
+.pipeline { display: flex; align-items: stretch; gap: 0; min-width: 700px; }
+.pipe-step { flex: 1; background: var(--surface); border: 1px solid var(--step-line); border-radius: 10px; padding: .7rem .9rem; text-align: center; }
+.pipe-step .pnum { font-size: 10px; font-weight: 700; color: var(--accent); letter-spacing: .1em; text-transform: uppercase; margin-bottom: .2rem; }
+.pipe-step .plabel { font-size: 13px; font-weight: 600; color: var(--text); }
+.pipe-step .psub { font-size: 11px; color: var(--text-2); margin-top: .15rem; }
+.pipe-arrow { flex: 0 0 30px; display: flex; align-items: center; justify-content: center; color: var(--text-2); font-size: 16px; }
+.steps { display: flex; flex-direction: column; gap: 2.5rem; }
+.step { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 620px) { .step { grid-template-columns: 1fr; } }
+.step-num { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; margin-bottom: .65rem; }
+.step-meta h2 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: .45rem; }
+.step-meta p { color: var(--text-2); font-size: 13.5px; line-height: 1.7; }
+.step-meta ul { list-style: none; margin-top: .7rem; display: flex; flex-direction: column; gap: .35rem; }
+.step-meta li { font-size: 13px; color: var(--text-2); padding-left: 1.1rem; position: relative; }
+.step-meta li::before { content: '›'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+.code-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.panel-header { background: var(--surface-2); border-bottom: 1px solid var(--border); padding: .45rem .85rem; font-size: 11px; font-weight: 600; color: var(--text-2); letter-spacing: .07em; text-transform: uppercase; display: flex; align-items: center; gap: .45rem; }
+.panel-header .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); opacity: .65; }
+.panel-body { padding: .85rem; font-size: 12px; line-height: 1.8; white-space: pre; overflow-x: auto; color: var(--text); }
+.k { color: var(--accent); }
+.s { color: var(--green); }
+.c { color: var(--text-2); font-style: italic; }
+.branch-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+.branch-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .09em; color: var(--text-2); font-weight: 600; margin-bottom: .7rem; }
+.branches { display: flex; flex-direction: column; gap: .7rem; }
+.branch-path { border-radius: 8px; padding: .65rem .85rem; font-size: 12px; line-height: 1.7; }
+.branch-path.pa { background: var(--accent-soft); border: 1px solid var(--step-line); }
+.branch-path.pb { background: var(--green-bg); border: 1px solid rgba(10,125,78,.25); }
+.branch-path .pcond { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: .3rem; }
+.branch-path.pa .pcond { color: var(--accent); }
+.branch-path.pb .pcond { color: var(--green); }
+.branch-path .pfn { font-family: 'SF Mono', Consolas, monospace; font-size: 11px; color: var(--text); }
+.chain-item { padding: .75rem .9rem; border-bottom: 1px solid var(--border); font-size: 13px; line-height: 1.6; }
+.chain-item:last-child { border-bottom: none; }
+.chain-item .ct { font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: .2rem; }
+.chain-item .cq { color: var(--text); margin-bottom: .2rem; }
+.chain-item .ci { font-size: 11px; color: var(--green); }
+hr.div { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+.insight { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+.insight .ititle { font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin-bottom: .6rem; }
+.insight p { font-size: 14px; color: var(--text); line-height: 1.8; }
+.insight .tags { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
+.tag { border-radius: 6px; padding: .35rem .75rem; font-size: 12px; font-weight: 500; }
+.tag-a { background: var(--accent-soft); color: var(--accent); }
+.tag-g { background: var(--green-bg); color: var(--green); }
+.tag-m { background: var(--amber-bg); color: var(--amber); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-header">
+    <div class="eyebrow">face-agent · 技术文档</div>
+    <h1>知识库驱动的拷打链生成流程</h1>
+    <p>从 12,287 道面经到 LLM 生成结构化追问链的完整过程图解</p>
+  </div>
+
+  <div class="pipeline-scroll">
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pnum">Step 1</div>
+        <div class="plabel">知识库检索</div>
+        <div class="psub">打分 · 过滤 · 排序</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pnum">Step 2</div>
+        <div class="plabel">双路召回</div>
+        <div class="psub">岗位路径 / 项目路径</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pnum">Step 3</div>
+        <div class="plabel">素材组装</div>
+        <div class="psub">material_lines 格式化</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pnum">Step 4</div>
+        <div class="plabel">LLM 生成链</div>
+        <div class="psub">PROJECT_CHAIN_SYSTEM prompt</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pnum">Step 5</div>
+        <div class="plabel">注入面试</div>
+        <div class="psub">chain_block_for() → prompt</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-meta">
+        <div class="step-num">1</div>
+        <h2>知识库打分与过滤</h2>
+        <p><code>knowledge_retrieval.py</code> 加载 <strong>12,287</strong> 道去重面经，对每道题执行多维打分，过滤噪音后取 Top-N 候选池。</p>
+        <ul>
+          <li>岗位门槛（roles 硬过滤）：主标签 +80，次标签 +35，关键词命中 +12×</li>
+          <li>企业权重：目标企业真题 +120（最高优先级）</li>
+          <li>场景加分：有岗位时 ×15，无岗位时 ×40</li>
+          <li>技能文本命中：+4~10 / 个</li>
+          <li>时效权重：2025-26 ×1.0 → 2023-24 ×0.7 → 2021-22 ×0.4 → ≤2020 ×0.2</li>
+          <li>基础题降权："是什么？"结尾 ×0.3；弱标签噪音题归 0</li>
+        </ul>
+      </div>
+      <div class="code-panel">
+        <div class="panel-header"><span class="dot"></span>knowledge_retrieval.py · _score_question()</div>
+        <div class="panel-body"><span class="k">def</span> _score_question(q, roles, company, skills_low, scenes_set, category):
+    <span class="c"># 岗位硬门槛：无交集直接返回 0</span>
+    overlap = q_roles &amp; roles
+    <span class="k">if not</span> overlap:
+        <span class="k">return</span> 0.0
+
+    score += 80  <span class="c"># 主标签命中</span>
+    score += min(kw_hits, 6) * 12  <span class="c"># 关键词密度</span>
+    <span class="k">if</span> company <span class="k">and</span> q.get(<span class="s">"company"</span>) == company:
+        score += 120  <span class="c"># 企业真题最高权</span>
+    score += len(scenes_set &amp; q_scenes) * (15 <span class="k">if</span> roles <span class="k">else</span> 40)
+    score *= _era_weight(q.get(<span class="s">"era"</span>))
+    <span class="k">return</span> score</div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="step">
+      <div class="step-meta">
+        <div class="step-num">2</div>
+        <h2>双路召回策略</h2>
+        <p><code>build_project_chains()</code> 根据是否有目标岗位走不同检索路径，确保素材与岗位考察视角对齐，而非拘泥于项目原技术栈。</p>
+        <ul>
+          <li>路径 A（有目标岗位）：先检索岗位相关 project 类题，再检索岗位通用题</li>
+          <li>路径 B（无目标岗位）：按项目名/技术栈/场景直接匹配</li>
+          <li>两路合并去重，最多取 8 条素材进 LLM prompt</li>
+        </ul>
+      </div>
+      <div class="branch-wrap">
+        <div class="branch-label">召回路径分支</div>
+        <div class="branches">
+          <div class="branch-path pa">
+            <div class="pcond">路径 A · 有目标岗位</div>
+            <div class="pfn">search_questions(roles=roles, category="project", top_n=6)</div>
+            <div class="pfn">+ search_questions(roles=roles, top_n=6)</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:.35rem">→ 岗位能力模型优先，素材偏向目标岗位高频考点</div>
+          </div>
+          <div class="branch-path pb">
+            <div class="pcond">路径 B · 无目标岗位</div>
+            <div class="pfn">search_projects(name, tech, scene_tags, top_n=4)</div>
+            <div class="pfn">+ search_questions(skills=tech, scenes=scene_tags, category="project", top_n=4)</div>
+            <div style="font-size:12px;color:var(--text-2);margin-top:.35rem">→ 项目技术栈/场景命中，素材贴近项目本身</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="step">
+      <div class="step-meta">
+        <div class="step-num">3</div>
+        <h2>素材组装为 material_lines</h2>
+        <p>检索命中的题目去重后格式化为结构化文本行，作为 LLM prompt 的<strong>【相关面经】</strong>输入块，给模型提供真实高频面试题作为参考锚点。</p>
+        <ul>
+          <li>每条格式：<code>- 题目文本（要点：answer 前 100 字）</code></li>
+          <li>最多注入 8 条，避免 prompt 过长</li>
+          <li>无命中时显示<code>（无命中）</code>，LLM 依然生成链（纯推理模式）</li>
+        </ul>
+      </div>
+      <div class="code-panel">
+        <div class="panel-header"><span class="dot"></span>project_cross.py · 素材格式化</div>
+        <div class="panel-body">seen = <span class="k">set</span>()
+material_lines = []
+<span class="k">for</span> h <span class="k">in</span> hits:
+    q = h.get(<span class="s">"question"</span>)
+    <span class="k">if</span> q <span class="k">in</span> seen: <span class="k">continue</span>
+    seen.add(q)
+    ans = (h.get(<span class="s">"answer"</span>) <span class="k">or</span> <span class="s">""</span>).strip()
+    material_lines.append(
+        <span class="s">f"- {q}"</span> + (<span class="s">f"（要点：{ans[:100]}）"</span> <span class="k">if</span> ans <span class="k">else</span> <span class="s">""</span>)
+    )
+
+<span class="c"># 注入 prompt user 段</span>
+<span class="s">"【目标岗位相关真实面经/高频题】\n"</span>
++ <span class="s">"\n"</span>.join(material_lines[<span class="s">:8</span>])</div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="step">
+      <div class="step-meta">
+        <div class="step-num">4</div>
+        <h2>LLM 生成拷打链</h2>
+        <p><code>PROJECT_CHAIN_SYSTEM</code> prompt 以「目标岗位定方向，项目只是素材」为最高原则，要求 LLM 把项目经历拧到岗位视角，生成 4-6 条由浅入深的追问链。</p>
+        <ul>
+          <li>输入：项目名 + 技术栈 + 描述 + 场景标签 + 岗位提示 + 8 条面经素材</li>
+          <li>输出：JSON <code>{"project":…, "chains":[{trigger, question, intent}]}</code></li>
+          <li>失败容错：单项目异常直接跳过，不阻塞其他项目和整个面试</li>
+          <li>每条链包含：触发条件 / 追问问题 / 考察意图</li>
+        </ul>
+      </div>
+      <div class="code-panel">
+        <div class="panel-header"><span class="dot"></span>PROJECT_CHAIN_SYSTEM（节选）</div>
+        <div class="panel-body"><span class="c"># 最高原则</span>
+<span class="s">"【目标岗位定方向，项目只是素材】"</span>
+<span class="s">"不要按项目原技术栈出工程专项题；"</span>
+<span class="s">"要把项目拧到目标岗位的考察点上。"</span>
+
+<span class="c"># 链结构</span>
+{
+  <span class="s">"trigger"</span>: <span class="s">"候选人提到 X 时触发"</span>,
+  <span class="s">"question"</span>: <span class="s">"顺着 trigger 的具体追问"</span>,
+  <span class="s">"intent"</span>: <span class="s">"面试官想考什么"</span>
+}
+
+<span class="c"># 目标搜广推 + 校园二手项目</span>
+<span class="c"># → 问样本/特征/召回/排序，不问 Redis 击穿</span></div>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <div class="step">
+      <div class="step-meta">
+        <div class="step-num">5</div>
+        <h2>注入面试 prompt</h2>
+        <p><code>chain_block_for()</code> 取出某项目的链，格式化为面试官 prompt 文本块。候选人答到触发词，面试官直接顺链追问，无需即兴发挥。</p>
+        <ul>
+          <li>触发机制：候选人提及某技术点 / 关键词 → 匹配链的 trigger</li>
+          <li>追问：直接使用链中 question，深度可控</li>
+          <li>考察意图对面试官可见，不暴露给候选人</li>
+        </ul>
+        <p style="margin-top:.8rem;font-size:13px;color:var(--text-2)">示例（目标岗位：搜广推 · 项目：校园二手交易平台）：</p>
+      </div>
+      <div class="code-panel">
+        <div class="panel-header"><span class="dot"></span>chain_block_for() 输出示例</div>
+        <div class="chain-item">
+          <div class="ct">触发 1</div>
+          <div class="cq">候选人提到「用 Redis 缓存热门商品」时</div>
+          <div class="cq" style="margin-top:.25rem;font-size:13px">追问：如果把成交/浏览记录作为正负样本，召回模型怎么设计？特征工程和冷启动各怎么处理？</div>
+          <div class="ci">考：推荐系统样本构造与冷启动策略</div>
+        </div>
+        <div class="chain-item">
+          <div class="ct">触发 2</div>
+          <div class="cq">候选人提到「排行榜用 ZSet 实现」时</div>
+          <div class="cq" style="margin-top:.25rem;font-size:13px">追问：如果把这个点击率数据做成 pCTR 预估，你会选什么模型结构？如何评估线上效果？</div>
+          <div class="ci">考：CTR 预估模型选型与离线/在线评估</div>
+        </div>
+        <div class="chain-item">
+          <div class="ct">触发 3</div>
+          <div class="cq">候选人提到「商品搜索用 Elasticsearch」时</div>
+          <div class="cq" style="margin-top:.25rem;font-size:13px">追问：ES 的相关性排序和推荐排序有什么本质区别？你会如何用 Learning to Rank 改造搜索？</div>
+          <div class="ci">考：搜索排序 vs 推荐排序差异，LTR 应用</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="div">
+
+  <div class="insight">
+    <div class="ititle">核心设计原则</div>
+    <p>拷打链的本质是「岗位视角的结构化追问脚本」。知识库提供<strong>真实高频面试题锚点</strong>，防止 LLM 凭空发挥；目标岗位提示确保拷打方向始终服务于岗位能力评估，而非复现项目技术栈。这使面试官在候选人随机发挥时仍能可控地深挖到关键考点。</p>
+    <div class="tags">
+      <span class="tag tag-a">RAG 辅助生成</span>
+      <span class="tag tag-a">岗位视角优先</span>
+      <span class="tag tag-g">结构化追问</span>
+      <span class="tag tag-g">触发 → 追问 → 意图</span>
+      <span class="tag tag-m">失败容错跳过</span>
+      <span class="tag tag-m">≤3 项目 · 4-6 条/项目</span>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

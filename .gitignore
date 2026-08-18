@@ -1,0 +1,56 @@
+# secrets
+**/.env
+!**/.env.example
+backend/.env
+
+# python
+backend/.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# 用户整理的面经 / 题库（不进公开仓库）
+/data/
+backend/data/knowledge_base/*.jsonl
+backend/data/knowledge_base/*.json
+backend/data/uploads/
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/whisper-tiny/
+backend/data/e2e_kb_report.json
+backend/data/hot100.json
+backend/data/coding_problems.json
+backend/scripts/build_problems.py
+backend/data/test_resume.pdf
+backend/data/test_report_export.docx
+backend/data/test_voice.mp3
+backend/data/_java_debug/
+
+# frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/shots/mianmian-home.png
+frontend/shots/mianmian-home-full.png
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/
+*.pem
+
+# 采集流水线产物 / 临时文件（题库与抓取结果不进仓库）
+ocr_temp/
+xhs_manual_collection.md
+bytedance_tiktok_0.png
+scrape_xhs_interview.py
+xhs_llm_interview_scraper.py
+xiaohongshu_rag_collector.py
+/scripts/
+backend/data/knowledge_base/REPORT.md
+
+# misc
+*.log
+.cursor/

@@ -1,0 +1,361 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fbff;
+  --foreground: #0f172a;
+  --brand: #0284c7;
+  --brand-soft: #f0f9ff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #09090b;
+    --foreground: #e4e4e7;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+.font-brand {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong",
+    "Times New Roman", serif;
+  font-feature-settings: "kern" 1;
+}
+
+::selection {
+  background: rgb(2 132 199 / 0.2);
+}
+
+/* ---------- 动画 ---------- */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-up {
+  animation: fade-up 0.4s cubic-bezier(0.21, 1.02, 0.73, 1) both;
+}
+
+/* 落地页大屏 */
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-fade {
+  animation: hero-fade 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes hero-kenburns {
+  from {
+    transform: scale(1.05);
+  }
+  to {
+    transform: scale(1.12);
+  }
+}
+.hero-kenburns {
+  animation: hero-kenburns 18s ease-out forwards;
+}
+
+@keyframes hero-scroll {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translateY(4px);
+  }
+}
+.hero-scroll {
+  animation: hero-scroll 2.2s ease-in-out infinite;
+}
+
+/* 落地页：逐字悬浮 */
+.hero-char {
+  display: inline-block;
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), color 0.22s ease,
+    text-shadow 0.22s ease;
+  cursor: default;
+}
+.hero-char:hover {
+  transform: translateY(-6px) scale(1.06);
+  color: #0284c7;
+  text-shadow: 0 10px 24px rgb(2 132 199 / 0.28);
+}
+
+/* 标语可点亮关键词 */
+.hero-phrase {
+  transition: color 0.2s ease, background-size 0.35s ease;
+  background-image: linear-gradient(120deg, rgb(2 132 199 / 0.18), rgb(2 132 199 / 0.18));
+  background-repeat: no-repeat;
+  background-size: 0% 42%;
+  background-position: 0 88%;
+  border-radius: 2px;
+  cursor: default;
+}
+.hero-phrase:hover {
+  color: #0369a1;
+  background-size: 100% 42%;
+}
+
+/* 磁吸按钮 */
+.btn-magnetic {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, box-shadow 0.25s ease, background-color 0.2s ease,
+    border-color 0.2s ease, color 0.2s ease;
+  will-change: transform;
+}
+.btn-magnetic::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    120px circle at var(--mx, 50%) var(--my, 50%),
+    rgb(255 255 255 / 0.35),
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+.btn-magnetic:hover::after {
+  opacity: 1;
+}
+.btn-magnetic:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+.btn-magnetic:active {
+  transform: translateY(0) scale(0.98);
+}
+.btn-magnetic .btn-arrow {
+  display: inline-block;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-magnetic:hover .btn-arrow {
+  transform: translateX(4px);
+}
+
+.btn-ghost-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -16px rgb(15 23 42 / 0.25);
+}
+
+/* Hero 鼠标光斑 */
+.hero-spotlight {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgb(56 189 248 / 0.22), transparent 68%);
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s ease;
+  z-index: 1;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+
+/* 打字机流式光标 */
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.streaming-cursor::after {
+  content: "▍";
+  margin-left: 1px;
+  color: rgb(2 132 199);
+  animation: cursor-blink 1s step-start infinite;
+}
+
+/* 面试官思考中的三个点 */
+@keyframes dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.55);
+    opacity: 0.35;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  display: inline-block;
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* 背景光斑缓慢漂浮（落地页/登录页装饰） */
+@keyframes blob-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(24px, -18px) scale(1.06);
+  }
+  66% {
+    transform: translate(-16px, 14px) scale(0.96);
+  }
+}
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+  animation: blob-float 14s ease-in-out infinite;
+}
+
+/* ---------- 力扣题面 HTML（算法题左侧面板） ---------- */
+
+.problem-html p {
+  margin: 0.65rem 0;
+}
+.problem-html pre {
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  background: #f4f4f5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+}
+.problem-html code {
+  display: inline;
+  padding: 0.05rem 0.3rem;
+  border-radius: 0.25rem;
+  background: #f4f4f5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85em;
+  /* 不要 nowrap：窄侧栏会把整个 code 挤到下一行，造成「乱换行」 */
+  white-space: normal;
+  word-break: break-word;
+}
+.problem-html pre code {
+  padding: 0;
+  background: transparent;
+  white-space: inherit;
+}
+.problem-html ul,
+.problem-html ol {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.35rem;
+}
+.problem-html ul {
+  list-style: disc;
+}
+.problem-html ol {
+  list-style: decimal;
+}
+.problem-html li {
+  margin: 0.25rem 0;
+}
+.problem-html strong,
+.problem-html b {
+  font-weight: 600;
+}
+.problem-html sup {
+  font-size: 0.75em;
+  vertical-align: super;
+}
+
+@media (prefers-color-scheme: dark) {
+  .problem-html pre,
+  .problem-html code {
+    background: #27272a;
+  }
+  .problem-html pre code {
+    background: transparent;
+  }
+}
+
+/* ---------- 滚动条 ---------- */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(161 161 170 / 0.4);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(161 161 170 / 0.6);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- 打印（报告导出 PDF） ---------- */
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .animate-fade-up,
+  .animate-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .blob {
+    display: none;
+  }
+}

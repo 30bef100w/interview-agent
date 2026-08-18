@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "categories": {
+    "后端开发": ["java_backend", "go_backend", "cpp_backend", "python_backend", "php_backend"],
+    "AI 应用与算法": ["agent_dev", "llm", "aigc", "nlp", "cv", "recsys", "ml_dm"],
+    "前端开发": ["web_frontend", "cross_platform"],
+    "移动端": ["android", "ios"],
+    "数据方向": ["data_analysis", "big_data"],
+    "测试": ["qa_test", "test_dev"],
+    "运维与基础设施": ["ops_sre", "dba"],
+    "安全": ["security"],
+    "嵌入式 / 物联网": ["embedded"]
+  },
+  "roles": {
+    "java_backend": {
+      "name": "Java 后端",
+      "keywords": ["spring", "springboot", "spring cloud", "mybatis", "jvm", "dubbo", "微服务", "java 后端"]
+    },
+    "go_backend": {
+      "name": "Go 后端",
+      "keywords": ["golang", "go 语言", "gin 框架", "grpc", "beego", "go 后端"]
+    },
+    "cpp_backend": {
+      "name": "C++ 后端",
+      "keywords": ["c++", "cpp", "stl", "muduo", "网络编程", "服务器开发", "c++ 后端"]
+    },
+    "python_backend": {
+      "name": "Python 后端",
+      "keywords": ["django", "flask", "fastapi", "python 后端"]
+    },
+    "php_backend": {
+      "name": "PHP 后端",
+      "keywords": ["laravel", "thinkphp", "swoole", "yii", "symfony", "composer", "php 后端", "php开发"]
+    },
+    "agent_dev": {
+      "name": "AI Agent 开发",
+      "keywords": ["langchain", "langgraph", "agent", "rag", "mcp", "智能体", "多智能体", "function calling", "tool calling", "prompt 工程", "agent 开发"]
+    },
+    "llm": {
+      "name": "大模型 / LLM",
+      "keywords": ["大模型", "llm", "预训练", "微调", "sft", "rlhf", "lora", "qwen", "glm", "deepseek", "推理优化", "tokenizer", "提示词工程"]
+    },
+    "aigc": {
+      "name": "AIGC",
+      "keywords": ["stable diffusion", "文生图", "图生图", "comfyui", "aigc", "controlnet", "多模态生成", "数字人"]
+    },
+    "nlp": {
+      "name": "NLP",
+      "keywords": ["nlp", "bert", "分词", "情感分析", "文本分类", "命名实体", "机器翻译", "自然语言处理"]
+    },
+    "cv": {
+      "name": "CV",
+      "keywords": ["目标检测", "图像分割", "opencv", "yolo", "resnet", "图像识别", "人脸识别", "计算机视觉"]
+    },
+    "recsys": {
+      "name": "搜广推",
+      "keywords": ["推荐系统", "搜广推", "广告推荐", "协同过滤", "召回", "排序", "点击率", "ctr", "双塔"]
+    },
+    "ml_dm": {
+      "name": "机器学习 / 数据挖掘",
+      "keywords": ["机器学习", "数据挖掘", "xgboost", "lightgbm", "特征工程", "决策树", "逻辑回归"]
+    },
+    "web_frontend": {
+      "name": "Web 前端",
+      "keywords": ["react", "vue", "javascript", "typescript", "前端", "next.js", "webpack", "vite", "css"]
+    },
+    "cross_platform": {
+      "name": "跨端 / 小程序",
+      "keywords": ["uniapp", "uni-app", "react native", "taro", "小程序", "跨端"]
+    },
+    "android": {
+      "name": "Android",
+      "keywords": ["android", "kotlin", "jetpack", "安卓"]
+    },
+    "ios": {
+      "name": "iOS",
+      "keywords": ["ios", "swift", "objective-c", "uikit", "swiftui"]
+    },
+    "data_analysis": {
+      "name": "数据分析",
+      "keywords": ["数据分析", "数据报表", "tableau", "数据可视化"]
+    },
+    "big_data": {
+      "name": "数据开发 / 大数据",
+      "keywords": ["spark", "flink", "hadoop", "hive", "hdfs", "数据仓库", "数仓"]
+    },
+    "qa_test": {
+      "name": "功能 / 接口测试",
+      "keywords": ["测试用例", "接口测试", "功能测试", "软件测试"]
+    },
+    "test_dev": {
+      "name": "测试开发 / 自动化",
+      "keywords": ["测试开发", "自动化测试", "pytest", "selenium", "appium", "性能测试"]
+    },
+    "ops_sre": {
+      "name": "运维 / SRE",
+      "keywords": ["运维", "sre", "kubernetes", "k8s", "prometheus", "grafana", "ci/cd", "devops"]
+    },
+    "dba": {
+      "name": "数据库 DBA",
+      "keywords": ["dba", "数据库管理员", "mysql 调优", "慢查询优化", "数据库优化"]
+    },
+    "security": {
+      "name": "安全",
+      "keywords": ["渗透测试", "sql注入", "xss", "漏洞挖掘", "ctf", "web 安全", "安全"]
+    },
+    "embedded": {
+      "name": "嵌入式 / 物联网",
+      "keywords": ["嵌入式", "stm32", "单片机", "rtos", "物联网", "驱动开发"]
+    }
+  }
+}

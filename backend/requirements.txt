@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+pydantic-settings
+PyJWT
+bcrypt
+python-multipart
+PyMuPDF
+openai
+faster-whisper
+edge-tts
+pytest
+python-docx
+fpdf2
+cryptography

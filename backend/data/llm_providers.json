@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "note": "DeepSeek 2026-08-17 峰谷调价：白天高峰价 = 空闲价 × 2；Flash 档高峰输入 3/输出 9（每百万 token，元）",
+  "providers": [
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "base_url": "https://api.deepseek.com",
+      "models": [
+        {"id": "deepseek-chat", "name": "DeepSeek-V3（对话）", "input_price_per_m": 3.0, "output_price_per_m": 9.0, "off_peak_input": 1.5, "off_peak_output": 4.5},
+        {"id": "deepseek-reasoner", "name": "DeepSeek-R1（推理）", "input_price_per_m": 8.0, "output_price_per_m": 24.0, "off_peak_input": 4.0, "off_peak_output": 12.0}
+      ]
+    },
+    {
+      "id": "zhipu",
+      "name": "智谱 GLM",
+      "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "models": [
+        {"id": "glm-4-flash", "name": "GLM-4-Flash（免费）", "input_price_per_m": 0.0, "output_price_per_m": 0.0},
+        {"id": "glm-4-air", "name": "GLM-4-Air（性价比）", "input_price_per_m": 0.5, "output_price_per_m": 1.0},
+        {"id": "glm-4-plus", "name": "GLM-4-Plus（旗舰）", "input_price_per_m": 50.0, "output_price_per_m": 50.0}
+      ]
+    },
+    {
+      "id": "qwen",
+      "name": "通义千问",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "models": [
+        {"id": "qwen-turbo", "name": "Qwen-Turbo", "input_price_per_m": 0.3, "output_price_per_m": 0.6},
+        {"id": "qwen-plus", "name": "Qwen-Plus", "input_price_per_m": 0.8, "output_price_per_m": 2.0},
+        {"id": "qwen-max", "name": "Qwen-Max", "input_price_per_m": 2.4, "output_price_per_m": 9.6}
+      ]
+    },
+    {
+      "id": "doubao",
+      "name": "字节豆包",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "models": [
+        {"id": "doubao-pro-32k", "name": "豆包 Pro 32k", "input_price_per_m": 0.8, "output_price_per_m": 2.0}
+      ]
+    },
+    {
+      "id": "siliconflow",
+      "name": "硅基流动",
+      "base_url": "https://api.siliconflow.cn/v1",
+      "models": [
+        {"id": "deepseek-ai/DeepSeek-V3", "name": "DeepSeek-V3（硅基）", "input_price_per_m": 0.5, "output_price_per_m": 1.0},
+        {"id": "Qwen/Qwen2.5-72B-Instruct", "name": "Qwen2.5-72B", "input_price_per_m": 0.8, "output_price_per_m": 2.0}
+      ]
+    }
+  ]
+}

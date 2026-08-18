@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "business_scenes": [
+    {"id": "ecommerce", "name": "电商/交易", "keywords": ["秒杀", "订单", "支付", "购物车", "商品", "交易", "库存", "优惠券", "商城"]},
+    {"id": "delivery", "name": "外卖/本地生活", "keywords": ["外卖", "点评", "商户", "骑手", "门店", "本地生活", "订餐"]},
+    {"id": "ai_app", "name": "AI 应用/对话机器人", "keywords": ["对话机器人", "chatbot", "智能客服", "AI 面试", "问答系统", "agent 应用", "语音助手"]},
+    {"id": "admin_system", "name": "后台管理/企业系统", "keywords": ["后台管理", "管理系统", "中台", "oa", "erp", "工单", "办公", "运营后台"]},
+    {"id": "community", "name": "内容社区/社交", "keywords": ["博客", "论坛", "社区", "社交", "评论", "点赞", "关注", "动态", "发布"]},
+    {"id": "im", "name": "即时通讯", "keywords": ["im", "聊天", "消息", "群聊", "私信", "websocket", "实时通信", "会话"]},
+    {"id": "search_rec", "name": "搜索/推荐", "keywords": ["搜索", "推荐", "es", "elasticsearch", "召回", "检索"]},
+    {"id": "media", "name": "音视频/直播", "keywords": ["直播", "视频", "音频", "点播", "推流", "转码", "弹幕"]},
+    {"id": "game", "name": "游戏", "keywords": ["游戏", "排行", "抽奖", "开箱", "匹配"]},
+    {"id": "iot", "name": "物联网/嵌入式", "keywords": ["物联网", "嵌入式", "设备", "传感器", "上报", "iot"]},
+    {"id": "bigdata", "name": "大数据/数据平台", "keywords": ["数据平台", "数仓", "报表", "数据中台", "etl", "指标体系"]},
+    {"id": "job_platform", "name": "招聘/求职平台", "keywords": ["招聘", "求职", "简历", "投递", "面试", "职位"]},
+    {"id": "finance", "name": "金融/支付", "keywords": ["金融", "支付", "钱包", "账务", "风控", "对账"]}
+  ],
+  "tech_scenes": [
+    {"id": "high_concurrency", "name": "高并发", "keywords": ["高并发", "并发", "压测", "qps", "吞吐", "限流", "流量"]},
+    {"id": "cache", "name": "缓存", "keywords": ["redis", "缓存", "击穿", "穿透", "雪崩", "预热", "一致性"]},
+    {"id": "distributed", "name": "分布式/微服务", "keywords": ["微服务", "分布式", "rpc", "注册中心", "网关", "dubbo", "feign", "服务治理"]},
+    {"id": "mq", "name": "消息队列", "keywords": ["消息队列", "kafka", "rabbitmq", "rocketmq", "mq", "异步"]},
+    {"id": "realtime", "name": "实时通信", "keywords": ["websocket", "netty", "长连接", "心跳", "推送", "实时"]},
+    {"id": "search", "name": "搜索", "keywords": ["es", "elasticsearch", "搜索引擎", "倒排", "分词", "solr"]},
+    {"id": "ai_rag", "name": "AI/RAG/Agent", "keywords": ["rag", "agent", "langchain", "langgraph", "向量", "embedding", "prompt", "llm", "大模型", "微调"]},
+    {"id": "bigdata_proc", "name": "大数据处理", "keywords": ["spark", "flink", "hadoop", "hive", "hdfs", "流式计算"]},
+    {"id": "auth", "name": "权限/安全", "keywords": ["权限", "认证", "鉴权", "jwt", "token", "session", "越权", "登录"]},
+    {"id": "async_task", "name": "定时/异步", "keywords": ["定时任务", "xxl-job", "quartz", "异步", "延迟队列", "任务调度"]},
+    {"id": "storage", "name": "存储/数据库", "keywords": ["mysql", "分库分表", "索引", "事务", "读写分离", "主从", "sql"]}
+  ]
+}

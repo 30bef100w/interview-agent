@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "companies": [
+    {"id": "tencent", "name": "腾讯", "aliases": ["腾讯", "tencent", "tx"]},
+    {"id": "bytedance", "name": "字节跳动", "aliases": ["字节", "字节跳动", "bytedance", "抖音"]},
+    {"id": "alibaba", "name": "阿里巴巴", "aliases": ["阿里", "阿里巴巴", "alibaba", "蚂蚁", "钉钉", "淘天", "菜鸟"]},
+    {"id": "meituan", "name": "美团", "aliases": ["美团", "meituan"]},
+    {"id": "baidu", "name": "百度", "aliases": ["百度", "baidu"]},
+    {"id": "jd", "name": "京东", "aliases": ["京东", "jingdong", "jd"]},
+    {"id": "pdd", "name": "拼多多", "aliases": ["拼多多", "pdd", "temu"]},
+    {"id": "kuaishou", "name": "快手", "aliases": ["快手", "kuaishou"]},
+    {"id": "xiaohongshu", "name": "小红书", "aliases": ["小红书", "xiaohongshu", "red book"]},
+    {"id": "netease", "name": "网易", "aliases": ["网易", "netease", "严选"]},
+    {"id": "huawei", "name": "华为", "aliases": ["华为", "huawei", "海思", "鸿蒙"]},
+    {"id": "xiaomi", "name": "小米", "aliases": ["小米", "xiaomi", "米家"]},
+    {"id": "oppo", "name": "OPPO", "aliases": ["oppo"]},
+    {"id": "vivo", "name": "vivo", "aliases": ["vivo"]},
+    {"id": "honor", "name": "荣耀", "aliases": ["荣耀", "honor"]},
+    {"id": "didi", "name": "滴滴", "aliases": ["滴滴", "didi"]},
+    {"id": "bilibili", "name": "哔哩哔哩", "aliases": ["b站", "哔哩哔哩", "bilibili"]},
+    {"id": "ctrip", "name": "携程", "aliases": ["携程", "ctrip"]},
+    {"id": "mihoyo", "name": "米哈游", "aliases": ["米哈游", "mihoyo", "原神"]},
+    {"id": "tplink", "name": "TP-LINK", "aliases": ["tplink", "普联"]},
+    {"id": "xiaozhuang", "name": "知乎", "aliases": ["知乎", "zhihu"]},
+    {"id": "weibo", "name": "微博", "aliases": ["微博", "weibo"]},
+    {"id": "microsoft", "name": "微软", "aliases": ["微软", "microsoft", "azure"]},
+    {"id": "google", "name": "谷歌", "aliases": ["谷歌", "google"]},
+    {"id": "nvidia", "name": "英伟达", "aliases": ["英伟达", "nvidia"]},
+    {"id": "intel", "name": "英特尔", "aliases": ["英特尔", "intel"]},
+    {"id": "shopee", "name": "Shopee", "aliases": ["shopee", "虾皮"]},
+    {"id": "coupang", "name": "其他海外", "aliases": ["amazon", "亚马逊", "meta", "apple", "苹果"]}
+  ]
+}
