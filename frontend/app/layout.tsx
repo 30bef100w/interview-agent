@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI 面试模拟器",
-  description: "上传简历，让 AI 面试官对你进行多轮模拟面试并生成评分报告",
+  title: "深问 DeepAsk · AI 技术面训练",
+  description: "深问 DeepAsk：上传简历，Plan-then-Execute 多 Agent 模拟技术面，多轮追问、手撕判题与可解释评分报告",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

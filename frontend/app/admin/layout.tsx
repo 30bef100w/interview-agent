@@ -12,6 +12,8 @@ const NAV = [
   { href: "/admin", label: "概览", exact: true },
   { href: "/admin/users", label: "用户管理" },
   { href: "/admin/logs", label: "系统日志" },
+  { href: "/admin/observability", label: "可观测性" },
+  { href: "/admin/tag-mismatches", label: "错标审核" },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

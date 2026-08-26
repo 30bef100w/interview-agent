@@ -85,6 +85,10 @@ type GrowthRes = {
     primary_role?: string;
     trend: string;
   };
+  weekly_stats?: { this_week: number; last_week: number; delta: number };
+  milestones?: { id: string; title: string; desc: string }[];
+  focus_dimension?: { dimension: string; score: number } | null;
+  practice_streak_days?: number;
 };
 
 type Insight = {
@@ -267,11 +271,12 @@ export default function GrowthPage() {
                     : `${data.summary.readiness}`,
               },
               {
-                label: "首次综合分",
-                value:
-                  data.summary.first_overall == null
-                    ? "-"
-                    : data.summary.first_overall.toFixed(1),
+                label: "本周练习",
+                value: String(data.weekly_stats?.this_week ?? 0),
+              },
+              {
+                label: "连续练习天",
+                value: String(data.practice_streak_days ?? 0),
               },
               {
                 label: "最近综合分",
@@ -280,10 +285,6 @@ export default function GrowthPage() {
                     ? "-"
                     : data.summary.latest_overall.toFixed(1),
               },
-              {
-                label: "累计变化",
-                value: `${deltaText(data.summary.total_delta)} · ${trendLabel(data.summary.trend)}`,
-              },
             ].map((s) => (
               <Card key={s.label} className="p-4">
                 <div className="text-xs text-zinc-400">{s.label}</div>
@@ -291,6 +292,49 @@ export default function GrowthPage() {
               </Card>
             ))}
           </section>
+
+          {(data.milestones?.length || data.focus_dimension) && (
+            <section className="grid gap-4 lg:grid-cols-2">
+              {data.milestones && data.milestones.length > 0 ? (
+                <Card className="p-5">
+                  <h2 className="text-sm font-semibold text-zinc-900">练习里程碑</h2>
+                  <ul className="mt-3 space-y-2">
+                    {data.milestones.map((m) => (
+                      <li
+                        key={m.id}
+                        className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 py-2.5"
+                      >
+                        <div className="text-sm font-medium text-emerald-900">{m.title}</div>
+                        <div className="mt-0.5 text-xs text-emerald-800/80">{m.desc}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              ) : null}
+              {data.focus_dimension ? (
+                <Card className="border-amber-100 bg-amber-50/40 p-5">
+                  <h2 className="text-sm font-semibold text-zinc-900">当前优先拉升维度</h2>
+                  <p className="mt-2 text-2xl font-semibold text-amber-800">
+                    {data.focus_dimension.dimension}
+                    <span className="ml-2 text-base font-normal text-amber-700">
+                      {data.focus_dimension.score}/10
+                    </span>
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-600">
+                    基于近 5 场加权画像，该维度相对最弱。可从下方「可选：下一场练什么」一键预填专场。
+                  </p>
+                  {data.weekly_stats ? (
+                    <p className="mt-3 text-xs text-zinc-500">
+                      本周 {data.weekly_stats.this_week} 场 · 上周 {data.weekly_stats.last_week} 场
+                      {data.weekly_stats.delta !== 0
+                        ? `（${data.weekly_stats.delta > 0 ? "+" : ""}${data.weekly_stats.delta}）`
+                        : ""}
+                    </p>
+                  ) : null}
+                </Card>
+              ) : null}
+            </section>
+          )}
 
           {suggestions.length > 0 && (
             <Card className="border-sky-100 bg-gradient-to-br from-sky-50/80 to-white p-5">

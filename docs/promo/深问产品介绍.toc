@@ -1,0 +1,13 @@
+\contentsline {section}{\numberline {1}产品首页：深问落地页}{2}{section.1}%
+\contentsline {section}{\numberline {2}工作台：练什么，一眼看清}{3}{section.2}%
+\contentsline {section}{\numberline {3}开一场面试：从简历到题单}{4}{section.3}%
+\contentsline {section}{\numberline {4}自定义设置：轮次、焦点、去重}{5}{section.4}%
+\contentsline {section}{\numberline {5}岗位定向：简历 + 企业 + 岗位}{6}{section.5}%
+\contentsline {section}{\numberline {6}面试记录：每场独立，随时续练}{7}{section.6}%
+\contentsline {section}{\numberline {7}成长档案：看见进步与短板}{8}{section.7}%
+\contentsline {section}{\numberline {8}针对性再练：一键预填}{9}{section.8}%
+\contentsline {section}{\numberline {9}能力画像：雷达图 + 短板标签}{10}{section.9}%
+\contentsline {section}{\numberline {10}面试间：多轮追问 + 语音双向}{11}{section.10}%
+\contentsline {section}{\numberline {11}手撕算法：题面 + 在线判题}{12}{section.11}%
+\contentsline {section}{\numberline {12}面试报告：可解释评分}{13}{section.12}%
+\contentsline {section}{\numberline {13}逐题复盘：岗位定向题单}{14}{section.13}%

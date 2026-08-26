@@ -1,5 +1,6 @@
 """算法题 API：运行（示例自测）与提交（完整判题 + AI 评审 + 状态机推进）。"""
 import json
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.api.interview import _engine_for, _get_owned_session, _load_state, _save_state
 from app.db import get_db
-from app.models import Answer, CodeSubmission, InterviewSession, Question, User
+from app.models import Answer, CodeSubmission, InterviewSession, Question, ScoreReport, User
 from app.prompts.interview import ALGO_REVIEW_SYSTEM
 from app.schemas.api import CodeRunRequest, CodeRunResponse, CodeSubmitRequest, CodeSubmitResponse
 from app.services.code_judger import judge as judge_code
@@ -103,6 +104,19 @@ def submit_code(
 
     state = _load_state(session)
     state, message = engine.handle_coding(state, result["final"], score, review)
+
+    report = None
+    if state.stage == "SUMMARIZING":
+        state, report = engine.finish_interview(state)
+        session.status = "finished"
+        session.finished_at = datetime.now(timezone.utc)
+        db.add(
+            ScoreReport(
+                session_id=session.id,
+                report_json=json.dumps(report, ensure_ascii=False),
+            )
+        )
+        message = "面试结束，报告已生成。"
 
     # 写库：Question（coding）→ Answer → CodeSubmission
     q = state.plan[state.cursor - 1]

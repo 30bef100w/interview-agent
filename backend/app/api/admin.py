@@ -13,6 +13,7 @@ from app.models import (
     LLMUsage,
     QuotaGrant,
     SystemLog,
+    TagMismatchReview,
     User,
     UserLlmSetting,
 )
@@ -466,3 +467,110 @@ def admin_platform_usage(
             for r in rows
         ],
     }
+
+
+class TagMismatchResolveBody(BaseModel):
+    status: str = Field(..., description="resolved | dismissed")
+    note: str = Field(default="", max_length=512)
+
+
+def _tag_mismatch_item(row: TagMismatchReview) -> dict:
+    import json
+
+    return {
+        "id": row.id,
+        "status": row.status,
+        "lane": row.lane,
+        "target_roles": json.loads(row.target_roles or "[]"),
+        "question": row.question,
+        "tagged_roles": json.loads(row.tagged_roles or "[]"),
+        "tagged_scenes": json.loads(row.tagged_scenes or "[]"),
+        "company": row.company,
+        "category": row.category,
+        "filter_reason": row.filter_reason,
+        "session_id": row.session_id,
+        "mq_message_id": row.mq_message_id,
+        "note": row.note,
+        "resolved_by": row.resolved_by,
+        "created_at": row.created_at,
+        "resolved_at": row.resolved_at,
+    }
+
+
+@router.get("/tag-mismatches/stats")
+def admin_tag_mismatch_stats(
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    pending = (
+        db.scalar(
+            select(func.count())
+            .select_from(TagMismatchReview)
+            .where(TagMismatchReview.status == "pending")
+        )
+        or 0
+    )
+    today0 = _utc_day_start()
+    today_new = (
+        db.scalar(
+            select(func.count())
+            .select_from(TagMismatchReview)
+            .where(TagMismatchReview.created_at >= today0)
+        )
+        or 0
+    )
+    return {"pending": int(pending), "today_new": int(today_new)}
+
+
+@router.get("/tag-mismatches")
+def admin_tag_mismatches(
+    status: str = Query(default="pending"),
+    lane: str = "",
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    stmt = select(TagMismatchReview).order_by(TagMismatchReview.id.desc())
+    count_stmt = select(func.count()).select_from(TagMismatchReview)
+    if status.strip():
+        st = status.strip().lower()
+        stmt = stmt.where(TagMismatchReview.status == st)
+        count_stmt = count_stmt.where(TagMismatchReview.status == st)
+    if lane.strip():
+        ln = lane.strip()
+        stmt = stmt.where(TagMismatchReview.lane == ln)
+        count_stmt = count_stmt.where(TagMismatchReview.lane == ln)
+    total = db.scalar(count_stmt) or 0
+    rows = db.scalars(stmt.offset(offset).limit(limit)).all()
+    return {
+        "total": int(total),
+        "items": [_tag_mismatch_item(r) for r in rows],
+    }
+
+
+@router.post("/tag-mismatches/{item_id}/resolve")
+def admin_resolve_tag_mismatch(
+    item_id: int,
+    body: TagMismatchResolveBody,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    row = db.get(TagMismatchReview, item_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    st = body.status.strip().lower()
+    if st not in {"resolved", "dismissed"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效状态")
+    row.status = st
+    row.note = (body.note or "")[:512]
+    row.resolved_by = admin.id
+    row.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+    _audit(
+        admin,
+        f"错标审核 {st} → #{item_id}",
+        path=f"/api/admin/tag-mismatches/{item_id}/resolve",
+        detail=row.question[:200],
+    )
+    return _tag_mismatch_item(row)

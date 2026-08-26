@@ -183,8 +183,7 @@ def test_create_opens_with_intro_request():
     # 规划前置：创建时计划已就绪；项目/HR 由规划官，八股由题库注入，再插算法题
     assert len(state.plan) >= 4
     assert any(q["type"] == "ba_gu" and q.get("from_bank") for q in state.plan)
-    assert llm.router_called
-    assert llm.planner_called
+    assert llm.planner_called or any(q["type"] == "project" for q in state.plan)
 
 
 def test_create_plans_and_intro_advances():
@@ -200,8 +199,13 @@ def test_create_plans_and_intro_advances():
     assert all(q["type"] == "hr" for q in state.plan[coding_idx + 1 :])
     assert all(p["type"] in ("project", "ba_gu", "hr", "coding") for p in state.plan)
     assert state.per_question["q1"]["followups_so_far"] == 0
-    # 项目题仍是题签：text 存关键问点；八股题是题库原文
-    assert "项目技术栈与架构" in state.plan[0]["text"]
+    # 项目题先来自拷打链/岗位可问容量，规划官只补缺口
+    proj = [q for q in state.plan if q["type"] == "project"]
+    assert proj
+    assert any(
+        "项目技术栈与架构" in q.get("text", "") or "校园二手交易平台" in q.get("topic", "")
+        for q in proj
+    )
     bagu = [q for q in state.plan if q["type"] == "ba_gu"]
     assert bagu and all(q.get("from_bank") and q.get("bank_question") for q in bagu)
 
@@ -428,7 +432,7 @@ def test_rounds_cap_stops_followup():
         assert message == "面试官的问题文本"  # 直接下一题，不追问
 
 
-def test_last_question_leads_to_ask_back():
+def test_last_question_leads_to_summarizing():
     llm = FakeLlm(follow_up=False)
     engine = InterviewEngine(llm)
     state, _ = run_to_asking(engine, make_state())
@@ -442,11 +446,11 @@ def test_last_question_leads_to_ask_back():
     coding_qid = state.plan[state.cursor]["qid"]
     state, msg3 = engine.handle_coding(state, "accepted", 8, {"highlight": "解得好", "issues": []})
     assert state.plan[state.cursor]["type"] == "hr"
-    # 答完最后一道 HR 题 → 反问环节
+    # 答完最后一道 HR 题 → 汇总环节
     state, msg4 = engine.handle_answer(state, "答4")
 
-    assert state.stage == "ASK_BACK"
-    assert "反问" in msg4
+    assert state.stage == "SUMMARIZING"
+    assert "汇总" in msg4
     assert state.per_question[coding_qid]["score"] == 8
 
 
@@ -468,7 +472,7 @@ def test_handle_coding_records_verdict_and_advances():
     assert "[代码提交] 判定：accepted" in state.per_question[f"q{coding_idx + 1}"]["answers"][0]
 
 
-def test_ask_back_finishes_with_report():
+def test_ask_back_compat_finishes_with_report():
     llm = FakeLlm()
     engine = InterviewEngine(llm)
     state, _ = run_to_asking(engine, make_state())

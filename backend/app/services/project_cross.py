@@ -2,23 +2,26 @@
 
 拷打链结构：[{trigger, question, intent}]——trigger 是追问触发条件，面试中答到点就顺链深挖。
 链由模型现编（模拟真人面试官怎么追），不要求照搬原题；多路召回提供「岗位考什么」与「这类项目真人怎么问」。
+
+与题单分离：题单主问由规划官出；拷打链仅用于主问之后的追问，二者互不替代。
 """
 
 PROJECT_CHAIN_SYSTEM = """你是资深面试官，负责为候选人的一个简历项目生成"拷打链"。
 
 最高原则：【岗位定考察能力，场景真题定真人问法，项目是素材】。
 链必须由你现编，模拟真人面试官顺着项目往下挖；参考面经的考点与追问节奏，禁止逐字照搬原题。
+所有追问必须能对应【目标岗位】能力模型；场景面经须改写拧到岗位视角，禁止串岗照搬。
 
-输入分两路（都要吃）：
-A. 目标岗位相关真题 → 决定考什么能力（如 Agent 的工具调用/RAG，搜广推的样本特征，Java 的并发一致性）
-B. 本项目业务/技术场景真题 → 决定真人怎么挖这类项目（如本地生活的券/缓存/订单状态；不要无视）
+输入分两路（都要吃，且都必须经过岗位过滤后的素材）：
+A. 目标岗位相关真题 → 决定考什么能力（如 Agent 的工具调用/RAG，Java 的并发一致性）
+B. 本项目业务/技术场景真题（已按岗位过滤）→ 决定真人怎么挖这类项目（如本地生活的券/缓存/订单状态）
 
 规则：
 1. 综合 A+B 编链：用岗位视角拧项目，同时保留场景真题里「像真人」的业务追问点；
    不要只按岗位空编「怎么设计多 Agent」，也不要只按项目原栈出脱离岗位的课设题。
-   例：目标 Agent + 点评/本地生活项目 → 既问 Agent/工具编排怎么落在该业务，也参考点评真题里券、缓存、高并发等会被追的点，再改写成该岗位口吻
+   例：目标 Agent + 本地生活项目 → 既问 Agent/工具编排怎么落在该业务，也参考场景真题里券、缓存、高并发等会被追的点，再改写成岗位口吻
    例：目标 Java 后端 + 同一项目 → 深挖缓存/并发/一致性，问法对齐场景真题
-2. 每条拷打链 = {"trigger": 候选人在回答中提到什么时触发（具体到技术点/关键词）, "question": 顺着 trigger 追问的具体问题, "intent": "面试官想考什么"}
+2. 每条拷打链 = {"trigger": 候选人在回答中提到什么时触发（具体到技术点/关键词）, "question": 顺着 trigger 追问的具体问题, "intent": "考什么（必须对应目标岗位）"}
 3. 生成 4-6 条，从浅到深
 4. 只输出 JSON，不要任何其他文字
 
@@ -54,12 +57,9 @@ def build_project_chains(
     role_ids: list[str] | None = None,
     asked_norms: set[str] | None = None,
     company: str | None = None,
+    session_id: int | None = None,
 ) -> list[dict]:
-    """对简历每个项目（≤3 个）生成拷打链。失败跳过，不阻塞面试。
-
-    多路召回：目标岗位真题 + 本项目场景/技术栈真题，一并喂给模型现编。
-    有目标企业时：场景路同时吃「该企业标签题」与「无企业标签通用题」。
-    """
+    """对简历每个项目（≤3 个）各生成一条完整拷打链。失败跳过单项目，不阻塞面试。"""
     projects = profile.get("projects") or []
     if not projects:
         return []
@@ -95,44 +95,53 @@ def build_project_chains(
             role_hits += retrieval.search_questions(
                 roles=roles, asked_norms=asked, top_n=6, min_score=10
             )
-        if scene_tags or tech:
-            company_scene: list[dict] = []
-            if company:
-                company_scene += retrieval.search_questions(
-                    roles=None,
-                    company=company,
+            role_hits = retrieval.sanitize_hits(
+                role_hits, roles=roles, company=company, require_role=True
+            )
+            if scene_tags or tech:
+                company_scene: list[dict] = []
+                if company:
+                    company_scene = retrieval.search_questions(
+                        roles=roles,
+                        company=company,
+                        skills=tech,
+                        scenes=scene_tags,
+                        category="project",
+                        asked_norms=asked,
+                        top_n=5,
+                        min_score=10,
+                    )
+                untagged_scene = retrieval.search_questions(
+                    roles=roles,
                     skills=tech,
                     scenes=scene_tags,
                     category="project",
                     asked_norms=asked,
-                    top_n=5,
-                    min_score=10,
+                    top_n=6,
+                    min_score=15,
                 )
-            untagged_scene = retrieval.search_questions(
-                roles=None,
-                skills=tech,
-                scenes=scene_tags,
-                category="project",
-                asked_norms=asked,
-                top_n=6,
-                min_score=15,
-            )
-            proj_hits = retrieval.search_projects(
-                name, tech, scene_tags, top_n=5, asked_norms=asked
-            )
-            if hasattr(retrieval, "merge_company_and_untagged"):
-                scene_hits = retrieval.merge_company_and_untagged(
-                    company_scene,
-                    untagged_scene,
-                    company=company,
-                    limit=8,
-                    extra=proj_hits,
+                proj_hits = retrieval.search_projects(
+                    name, tech, scene_tags, top_n=5, asked_norms=asked
                 )
-            else:
-                scene_hits = list(company_scene) + [
-                    h for h in untagged_scene if not h.get("company")
-                ] + list(proj_hits)
-        elif not roles:
+                proj_hits = retrieval.sanitize_hits(
+                    proj_hits, roles=roles, company=company, require_role=True
+                )
+                if hasattr(retrieval, "merge_company_and_untagged"):
+                    scene_hits = retrieval.merge_company_and_untagged(
+                        company_scene,
+                        untagged_scene,
+                        company=company,
+                        limit=8,
+                        extra=proj_hits,
+                    )
+                else:
+                    scene_hits = list(company_scene) + [
+                        h for h in untagged_scene if not h.get("company")
+                    ] + list(proj_hits)
+                scene_hits = retrieval.sanitize_hits(
+                    scene_hits, roles=roles, company=company, require_role=True
+                )
+        elif scene_tags or tech:
             scene_hits += retrieval.search_projects(
                 name, tech, scene_tags, top_n=4, asked_norms=asked
             )
@@ -149,7 +158,7 @@ def build_project_chains(
             + role_hint
             + "\n\n【A. 目标岗位相关真实面经/高频题】\n"
             + ("\n".join(role_lines) if role_lines else "（无命中）")
-            + "\n\n【B. 本项目场景相关真实面经/高频题】\n"
+            + "\n\n【B. 本项目场景相关真实面经（已岗位过滤，须改写拧到目标岗位）】\n"
             + ("\n".join(scene_lines) if scene_lines else "（无命中）")
             + "\n\n请综合 A+B 现编该项目的拷打链（模拟真人追问，勿照搬原题）。"
         )
@@ -158,7 +167,19 @@ def build_project_chains(
             chains = result.get("chains") or []
             if chains:
                 chains_out.append({"project": name, "chains": chains[:6]})
-        except Exception:  # noqa: BLE001  拷打链失败跳过该项目
+            else:
+                from app.services.session_guard_log import log_guard
+
+                log_guard(session_id, "project_chain_empty", project=name)
+        except Exception as exc:  # noqa: BLE001  拷打链失败跳过该项目
+            from app.services.session_guard_log import log_guard
+
+            log_guard(
+                session_id,
+                "project_chain_skipped",
+                project=name,
+                reason=type(exc).__name__,
+            )
             continue
     return chains_out
 

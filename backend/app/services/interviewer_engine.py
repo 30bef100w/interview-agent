@@ -4,7 +4,9 @@
 DB 持久化由 API 层负责。llm 通过构造注入（LlmPort），单测传 fake，不依赖 FastAPI。
 """
 import json
+import logging
 import re
+import time
 
 from app.prompts.interview import (
     ASK_QUESTION_SYSTEM,
@@ -21,13 +23,16 @@ from app.schemas.interview import InterviewState, PerQuestion
 from app.services.llm.client import LlmPort
 from app.services.question_bank import pick_coding_question
 
+logger = logging.getLogger(__name__)
+
 MAX_FOLLOW_UPS_PER_QUESTION = 2  # 防同题反复纠缠；宁可换下一题
 # 随用户选定轮次放宽上限（选 11 轮就应能排到约 11 题，不再死卡 5）
-PROJECT_CLAMP = (2, 10)
+PROJECT_CLAMP = (0, 10)
 BA_GU_CLAMP = (1, 10)
 ANSWER_TRUNCATE = 500
 NON_ANSWER_MAX_SCORE = 1.0
 ASK_BACK_TEXT = "我的问题问完了。你有什么想反问我的吗？"
+SUMMARIZING_TEXT = "本轮面试已全部结束，正在汇总你的表现并生成报告，请稍候…"
 
 # 项目题补齐用的差异化角度（防全场都在「如何编排」）
 _DIVERSE_PROJECT_ANGLES: tuple[tuple[str, str], ...] = (
@@ -62,6 +67,78 @@ SKIP_EXACT = {
 
 def _clamp(v: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, v))
+
+
+def _project_quotas(total: int, n_projects: int) -> list[int]:
+    """项目题在多个简历项目间均分配额（相关度高的项目可多 1 题）。"""
+    if total <= 0 or n_projects <= 0:
+        return []
+    base, rem = divmod(total, n_projects)
+    return [base + (1 if i < rem else 0) for i in range(n_projects)]
+
+
+def _question_mentions_project(topic: str, text: str, project_name: str) -> bool:
+    """题签是否点名了某简历项目。"""
+    if not project_name:
+        return False
+    blob = f"{topic or ''} {text or ''}"
+    if project_name in blob:
+        return True
+    # 中文项目名片段（≥3 字）
+    name = project_name.strip()
+    if len(name) >= 3:
+        for n in range(min(len(name), 12), 2, -1):
+            for i in range(len(name) - n + 1):
+                frag = name[i : i + n]
+                if frag in blob:
+                    return True
+    return False
+
+
+def _is_suspect_pure_backend_project_blob(blob: str, target_role: str) -> bool:
+    """规则仅标记「疑似纯后端题签」，最终是否保留交给 LLM 诊断。"""
+    if not target_role:
+        return False
+    from app.services.job_roles import agent_signal_count, resolve_target_roles
+
+    roles = resolve_target_roles(target_role)
+    if not roles or roles[0] not in {"agent_dev", "llm"}:
+        return False
+    low = (blob or "").lower()
+    if agent_signal_count(low) >= 1:
+        return False
+    bridge = (
+        "会话",
+        "记忆",
+        "上下文",
+        "多轮",
+        "token",
+        "推理",
+        "提示词",
+        "工具",
+        "编排",
+        "评测",
+        "agent",
+    )
+    if any(k in low for k in bridge):
+        return False
+    backend_kw = (
+        "redis",
+        "缓存击穿",
+        "缓存穿透",
+        "分布式锁",
+        "kafka",
+        "rocketmq",
+        "jvm",
+        "spring",
+        "mybatis",
+        "秒杀",
+        "canal",
+        "bloom",
+        "布隆",
+    )
+    backend_hits = sum(1 for k in backend_kw if k in low)
+    return backend_hits >= 2
 
 
 def _norm_text(s: str) -> str:
@@ -403,6 +480,8 @@ class InterviewEngine:
         self._plan_ba_gu_n = 0
         self._plan_hr_n = 0
         self._plan_role_explicit = False
+        self._proj_q_role_cache: dict[str, bool] = {}
+        self._askable_capacity: dict = {}
 
     # ---------- 创建会话：开场白 + 路由 + 规划（题签）→ 面试计划就绪 ----------
 
@@ -441,23 +520,95 @@ class InterviewEngine:
             review_mode=bool(review_mode),
             avoid_topics=list(avoid_topics or [])[:80],
         )
+        timings: dict[str, float] = {}
+        t0 = time.perf_counter()
+        from app.services.create_timing_log import step as trace_step
+
+        t_open = time.perf_counter()
         opening = self.llm.chat_text(OPENING_SYSTEM, self._ctx_block(state))
+        timings["opening_llm_s"] = time.perf_counter() - t_open
+        trace_step(session_id, "opening_llm", duration_s=round(timings["opening_llm_s"], 2))
         state.history.append({"role": "interviewer", "text": opening})
 
-        # —— 面试规划师：检索 + 拷打链（target_role 统领）——
-        self._plan_retrieval(state, asked_norms or set())
+        # 1) 召回 + 拷打链（与题单分开生成，互不替代）
+        t_ret = time.perf_counter()
+        self._plan_retrieval(state, asked_norms or set(), timings)
+        timings["plan_retrieval_s"] = time.perf_counter() - t_ret
+        trace_step(
+            session_id,
+            "plan_retrieval",
+            duration_s=round(timings["plan_retrieval_s"], 2),
+            role_hits=int(timings.get("retrieval_role_hits_n") or 0),
+            scene_hits=int(timings.get("retrieval_scene_hits_n") or 0),
+            chains=int(timings.get("project_chains_n") or 0),
+        )
 
+        # 2) Router 定项目/八股比例
+        t_router = time.perf_counter()
         project_n, ba_gu_n, hr_n = self._plan_counts(state, mode, interview_type)
+        timings["router_s"] = time.perf_counter() - t_router
+        trace_step(
+            session_id,
+            "router",
+            duration_s=round(timings["router_s"], 2),
+            project_n=project_n,
+            ba_gu_n=ba_gu_n,
+            hr_n=hr_n,
+        )
+
+        # 3) 规划官出题单（项目主问 + HR；拷打链仅用于后续追问）
+        t_plan = time.perf_counter()
         self._build_plan(state, mode, project_n, ba_gu_n, hr_n)
+        timings["build_plan_s"] = time.perf_counter() - t_plan
+        trace_step(session_id, "build_plan", duration_s=round(timings["build_plan_s"], 2))
+
         self._annotate_original_company(state)
+        timings["create_total_s"] = time.perf_counter() - t0
+        state.create_timings = {k: round(v, 2) for k, v in timings.items()}
+        trace_step(session_id, "engine_done", timings=state.create_timings)
+        chain_projects = [str(c.get("project") or "") for c in (state.project_chains or [])]
+        plan_proj_topics = [
+            str(q.get("topic") or "")[:40]
+            for q in (state.plan or [])
+            if q.get("type") == "project"
+        ]
+        logger.info(
+            "interview_create_timing session=%s role=%s mode=%s "
+            "project_n=%d ba_gu_n=%d hr_n=%d chains=%s plan_projects=%s timings=%s",
+            session_id,
+            target_role or "(none)",
+            mode,
+            project_n,
+            ba_gu_n,
+            hr_n,
+            chain_projects,
+            plan_proj_topics,
+            {k: round(v, 2) for k, v in timings.items()},
+        )
         return state, opening
 
-    def _plan_retrieval(self, state: InterviewState, asked_norms: set[str]) -> None:
+    def _plan_retrieval(
+        self,
+        state: InterviewState,
+        asked_norms: set[str],
+        timings: dict[str, float] | None = None,
+    ) -> None:
+        from app.observability.node_trace import trace_node
+
+        with trace_node("plan_retrieval", session_id=state.session_id):
+            self._plan_retrieval_impl(state, asked_norms, timings)
+
+    def _plan_retrieval_impl(
+        self,
+        state: InterviewState,
+        asked_norms: set[str],
+        timings: dict[str, float] | None = None,
+    ) -> None:
         """多路召回（存 retrieved_material）+ 生成项目拷打链（存 project_chains）。
 
-        A 路：目标岗位真题（岗位硬过滤；有企业时 = 企业原题 + 无企业标签）
-        B 路：简历项目场景真题（不按岗位硬滤；有企业时同样企业场景 + 无标签通用场景）
-        两路分区喂给规划官；拷打链同样吃岗位+场景，由模型现编。
+        A 路：目标岗位真题（岗位硬过滤 + LLM 复核）
+        B 路：简历项目场景真题（同样硬卡岗位 + LLM 复核）
+        拷打链：每简历项目独立生成，供面试追问；不写入题单主问。
         """
         from app.services import knowledge_retrieval as kr
         from app.services import project_cross as pc
@@ -491,6 +642,7 @@ class InterviewEngine:
                     seen_sc.add(s)
                     scenes.append(s)
         retrieve_skills = skills[:6] if roles else skills
+        _t = time.perf_counter
 
         # —— A 路：岗位（有企业时：企业原题 + 无企业标签 双路合并）——
         role_hits: list[dict] = []
@@ -555,7 +707,25 @@ class InterviewEngine:
                     )
                 else:
                     role_hits = kr.merge_hits(role_hits, more_plain, limit=12)
-            role_hits = self._filter_hits_by_llm(roles, role_hits)
+            role_hits = kr.sanitize_hits(
+                role_hits, roles=roles, company=company_id, require_role=True
+            )
+            t_llm = _t()
+            role_hits = self._filter_hits_by_llm(
+                roles, role_hits, session_id=state.session_id, lane="role_filter"
+            )
+            if timings is not None:
+                timings["retrieval_role_llm_filter_s"] = _t() - t_llm
+            from app.services.create_timing_log import step as trace_step
+
+            trace_step(
+                state.session_id,
+                "retrieval_role_filter",
+                duration_s=round(timings.get("retrieval_role_llm_filter_s", 0), 2)
+                if timings
+                else 0,
+                hits=len(role_hits),
+            )
         else:
             # 无岗位：技能/场景合一召回，仍分区时场景路会再补一轮
             role_hits = kr.retrieve(
@@ -568,12 +738,13 @@ class InterviewEngine:
                 min_score=30,
             )
 
-        # —— B 路：项目场景（有企业时同样双路：企业场景题 + 无标签通用场景题）——
+        scene_roles = roles if roles else None
+        # —— B 路：项目场景（有岗位时同样硬卡岗位标签）——
         scene_hits: list[dict] = []
         if scenes:
             if company_id:
                 company_scene = kr.retrieve(
-                    roles=None,
+                    roles=scene_roles,
                     company=company_id,
                     skills=None,
                     scenes=scenes,
@@ -583,7 +754,7 @@ class InterviewEngine:
                     min_score=20,
                 )
                 untagged_scene = kr.retrieve(
-                    roles=None,
+                    roles=scene_roles,
                     company=None,
                     skills=None,
                     scenes=scenes,
@@ -600,7 +771,7 @@ class InterviewEngine:
                 )
             else:
                 scene_hits = kr.retrieve(
-                    roles=None,
+                    roles=scene_roles,
                     company=None,
                     skills=None,
                     scenes=scenes,
@@ -611,7 +782,7 @@ class InterviewEngine:
                 )
             if len(scene_hits) < 4:
                 more = kr.search_questions(
-                    roles=None,
+                    roles=scene_roles,
                     skills=retrieve_skills[:4] or None,
                     scenes=scenes,
                     category="project",
@@ -621,7 +792,7 @@ class InterviewEngine:
                 )
                 if company_id:
                     more_co = kr.search_questions(
-                        roles=None,
+                        roles=scene_roles,
                         company=company_id,
                         scenes=scenes,
                         category="project",
@@ -641,13 +812,40 @@ class InterviewEngine:
             # 再补一轮不限 category，防止场景项目题过少
             if len(scene_hits) < 4:
                 more2 = kr.search_questions(
-                    roles=None,
+                    roles=scene_roles,
                     scenes=scenes,
                     asked_norms=asked_norms,
                     top_n=8,
                     min_score=20,
                 )
                 scene_hits = kr.merge_hits(scene_hits, more2, limit=10)
+            scene_hits = kr.sanitize_hits(
+                scene_hits,
+                roles=roles,
+                company=company_id,
+                require_role=bool(roles),
+            )
+        if roles and scene_hits:
+            t_llm = _t()
+            scene_hits = self._filter_hits_by_llm(
+                roles, scene_hits, session_id=state.session_id, lane="scene_filter"
+            )
+            if timings is not None:
+                timings["retrieval_scene_llm_filter_s"] = _t() - t_llm
+            from app.services.create_timing_log import step as trace_step
+
+            trace_step(
+                state.session_id,
+                "retrieval_scene_filter",
+                duration_s=round(timings.get("retrieval_scene_llm_filter_s", 0), 2)
+                if timings
+                else 0,
+                hits=len(scene_hits),
+            )
+
+        if timings is not None:
+            timings["retrieval_role_hits_n"] = float(len(role_hits))
+            timings["retrieval_scene_hits_n"] = float(len(scene_hits))
 
         # 供规划后回填「企业原题」徽标（前端展示名）——岗位路 + 场景路里的企业题
         self._enterprise_hits = [
@@ -671,7 +869,8 @@ class InterviewEngine:
             scene_limit=8,
         )
 
-        # 拷打链：岗位 + 场景多路素材，模型现编（场景同样吃企业+无标签）
+        # 拷打链：与题单分开；每简历项目各生成一条完整链（失败跳过单项目）
+        t_chains = _t()
         state.project_chains = pc.build_project_chains(
             self.llm,
             profile,
@@ -679,24 +878,58 @@ class InterviewEngine:
             role_ids=roles,
             asked_norms=asked_norms,
             company=company_id,
+            session_id=state.session_id,
+        )
+        if timings is not None:
+            timings["project_chains_s"] = _t() - t_chains
+            timings["project_chains_n"] = float(len(state.project_chains or []))
+        from app.services.create_timing_log import step as trace_step
+
+        trace_step(
+            state.session_id,
+            "project_chains",
+            duration_s=round(timings.get("project_chains_s", 0), 2) if timings else 0,
+            chains=len(state.project_chains or []),
         )
 
-    def _filter_hits_by_llm(self, roles: list[str], hits: list[dict]) -> list[dict]:
+    def _filter_hits_by_llm(
+        self,
+        roles: list[str],
+        hits: list[dict],
+        session_id: int | None = None,
+        *,
+        lane: str = "role_filter",
+    ) -> list[dict]:
         """LLM 语义校验：按题目内容剔除与目标岗位无关的题（防规则标签误标）。
 
+        被剔除的题写入 tag_mismatch 审核队列，供运维定期处理。
         失败降级：返回原 hits（不阻塞面试）。
         """
+        from app.services.session_guard_log import log_guard
+
         if not hits:
             return hits
         from app.services.job_roles import role_name
 
         role_label = "、".join(role_name(r) for r in roles[:2])
         lines = [f"{i + 1}. {h.get('question','')}" for i, h in enumerate(hits)]
+        agent_extra = ""
+        if roles and roles[0] in {"agent_dev", "llm"}:
+            agent_extra = (
+                "\n特别规则：目标岗位是 AI Agent / 大模型应用时，"
+                "必须剔除纯 Java 后端、纯 Redis 缓存、MQ、JVM、分布式锁、秒杀等串岗题；"
+                "只保留 Agent/RAG/工具调用/记忆/编排/评测/多智能体相关，"
+                "或能把业务项目改写成 Agent 视角的题。"
+            )
         user = (
             f"目标岗位：{role_label}\n"
             "以下是检索出的候选面试题（编号+题目），剔除与目标岗位无关的题：\n"
+            "必须剔除：目录/合集标题、求职攻略、错题乱题、明显文不对题、"
+            "与目标岗位无关的串岗题、纯复制粘贴无技术含量的碎片。\n"
             "如目标岗位是 Java 后端，C/C++ 题、前端题、算法岗题、运维题等都要剔除；"
-            "与岗位相关但更偏其他细分方向的题（如 Java 岗中的前端题）也要剔除。\n\n"
+            "与岗位相关但更偏其他细分方向的题（如 Java 岗中的前端题）也要剔除。"
+            + agent_extra
+            + "\n\n"
             + "\n".join(lines)
             + "\n\n只输出保留的题号数组，如 {\"keep\": [1, 3, 5]}，不要任何其他文字。"
         )
@@ -707,38 +940,405 @@ class InterviewEngine:
                 max_retries=1,
             )
             keep = [int(x) for x in (result.get("keep") or [])]
-            kept = [hits[i - 1] for i in keep if 1 <= i <= len(hits)]
+            keep_set = {i for i in keep if 1 <= i <= len(hits)}
+            kept = [hits[i - 1] for i in sorted(keep_set)]
+            removed = [h for i, h in enumerate(hits, start=1) if i not in keep_set]
+            if removed:
+                from app.services.tag_mismatch_queue import enqueue_llm_filtered_hits
+
+                enqueue_llm_filtered_hits(
+                    removed,
+                    roles=roles,
+                    lane=lane,
+                    session_id=session_id,
+                )
             # 过滤后若为空（LLM 判断全无关），保留原样由规划官兜底
+            if not kept:
+                log_guard(
+                    session_id,
+                    "llm_filter_empty_kept_original",
+                    lane=lane,
+                    before_n=len(hits),
+                )
             return kept if kept else hits
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            log_guard(
+                session_id,
+                "llm_filter_degraded",
+                lane=lane,
+                before_n=len(hits),
+                reason=type(exc).__name__,
+            )
             return hits
+
+    def _project_question_role_ok(self, blob: str, target_role: str) -> bool:
+        """项目题签岗位适配：规则只标疑似，歧义题交 LLM 诊断（避免误杀 Redis-in-Agent 等）。"""
+        if not target_role or not (blob or "").strip():
+            return True
+        cache_key = f"{target_role}::{blob[:240]}"
+        if cache_key in self._proj_q_role_cache:
+            return self._proj_q_role_cache[cache_key]
+        if not _is_suspect_pure_backend_project_blob(blob, target_role):
+            self._proj_q_role_cache[cache_key] = True
+            return True
+        if self.llm is None:
+            self._proj_q_role_cache[cache_key] = False
+            return False
+        user = (
+            f"目标岗位：{target_role}\n"
+            f"项目题签：{blob[:500]}\n\n"
+            "该题签是否适合目标岗位面试？\n"
+            "- 保留：能从岗位视角深挖（例 Redis 用于 Agent 会话记忆/工具结果缓存/RAG 热数据）\n"
+            "- 剔除：纯 Java 后端考点（缓存击穿、分布式锁、JVM）且无法合理改写成岗位题\n"
+            '只输出 JSON：{"keep": true/false, "reason": "一句话"}'
+        )
+        try:
+            result = self.llm.chat_json(
+                "你是岗位匹配专家，判断项目面试题签是否适合目标岗位。",
+                user,
+                max_retries=1,
+            )
+            ok = bool(result.get("keep"))
+        except Exception:  # noqa: BLE001
+            ok = False
+        self._proj_q_role_cache[cache_key] = ok
+        return ok
+
+    def _llm_diagnose_project_askable(
+        self,
+        project_name: str,
+        project: dict,
+        target_role: str,
+        resume_raw: str,
+    ) -> dict:
+        """LLM 诊断：混合栈/边界项目是否值得从岗位视角深挖。"""
+        user = (
+            f"目标岗位：{target_role}\n"
+            f"项目名：{project_name}\n"
+            f"项目画像：{json.dumps(project, ensure_ascii=False)[:1200]}\n"
+            f"简历摘录：{(resume_raw or '')[:800]}\n\n"
+            "即使主技术栈是 Java/Redis，只要简历里写过 Agent/RAG/智能体相关工作，"
+            "或可以用目标岗位视角合理深挖，就应判为可问。"
+            'JSON: {"askable": true/false, "slots": 1-2, "angle": "建议问法方向"}'
+        )
+        try:
+            return self.llm.chat_json(
+                "你是岗位匹配专家，判断简历项目是否适合目标岗位面试深挖。",
+                user,
+                max_retries=1,
+            )
+        except Exception:  # noqa: BLE001
+            return {"askable": False}
+
+    def _refine_askable_capacity(self, state: InterviewState, capacity: dict) -> dict:
+        """对规则未覆盖的边界项目做 LLM 诊断（如点评项目里含 Agent 段落）。"""
+        from app.services.job_roles import (
+            agent_signal_count,
+            project_role_score,
+            rank_resume_projects,
+            resolve_target_roles,
+        )
+
+        if not state.target_role:
+            return capacity
+        profile = state.profile or {}
+        role_ids = resolve_target_roles(state.target_role)
+        askable = list(capacity.get("askable") or [])
+        names = {str(x.get("name") or "") for x in askable}
+        for p in rank_resume_projects(profile, state.target_role)[:3]:
+            name = str(p.get("name") or "").strip()
+            if not name or name in names:
+                continue
+            text = json.dumps(p, ensure_ascii=False)
+            score = project_role_score(p, role_ids, profile)
+            if score >= 0.5 or agent_signal_count(text) >= 1:
+                continue
+            if score < -0.5:
+                continue
+            diag = self._llm_diagnose_project_askable(
+                name, p, state.target_role, state.resume_raw
+            )
+            if not diag.get("askable"):
+                continue
+            chain_n = 0
+            for pc in state.project_chains or []:
+                if str(pc.get("project") or "").strip() == name:
+                    chain_n = len(pc.get("chains") or [])
+                    break
+            askable.append(
+                {
+                    "kind": "project",
+                    "name": name,
+                    "slots": min(2, max(1, int(diag.get("slots") or 1))),
+                    "role_score": score,
+                    "chain_count": chain_n,
+                    "mixed_stack": True,
+                    "llm_diagnosed": True,
+                    "angle": str(diag.get("angle") or ""),
+                }
+            )
+            names.add(name)
+        capacity["askable"] = askable
+        capacity["max_project_questions"] = sum(int(x.get("slots") or 0) for x in askable)
+        capacity["has_askable"] = capacity["max_project_questions"] > 0
+        capacity["role_relevant_items"] = len(askable)
+        return capacity
+
+    def _balance_project_plan(
+        self,
+        state: InterviewState,
+        projects: list[dict],
+        project_n: int,
+    ) -> list[dict]:
+        """岗位优先 + 多项目均衡：按相关度排序后轮转分配，抑制单项目霸场。"""
+        from app.services.job_roles import resume_project_names
+
+        if project_n <= 0:
+            return []
+        names = resume_project_names(state.profile or {}, state.target_role or "", limit=3)
+        if not names:
+            return projects[:project_n]
+
+        quotas = _project_quotas(project_n, len(names))
+        buckets: dict[str, list[dict]] = {n: [] for n in names}
+        orphans: list[dict] = []
+        for item in projects:
+            if str(item.get("type") or "") != "project":
+                orphans.append(item)
+                continue
+            blob = self._plan_blob(item)
+            if not self._project_question_role_ok(blob, state.target_role or ""):
+                continue
+            matched = next(
+                (
+                    n
+                    for n in names
+                    if _question_mentions_project(
+                        str(item.get("topic") or ""),
+                        str(item.get("text") or ""),
+                        n,
+                    )
+                ),
+                None,
+            )
+            if matched:
+                buckets[matched].append(item)
+            else:
+                orphans.append(item)
+
+        def _make_slot(project_name: str, angle: tuple[str, str] | None = None) -> dict:
+            topic, text = angle or _DIVERSE_PROJECT_ANGLES[0]
+            return {
+                "qid": "",
+                "type": "project",
+                "topic": f"{project_name} · {topic}"[:80],
+                "text": f"结合项目「{project_name}」说明：{text}"[:220],
+                "rubric": "6分:能说到点 8分:有方案与取舍 9分:有失败案例与指标",
+                "original_company": "",
+            }
+
+        def _chain_items_for(project_name: str) -> list[dict]:
+            out: list[dict] = []
+            for pc in state.project_chains or []:
+                if str(pc.get("project") or "").strip() != project_name:
+                    continue
+                for c in pc.get("chains") or []:
+                    q = str(c.get("question") or "").strip()
+                    intent = str(c.get("intent") or c.get("trigger") or "项目深挖").strip()
+                    if not q:
+                        continue
+                    out.append(
+                        {
+                            "qid": "",
+                            "type": "project",
+                            "topic": f"{project_name}：{intent[:40]}"[:80],
+                            "text": q[:220],
+                            "rubric": "6分:能说到点 8分:有方案与取舍 9分:有失败案例与指标",
+                            "original_company": "",
+                        }
+                    )
+            return out
+
+        result: list[dict] = []
+        angle_idx = 0
+        for name, quota in zip(names, quotas):
+            pool = list(buckets.get(name) or [])
+            chain_pool = _chain_items_for(name)
+            taken = 0
+            while taken < quota and len(result) < project_n:
+                if pool:
+                    result.append(pool.pop(0))
+                    taken += 1
+                    continue
+                if chain_pool:
+                    cand = chain_pool.pop(0)
+                    if self._project_question_role_ok(
+                        self._plan_blob(cand), state.target_role or ""
+                    ):
+                        result.append(cand)
+                        taken += 1
+                        continue
+                angle = _DIVERSE_PROJECT_ANGLES[angle_idx % len(_DIVERSE_PROJECT_ANGLES)]
+                angle_idx += 1
+                result.append(_make_slot(name, angle))
+                taken += 1
+
+        # 余量：orphans 优先，再全局轮转补位
+        for item in orphans:
+            if len(result) >= project_n:
+                break
+            if not self._project_question_role_ok(
+                self._plan_blob(item), state.target_role or ""
+            ):
+                continue
+            if any(
+                _is_similar_question(self._plan_blob(item), self._plan_blob(r))
+                for r in result
+            ):
+                continue
+            result.append(item)
+
+        ptr = 0
+        while len(result) < project_n:
+            name = names[ptr % len(names)]
+            angle = _DIVERSE_PROJECT_ANGLES[angle_idx % len(_DIVERSE_PROJECT_ANGLES)]
+            angle_idx += 1
+            cand = _make_slot(name, angle)
+            if not any(
+                _is_similar_question(self._plan_blob(cand), self._plan_blob(r))
+                for r in result
+            ):
+                result.append(cand)
+            ptr += 1
+            if ptr > project_n * len(names) * 2:
+                break
+
+        return result[:project_n]
+
+    def _seed_projects_from_chains(
+        self, state: InterviewState, project_n: int
+    ) -> list[dict]:
+        """分题第一步：从岗位可问的项目/实习拷打链直接列题签。"""
+        if project_n <= 0:
+            return []
+        capacity = getattr(self, "_askable_capacity", None) or {}
+        askable = list(capacity.get("askable") or [])
+        if not askable:
+            return []
+
+        chains_by_name = {
+            str(pc.get("project") or "").strip(): pc
+            for pc in (state.project_chains or [])
+        }
+        out: list[dict] = []
+        ptr = 0
+        safety = 0
+        while len(out) < project_n and safety < project_n * len(askable) * 4:
+            safety += 1
+            item = askable[ptr % len(askable)]
+            ptr += 1
+            name = str(item.get("name") or "").strip()
+            if not name:
+                continue
+            used = sum(
+                1
+                for q in out
+                if _question_mentions_project(
+                    str(q.get("topic") or ""), str(q.get("text") or ""), name
+                )
+            )
+            if used >= int(item.get("slots") or 1):
+                continue
+            pc = chains_by_name.get(name.replace("（实习）", "").split("（")[0])
+            if not pc:
+                for key, chain in chains_by_name.items():
+                    if key in name or name in key:
+                        pc = chain
+                        break
+            if pc:
+                for c in pc.get("chains") or []:
+                    if len(out) >= project_n:
+                        break
+                    if used >= int(item.get("slots") or 1):
+                        break
+                    q = str(c.get("question") or "").strip()
+                    intent = str(c.get("intent") or c.get("trigger") or "项目深挖").strip()
+                    if not q:
+                        continue
+                    blob = f"{name}：{intent} {q}"
+                    if not self._project_question_role_ok(blob, state.target_role or ""):
+                        continue
+                    cand = {
+                        "qid": "",
+                        "type": "project",
+                        "topic": f"{name}：{intent[:40]}"[:80],
+                        "text": q[:220],
+                        "rubric": "6分:能说到点 8分:有方案与取舍 9分:有失败案例与指标",
+                        "original_company": "",
+                    }
+                    if any(
+                        _is_similar_question(self._plan_blob(cand), self._plan_blob(x))
+                        for x in out
+                    ):
+                        continue
+                    out.append(cand)
+                    used += 1
+            elif used < int(item.get("slots") or 1):
+                angle = _DIVERSE_PROJECT_ANGLES[len(out) % len(_DIVERSE_PROJECT_ANGLES)]
+                topic, text = angle
+                cand = {
+                    "qid": "",
+                    "type": "project",
+                    "topic": f"{name} · {topic}"[:80],
+                    "text": f"结合「{name}」说明：{text}"[:220],
+                    "rubric": "6分:能说到点 8分:有方案与取舍 9分:有失败案例与指标",
+                    "original_company": "",
+                }
+                if self._project_question_role_ok(
+                    self._plan_blob(cand), state.target_role or ""
+                ) and not any(
+                    _is_similar_question(self._plan_blob(cand), self._plan_blob(x))
+                    for x in out
+                ):
+                    out.append(cand)
+        return out[:project_n]
 
     def _plan_counts(
         self, state: InterviewState, mode: str, interview_type: str
     ) -> tuple[int, int, int]:
-        """按用户选定的 question_count（total_rounds）排题，不再用 0.7 系数偷偷砍轮次。"""
+        """Router LLM 根据目标岗位 + 简历分配项目/八股数量（项目可为 0，仅强不相关时）。"""
         n = max(3, int(state.total_rounds))
         if mode == "full":
             router = self.llm.chat_json(ROUTER_SYSTEM, self._router_user(state))
             hr_n = 1
             coding_slot = 0 if state.skip_coding else 1
-            budget = max(2, n - hr_n - coding_slot)  # 留给项目+八股
+            budget = max(1, n - hr_n - coding_slot)
             project_n = _clamp(int(router.get("project_count", 3)), *PROJECT_CLAMP)
             ba_gu_n = _clamp(int(router.get("ba_gu_count", 3)), *BA_GU_CLAMP)
             total_planned = project_n + ba_gu_n
             if total_planned != budget:
                 if total_planned <= 0:
-                    project_n, ba_gu_n = max(1, budget // 2), max(1, budget - budget // 2)
+                    project_n, ba_gu_n = 0, budget
                 else:
                     scale = budget / total_planned
-                    project_n = max(1, int(round(project_n * scale)))
+                    project_n = max(0, int(round(project_n * scale)))
                     ba_gu_n = max(1, budget - project_n)
-            # 八股保底：不少于主问题数的 1/5
-            min_ba_gu = max(1, -(-(project_n + ba_gu_n) // 5))
+            # 有可问项目时至少留 1 道八股（预算允许且 project_n>0）
+            min_ba_gu = max(1, -(-(project_n + ba_gu_n) // 5)) if project_n > 0 else 1
             if ba_gu_n < min_ba_gu and project_n > 1:
                 need = min_ba_gu - ba_gu_n
                 ba_gu_n = min_ba_gu
-                project_n = max(1, project_n - need)
+                project_n = max(0, project_n - need)
+            if project_n + ba_gu_n > budget:
+                ba_gu_n = max(1 if project_n > 0 else 0, budget - project_n)
+            logger.info(
+                "interview_router session=%s budget=%d project_n=%d ba_gu_n=%d reason=%s",
+                state.session_id,
+                budget,
+                project_n,
+                ba_gu_n,
+                str(router.get("reason") or "")[:120],
+            )
             return project_n, ba_gu_n, hr_n
         if interview_type == "project":
             return n, 0, 0
@@ -751,10 +1351,10 @@ class InterviewEngine:
     def _build_plan(
         self, state: InterviewState, mode: str, project_n: int, ba_gu_n: int, hr_n: int
     ) -> None:
-        """规划题单：项目/HR 由规划官出题签；八股全部从题库抽取（优先企业原题）。"""
+        """规划官出项目题签 + HR；八股从题库注入。拷打链不替代题单主问。"""
         raw_questions: list = []
-        # 仅当需要项目或 HR 时才调规划官；八股不交给 LLM
         if project_n > 0 or hr_n > 0:
+            t_planner = time.perf_counter()
             try:
                 planner = self.llm.chat_json(
                     PLANNER_SYSTEM.replace("__PROJECT_COUNT__", str(project_n))
@@ -762,14 +1362,37 @@ class InterviewEngine:
                     self._planner_user(state),
                 )
                 raw_questions = planner.get("questions", [])
-            except Exception:  # noqa: BLE001  规划失败 → 降级
+            except Exception as exc:  # noqa: BLE001
                 raw_questions = []
+                from app.services.session_guard_log import log_guard
+
+                log_guard(
+                    state.session_id,
+                    "planner_llm_failed",
+                    reason=type(exc).__name__,
+                )
+            logger.info(
+                "interview_planner session=%s project_n=%d hr_n=%d "
+                "raw_questions=%d elapsed_s=%.2f",
+                state.session_id,
+                project_n,
+                hr_n,
+                len(raw_questions),
+                time.perf_counter() - t_planner,
+            )
+            from app.services.create_timing_log import step as trace_step
+
+            trace_step(
+                state.session_id,
+                "planner_llm",
+                duration_s=round(time.perf_counter() - t_planner, 2),
+                raw_questions=len(raw_questions),
+            )
 
         projects: list[dict] = []
         hrs: list[dict] = []
         for q in raw_questions or []:
             qtype = str(q.get("type", "project"))
-            # 硬性：丢弃规划官自行发挥的八股
             if qtype == "ba_gu":
                 continue
             item = {
@@ -785,7 +1408,6 @@ class InterviewEngine:
             else:
                 projects.append(item)
 
-        # 数量裁剪/补齐（规划官常无视 count）
         if project_n > 0:
             projects = projects[:project_n]
         else:
@@ -820,7 +1442,16 @@ class InterviewEngine:
 
         occupied = [self._plan_blob(p) for p in projects]
         occupied.extend(str(t) for t in (state.avoid_topics or []) if str(t).strip())
+        t_bagu = time.perf_counter()
         bagus = self._bagu_from_bank(ba_gu_n, occupied=occupied)
+        from app.services.create_timing_log import step as trace_step
+
+        trace_step(
+            state.session_id,
+            "bagu_inject",
+            duration_s=round(time.perf_counter() - t_bagu, 2),
+            bagu_n=len(bagus),
+        )
         state.plan = projects + bagus + hrs
         # 记住配额：去重后空位按题型重新出，禁止用八股填项目坑
         self._plan_project_n = int(project_n)
@@ -861,7 +1492,10 @@ class InterviewEngine:
             state.plan = self._top_up_plan(state, target_n, mode)
 
         if not state.plan:
+            from app.services.session_guard_log import log_guard
+
             state.plan = self._fallback_plan(mode)
+            log_guard(state.session_id, "fallback_plan", mode=mode, plan_len=len(state.plan))
             if state.skip_coding:
                 state.plan = [q for q in state.plan if q.get("type") != "coding"]
 
@@ -922,8 +1556,24 @@ class InterviewEngine:
             local_avoid.append(blob)
             return True
 
-        # 1) 拷打链 → 点名项目的具体追问
-        for pc in state.project_chains or []:
+        # 1) 拷打链 → 点名项目的具体追问（岗位相关项目优先）
+        from app.services.job_roles import resume_project_names
+
+        chain_order = resume_project_names(
+            state.profile or {}, state.target_role or "", limit=3
+        )
+        chains_by_name = {
+            str(pc.get("project") or "").strip(): pc
+            for pc in (state.project_chains or [])
+        }
+        ordered_chains = [
+            chains_by_name[n] for n in chain_order if n in chains_by_name
+        ] + [
+            pc
+            for pc in (state.project_chains or [])
+            if str(pc.get("project") or "").strip() not in chain_order
+        ]
+        for pc in ordered_chains:
             if len(out) >= need:
                 break
             pname = str(pc.get("project") or "").strip() or "简历项目"
@@ -936,20 +1586,21 @@ class InterviewEngine:
                     continue
                 _accept(f"{pname}：{intent[:40]}", q)
 
-        # 2) 简历项目名 × 差异化角度（强制点名，避免空泛能力题）
+        # 2) 简历项目名 × 差异化角度（按岗位相关度排序后轮转，避免只问第一个项目）
         profile = state.profile or {}
-        resume_projects = [
-            str(p.get("name") or "").strip()
-            for p in (profile.get("projects") or [])
-            if str(p.get("name") or "").strip()
-        ][:3]
-        for pname in resume_projects:
-            if len(out) >= need:
-                break
-            for topic, text in _DIVERSE_PROJECT_ANGLES:
-                if len(out) >= need:
-                    break
-                _accept(f"{pname} · {topic}", f"结合项目「{pname}」说明：{text}")
+        from app.services.job_roles import resume_project_names
+
+        resume_projects = resume_project_names(
+            profile, state.target_role or "", limit=3
+        )
+        angle_i = 0
+        proj_i = 0
+        while len(out) < need and resume_projects:
+            pname = resume_projects[proj_i % len(resume_projects)]
+            topic, text = _DIVERSE_PROJECT_ANGLES[angle_i % len(_DIVERSE_PROJECT_ANGLES)]
+            angle_i += 1
+            proj_i += 1
+            _accept(f"{pname} · {topic}", f"结合项目「{pname}」说明：{text}")
 
         # 3) LLM 按避让列表重出（只要项目题）
         still = need - len(out)
@@ -1035,9 +1686,12 @@ class InterviewEngine:
 
         project_quota = int(getattr(self, "_plan_project_n", 0) or 0)
         ba_gu_quota = int(getattr(self, "_plan_ba_gu_n", 0) or 0)
-        # 全流程默认至少保住一定项目比重，防止去重后被八股吞光
-        if mode == "full" and project_quota <= 0:
-            project_quota = max(2, target_n // 3)
+        has_askable = bool(
+            (getattr(self, "_askable_capacity", None) or {}).get("has_askable")
+        )
+        # 有可问项目时才保底补项目；岗位无可问素材时允许全场八股
+        if mode == "full" and project_quota <= 0 and has_askable:
+            project_quota = max(1, min(3, target_n // 3))
 
         avoid = [str(t) for t in (state.avoid_topics or []) if str(t).strip()]
         for q in plan:
@@ -1071,7 +1725,7 @@ class InterviewEngine:
         # 3) 仍不足：全流程优先继续重出项目；专项八股场 / 项目耗尽才八股重抽兜底
         while len(plan) < target_n:
             gap = target_n - len(plan)
-            prefer_project = mode == "full" or project_quota > 0
+            prefer_project = project_quota > 0 and _count("project") < project_quota
             if prefer_project:
                 more = self._regenerate_project_items(state, gap, avoid, plan)
                 if more:
@@ -1602,6 +2256,26 @@ class InterviewEngine:
             score.get("strengths"),
             score.get("weaknesses"),
         )
+        raw_sc = score.get("score", 5)
+        try:
+            raw_sc_f = float(raw_sc)
+        except (TypeError, ValueError):
+            raw_sc_f = 5.0
+        if raw_sc_f > NON_ANSWER_MAX_SCORE and sc <= NON_ANSWER_MAX_SCORE + 0.01:
+            from app.services.session_guard_log import log_guard
+
+            log_guard(
+                state.session_id,
+                "score_capped",
+                qid=qid,
+                score_in=round(raw_sc_f, 1),
+                score_out=sc,
+            )
+        raw_st = [str(x).strip() for x in (score.get("strengths") or []) if str(x).strip()]
+        if raw_st and not strengths:
+            from app.services.session_guard_log import log_guard
+
+            log_guard(state.session_id, "strengths_cleared", qid=qid, raw_n=len(raw_st))
         self._close_turn(pq, clipped, sc, strengths, weaknesses)
         # 题级分取各轮均分，便于摘要与旧逻辑
         turn_scores = [float(t["score"]) for t in pq.get("turns") or [] if t.get("score") is not None]
@@ -1613,6 +2287,9 @@ class InterviewEngine:
         # 跳过/敷衍不作答：引擎强制不追问，避免纠缠空答
         if is_non_answer(pq.get("answers")) or is_non_answer([answer]):
             needs_follow = False
+            from app.services.session_guard_log import log_guard
+
+            log_guard(state.session_id, "non_answer_no_followup", qid=qid)
         fq = str(judge.get("follow_up_question", "")).strip() if needs_follow else ""
         if fq:
             prior_qs = [
@@ -1622,6 +2299,14 @@ class InterviewEngine:
             ]
             # 本轮刚答完的题干也在 turns 末条；再加会话里本题更早的面试官句兜底
             if _is_repeat_followup(fq, prior_qs, pq.get("answers") or []):
+                from app.services.session_guard_log import log_guard
+
+                log_guard(
+                    state.session_id,
+                    "followup_repeat_rejected",
+                    qid=qid,
+                    follow_q=fq[:80],
+                )
                 fq = ""
                 needs_follow = False
         if (
@@ -1645,10 +2330,10 @@ class InterviewEngine:
             state.history.append({"role": "interviewer", "text": message})
             return state, message
 
-        # 全部主问题完成 → 反问环节
-        state.stage = "ASK_BACK"
-        state.history.append({"role": "interviewer", "text": ASK_BACK_TEXT})
-        return state, ASK_BACK_TEXT
+        # 全部主问题完成 → 进入汇总（不再反问）
+        state.stage = "SUMMARIZING"
+        state.history.append({"role": "interviewer", "text": SUMMARIZING_TEXT})
+        return state, SUMMARIZING_TEXT
 
     # ---------- 算法题提交 → 记分并推进 ----------
 
@@ -1680,18 +2365,24 @@ class InterviewEngine:
             message = self._ask_question(state)
             state.history.append({"role": "interviewer", "text": message})
             return state, message
-        state.stage = "ASK_BACK"
-        state.history.append({"role": "interviewer", "text": ASK_BACK_TEXT})
-        return state, ASK_BACK_TEXT
+        state.stage = "SUMMARIZING"
+        state.history.append({"role": "interviewer", "text": SUMMARIZING_TEXT})
+        return state, SUMMARIZING_TEXT
 
-    # ---------- 反问回答 → 终评 ----------
+    # ---------- 汇总终评（跳过反问） ----------
 
-    def handle_ask_back(self, state: InterviewState, answer: str):
-        state.history.append({"role": "candidate", "text": answer})
+    def finish_interview(self, state: InterviewState):
         state.stage = "FINISHED"
         report = self.llm.chat_json(FINAL_REPORT_SYSTEM, self._report_user(state))
         report = self._sanitize_report(state, report)
         return state, report
+
+    # ---------- 反问回答 → 终评（兼容旧会话） ----------
+
+    def handle_ask_back(self, state: InterviewState, answer: str):
+        if answer.strip():
+            state.history.append({"role": "candidate", "text": answer})
+        return self.finish_interview(state)
 
     # ---------- 内部：出题 / 上下文构造 ----------
 
@@ -1800,6 +2491,15 @@ class InterviewEngine:
         if _looks_like_vague_orchestration(question):
             need_retry = True
         if need_retry:
+            from app.services.session_guard_log import log_guard
+
+            log_guard(
+                state.session_id,
+                "ask_question_retry",
+                qid=qid,
+                reason="vague_or_historical_dup",
+                before=question[:80],
+            )
             retry_user = (
                 user
                 + "\n\n【硬性重出】上一稿无效：与历史问法重复，或是空泛的「如何编排/设计多 Agent」。"
@@ -1866,6 +2566,14 @@ class InterviewEngine:
         if keys and any(t.lower() in blob or t in blob for t in keys):
             return text
         rest = text[claim.end() :].lstrip("，,：: 、")
+        from app.services.session_guard_log import log_guard
+
+        log_guard(
+            state.session_id,
+            "resume_claim_sanitized",
+            claim_obj=obj[:40],
+            before=text[:100],
+        )
         if rest:
             if state.target_role and not rest.startswith("结合目标岗位"):
                 return f"结合目标岗位「{state.target_role}」，{rest}"
@@ -1965,11 +2673,27 @@ class InterviewEngine:
             + avoid
         )
 
-    def _router_user(self, state: InterviewState) -> str:
-        return (
-            self._ctx_block(state)
-            + "\n\n请根据【目标岗位优先】原则，决定项目/实习深挖题和八股知识题的数量分配。"
-        )
+    def _router_user(self, state: InterviewState, depth: dict | None = None) -> str:
+        block = self._ctx_block(state)
+        capacity = getattr(self, "_askable_capacity", None) or {}
+        if capacity:
+            askable = capacity.get("askable") or []
+            lines = [
+                f"- {x.get('name')}（{x.get('kind', 'project')}，可问约{x.get('slots')}题，岗位相关度{x.get('role_score', 0):.1f}）"
+                for x in askable
+            ]
+            block += (
+                "\n\n【岗位可问容量（引擎评估，分题依据）】\n"
+                + ("\n".join(lines) if lines else "- 无足够岗位相关项目/实习可深挖 → 八股为主")
+                + f"\n建议项目题：{capacity.get('max_project_questions', 0)} 道（先列项目，其余八股补）"
+            )
+        if state.target_company:
+            block += (
+                f"\n\n【目标企业】{state.target_company}\n"
+                "召回素材优先该企业原题 + 无企业标签通用题；"
+                "禁止把其他公司的面经当作本场企业原题注入。"
+            )
+        return block + "\n\n请根据【目标岗位优先 + 可问容量】决定项目/八股数量（项目先列，八股补充）。"
 
     def _planner_user(self, state: InterviewState) -> str:
         user = self._ctx_block(state)
@@ -1985,6 +2709,19 @@ class InterviewEngine:
             user += (
                 "\n\n【项目拷打链（已综合岗位+场景现编；规划项目题时对齐问点）】\n"
                 + "\n".join(chain_block_for([pc], pc["project"]) for pc in state.project_chains)
+            )
+        from app.services.job_roles import resume_project_names
+
+        names = resume_project_names(state.profile or {}, state.target_role or "", limit=3)
+        if names and int(getattr(self, "_plan_project_n", 0) or 0) > 1:
+            quotas = _project_quotas(int(self._plan_project_n), len(names))
+            dist = "、".join(f"「{n}」{q}题" for n, q in zip(names, quotas))
+            user += (
+                f"\n\n【项目题分配——硬性】共 {self._plan_project_n} 道项目题，"
+                f"必须在以下简历项目间均衡分配：{dist}。"
+                "最相关目标岗位的项目优先排前；"
+                "禁止连续多题只问同一个项目；"
+                "与目标岗位无关的纯原栈深挖（例：面 Agent 岗却主问 Redis 缓存）必须少问或不问。"
             )
         return (
             user

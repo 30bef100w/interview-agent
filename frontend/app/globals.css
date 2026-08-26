@@ -4,6 +4,7 @@
   --background: #f8fbff;
   --foreground: #0f172a;
   --brand: #0284c7;
+  --brand-deep: #3730a3;
   --brand-soft: #f0f9ff;
 }
 
@@ -174,10 +175,49 @@ body {
   height: 420px;
   border-radius: 9999px;
   pointer-events: none;
-  background: radial-gradient(circle, rgb(56 189 248 / 0.22), transparent 68%);
+  background: radial-gradient(circle, rgb(99 102 241 / 0.2), rgb(56 189 248 / 0.12), transparent 68%);
   transform: translate(-50%, -50%);
   transition: opacity 0.3s ease;
   z-index: 1;
+}
+
+/* 深问落地页：浮动问号 */
+@keyframes deepask-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-6deg);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-12px) rotate(6deg);
+    opacity: 0.65;
+  }
+}
+.deepask-float {
+  animation: deepask-float 5s ease-in-out infinite;
+}
+.deepask-float-delay {
+  animation-delay: 1.4s;
+}
+
+/* 深问品牌水印 */
+.deepask-watermark {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  font-weight: 700;
+  line-height: 1;
+  background: linear-gradient(135deg, rgb(99 102 241 / 0.08), rgb(2 132 199 / 0.06));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  user-select: none;
+}
+
+/* 深问标题渐变 */
+.deepask-title-gradient {
+  background: linear-gradient(120deg, #312e81 0%, #0369a1 45%, #0891b2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 @keyframes fade-in {
@@ -207,6 +247,28 @@ body {
   margin-left: 1px;
   color: rgb(2 132 199);
   animation: cursor-blink 1s step-start infinite;
+}
+
+/* Markdown 题面（八股/算法） */
+.markdown-body :where(p, ul, ol, pre, table, blockquote) {
+  margin: 0.35em 0;
+}
+.markdown-body :where(ul, ol) {
+  padding-left: 1.25rem;
+}
+.markdown-body :where(h1, h2, h3, h4) {
+  margin: 0.5em 0 0.25em;
+  font-weight: 600;
+}
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid rgb(228 228 231);
+  padding: 0.25rem 0.5rem;
 }
 
 /* 面试官思考中的三个点 */

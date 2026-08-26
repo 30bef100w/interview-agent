@@ -8,6 +8,7 @@ from app.models.interview import (
 )
 from app.models.llm_usage import LLMUsage, UserLlmSetting
 from app.models.resume import Resume
+from app.models.tag_mismatch import TagMismatchReview
 from app.models.user import User
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "Resume",
     "ScoreReport",
     "SystemLog",
+    "TagMismatchReview",
     "User",
     "UserLlmSetting",
 ]

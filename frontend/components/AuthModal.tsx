@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Logo } from "@/components/ui";
-import { api, setToken } from "@/lib/api";
+import { api, getToken, setToken } from "@/lib/api";
+import { loadRememberedLogin, saveRememberedLogin } from "@/lib/auth-storage";
 
 type Mode = "login" | "register";
 
@@ -26,6 +27,7 @@ export default function AuthModal({
   const [mode, setMode] = useState<Mode>(initialMode);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +35,12 @@ export default function AuthModal({
     if (open) {
       setMode(initialMode);
       setError("");
+      const saved = loadRememberedLogin();
+      if (saved) {
+        setUsername(saved.username);
+        setPassword(saved.password);
+        setRemember(true);
+      }
     }
   }, [open, initialMode]);
 
@@ -81,6 +89,9 @@ export default function AuthModal({
       setToken(res.access_token);
       localStorage.setItem("username", res.user?.username || username);
       localStorage.setItem("is_admin", res.user?.is_admin ? "1" : "0");
+      if (mode === "login") {
+        saveRememberedLogin(username, password, remember);
+      }
       onClose();
       router.push("/dashboard");
     } catch (err) {
@@ -140,6 +151,17 @@ export default function AuthModal({
             required
             className={INPUT_CLS}
           />
+          {mode === "login" ? (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-600">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 text-sky-600 focus:ring-sky-500"
+              />
+              记住密码
+            </label>
+          ) : null}
           {error && (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
           )}

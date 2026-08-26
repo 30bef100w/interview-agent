@@ -20,9 +20,17 @@ class CreateSessionRequest(BaseModel):
 class SessionOut(BaseModel):
     session_id: int
     status: str
-    stage: str
-    message: str
+    stage: str = ""
+    message: str = ""
     # 开练自定义设置回显，便于确认是否生效
+    settings_applied: dict | None = None
+
+
+class CreateProgressOut(BaseModel):
+    status: str  # creating | ready | failed
+    progress: int = 0
+    label: str = ""
+    step: str = ""
     settings_applied: dict | None = None
 
 

@@ -44,3 +44,14 @@ def test_growth_builds_tags_and_suggestions():
     focus_items = [s for s in data["practice_suggestions"] if s.get("practice_focus")]
     assert focus_items
     assert focus_items[0]["interview_mode"] in ("full", "specialized")
+
+
+def test_growth_weekly_and_milestones():
+    rows = [
+        _row(1, {"技术深度": 6, "项目经验": 6, "沟通表达": 6, "综合素质": 6}, ["缓存"]),
+        _row(2, {"技术深度": 7, "项目经验": 7, "沟通表达": 7, "综合素质": 7}, ["表达"]),
+    ]
+    data = build_growth_timeline(rows)
+    assert data.get("weekly_stats") is not None
+    assert data.get("milestones")
+    assert data.get("focus_dimension")

@@ -113,19 +113,32 @@ export function Logo({
   size?: "sm" | "md" | "lg";
   withText?: boolean;
 }) {
-  const box = size === "sm" ? "h-7 w-7 rounded-lg" : size === "md" ? "h-9 w-9 rounded-xl" : "h-12 w-12 rounded-2xl";
-  const text = size === "sm" ? "text-base" : size === "md" ? "text-lg" : "text-2xl";
+  const box =
+    size === "sm"
+      ? "h-7 w-7 rounded-lg"
+      : size === "md"
+        ? "h-9 w-9 rounded-xl"
+        : "h-12 w-12 rounded-2xl";
+  const title = size === "sm" ? "text-base" : size === "md" ? "text-lg" : "text-2xl";
   const glyph = size === "sm" ? "text-sm" : size === "md" ? "text-base" : "text-xl";
+  const sub = size === "sm" ? "text-[9px]" : size === "md" ? "text-[10px]" : "text-xs";
   return (
     <span className="inline-flex items-center gap-2.5">
       <span
-        className={`${box} flex items-center justify-center bg-gradient-to-br from-sky-500 to-sky-600 text-white shadow-md shadow-sky-600/25`}
+        className={`${box} relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-600 via-sky-600 to-cyan-500 text-white shadow-md shadow-indigo-600/25`}
       >
-        <span className={`${glyph} font-bold`}>面</span>
+        <span className={`font-brand ${glyph} font-bold`}>深</span>
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-white/25 blur-[1px]"
+        />
       </span>
       {withText && (
-        <span className={`${text} font-semibold tracking-tight text-slate-900 dark:text-zinc-50`}>
-          AI 面试模拟器
+        <span className="inline-flex flex-col leading-none">
+          <span className={`font-brand ${title} font-semibold tracking-tight text-slate-900 dark:text-zinc-50`}>
+            深问
+          </span>
+          <span className={`${sub} mt-0.5 font-medium tracking-[0.14em] text-sky-600/80`}>DEEPASK</span>
         </span>
       )}
     </span>

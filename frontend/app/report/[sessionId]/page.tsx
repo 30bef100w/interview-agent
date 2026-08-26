@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import RadarChart from "@/components/RadarChart";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { Badge, Card, ErrorBanner, IconSparkles } from "@/components/ui";
 import { API_BASE, ApiError, api, getToken } from "@/lib/api";
 
@@ -125,7 +126,7 @@ function QuestionDetailModal({
         <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5 text-sm">
           <div>
             <div className="mb-1.5 text-xs font-medium text-slate-400">问题</div>
-            <div className="leading-7 text-slate-800">{q.question}</div>
+            <MarkdownRenderer content={q.question} className="text-slate-800" />
           </div>
           {q.my_answers.length > 0 && (
             <div>
@@ -213,7 +214,7 @@ function QuestionDetailModal({
               </button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-7 text-slate-800">
-              {q.reference_answer}
+              <MarkdownRenderer content={q.reference_answer} />
             </div>
           </div>
         </div>
@@ -230,6 +231,9 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [exporting, setExporting] = useState<"docx" | "pdf" | null>(null);
+  const [showTraceLink, setShowTraceLink] = useState(
+    () => process.env.NODE_ENV === "development"
+  );
 
   const load = useCallback(() => {
     setError("");
@@ -250,6 +254,11 @@ export default function ReportPage() {
       return;
     }
     load();
+    if (process.env.NODE_ENV !== "development") {
+      api<{ is_admin?: boolean }>("/api/auth/me")
+        .then((me) => setShowTraceLink(!!me.is_admin))
+        .catch(() => {});
+    }
   }, [load, router]);
 
   async function exportFile(format: "docx" | "pdf") {
@@ -466,6 +475,14 @@ export default function ReportPage() {
         >
           再来一场
         </Link>
+        {showTraceLink ? (
+          <Link
+            href={`/report/${sessionId}/trace`}
+            className="rounded-xl border border-violet-200 bg-violet-50 px-6 py-2.5 text-sm font-medium text-violet-700 transition hover:bg-violet-100"
+          >
+            调试 Trace
+          </Link>
+        ) : null}
         <Link
           href="/dashboard"
           className="rounded-xl border border-zinc-200 bg-white px-6 py-2.5 text-sm text-zinc-600 transition hover:bg-zinc-50"

@@ -1,9 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import AuthModal from "@/components/AuthModal";
 import { IconCode, IconMic, IconReport, IconTarget, Logo } from "@/components/ui";
+import { getToken } from "@/lib/api";
 
 const NAV_LINKS = [
   { id: "product", label: "产品能力" },
@@ -15,20 +17,20 @@ const DEMOS = [
   {
     title: "多轮追问面试",
     desc: "读懂简历，针对项目与技术栈深挖，像真一面一样推进。",
-    image: "/chat-preview.png?v=4",
-    url: "interview.app / session",
+    image: "/promo/09-interview-chat.png",
+    url: "deepask.app / session",
   },
   {
     title: "能力复盘报告",
     desc: "逐题打分、雷达图与参考答案，练完立刻知道差在哪。",
-    image: "/report-preview.png?v=4",
-    url: "interview.app / report",
+    image: "/promo/11-report.png",
+    url: "deepask.app / report",
   },
   {
     title: "从简历到开练",
     desc: "上传简历、选环节、设轮次，一分钟进入模拟面试。",
-    image: "/dashboard-preview.png?v=4",
-    url: "interview.app / dashboard",
+    image: "/promo/01-dashboard.png",
+    url: "deepask.app / workspace",
   },
 ];
 
@@ -43,7 +45,7 @@ const HIGHLIGHTS = [
   {
     icon: <IconMic className="h-5 w-5" />,
     title: "可控的技术面节奏",
-    desc: "自我介绍 → 项目 / 八股 / 手撕 / HR → 反问 → 终评，不是闲聊套壳。",
+    desc: "自我介绍 → 项目 / 八股 / 手撕 / HR → 汇总终评，不是闲聊套壳。",
   },
   {
     icon: <IconCode className="h-5 w-5" />,
@@ -139,12 +141,12 @@ function MagneticButton({
 
 function BrowserFrame({ title, image }: { title: string; image: string }) {
   return (
-    <div className="group overflow-hidden rounded-2xl border border-sky-100/80 bg-white shadow-[0_20px_60px_-28px_rgba(2,132,199,0.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_70px_-28px_rgba(2,132,199,0.4)]">
-      <div className="flex items-center gap-2 border-b border-zinc-100 px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
-        <span className="ml-2 flex-1 truncate rounded-md bg-zinc-100 px-3 py-1 text-[11px] text-zinc-400">
+    <div className="group relative overflow-hidden rounded-2xl border border-indigo-100/80 bg-white shadow-[0_20px_60px_-28px_rgba(67,56,202,0.22)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_70px_-28px_rgba(2,132,199,0.35)]">
+      <div className="flex items-center gap-2 border-b border-zinc-100 bg-gradient-to-r from-indigo-50/50 to-sky-50/30 px-4 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-rose-300/80" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-300/80" />
+        <span className="h-2.5 w-2.5 rounded-full bg-emerald-300/80" />
+        <span className="ml-2 flex-1 truncate rounded-md bg-white/80 px-3 py-1 font-mono text-[11px] text-indigo-400/90">
           {title}
         </span>
       </div>
@@ -153,7 +155,8 @@ function BrowserFrame({ title, image }: { title: string; image: string }) {
         <img
           src={image}
           alt={title}
-          className="h-full w-full object-cover object-top"
+          className="h-full w-full object-contain object-top [image-rendering:-webkit-optimize-contrast]"
+          decoding="async"
         />
       </div>
     </div>
@@ -161,11 +164,17 @@ function BrowserFrame({ title, image }: { title: string; image: string }) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
+  const [loggedIn, setLoggedIn] = useState(false);
   const [spot, setSpot] = useState({ x: 0, y: 0, on: false });
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    setLoggedIn(!!getToken());
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -175,8 +184,17 @@ export default function Home() {
   }, []);
 
   function openAuth(mode: "login" | "register") {
+    if (mode === "login" && getToken()) {
+      router.push("/dashboard");
+      return;
+    }
     setAuthMode(mode);
     setAuthOpen(true);
+  }
+
+  function onAuthClose() {
+    setAuthOpen(false);
+    setLoggedIn(!!getToken());
   }
 
   function scrollToId(id: string) {
@@ -226,12 +244,20 @@ export default function Home() {
           </nav>
 
           <div className="flex shrink-0 items-center gap-2">
-            <MagneticButton variant="ghost" className="!px-4 !py-2" onClick={() => openAuth("login")}>
-              登录
-            </MagneticButton>
-            <MagneticButton variant="dark" className="!px-5 !py-2" onClick={() => openAuth("register")}>
-              开始使用
-            </MagneticButton>
+            {loggedIn ? (
+              <MagneticButton variant="dark" className="!px-5 !py-2" onClick={() => router.push("/dashboard")}>
+                进入工作台
+              </MagneticButton>
+            ) : (
+              <>
+                <MagneticButton variant="ghost" className="!px-4 !py-2" onClick={() => openAuth("login")}>
+                  登录
+                </MagneticButton>
+                <MagneticButton variant="dark" className="!px-5 !py-2" onClick={() => openAuth("register")}>
+                  开始使用
+                </MagneticButton>
+              </>
+            )}
           </div>
         </div>
         <nav className="flex items-center justify-center gap-8 border-t border-sky-50/80 px-4 py-2.5 md:hidden">
@@ -252,12 +278,18 @@ export default function Home() {
         ref={heroRef}
         onMouseMove={onHeroMove}
         onMouseLeave={() => setSpot((s) => ({ ...s, on: false }))}
-        className="relative flex min-h-[calc(100svh-68px)] flex-col overflow-hidden bg-gradient-to-br from-sky-50 via-white to-blue-50"
+        className="relative flex min-h-[calc(100svh-68px)] flex-col overflow-hidden bg-gradient-to-br from-indigo-50/80 via-white to-sky-50"
       >
         <div aria-hidden className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-sky-200/45 blur-3xl" />
-          <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-blue-200/35 blur-3xl" />
-          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-indigo-100/40 blur-3xl" />
+          <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+          <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-sky-200/35 blur-3xl" />
+          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-cyan-100/40 blur-3xl" />
+          <span className="deepask-watermark deepask-float absolute right-[8%] top-[18%] text-[7rem] sm:text-[9rem]">
+            问
+          </span>
+          <span className="deepask-watermark deepask-float deepask-float-delay absolute left-[6%] bottom-[22%] text-[5rem] opacity-60 sm:text-[6rem]">
+            深
+          </span>
         </div>
         <div
           aria-hidden
@@ -267,32 +299,38 @@ export default function Home() {
 
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 pb-20 pt-10 lg:flex-row lg:items-center lg:gap-14">
           <div className="max-w-xl lg:max-w-2xl">
-            <p className="hero-fade inline-flex cursor-default items-center gap-2 rounded-full bg-sky-100/90 px-3.5 py-1 text-xs font-medium text-sky-800 transition hover:bg-sky-200/80 hover:shadow-sm">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500" />
-              AI 驱动的技术面训练引擎
+            <p className="hero-fade inline-flex cursor-default items-center gap-2 rounded-full border border-indigo-100/80 bg-white/80 px-3.5 py-1 text-xs font-medium text-indigo-800 shadow-sm backdrop-blur transition hover:border-sky-200 hover:shadow-md">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-indigo-500" />
+              深问 DeepAsk · Plan-then-Execute 技术面引擎
             </p>
-            <h1 className="font-brand hero-fade mt-6 text-[2.5rem] font-bold leading-[1.15] tracking-tight text-slate-900 sm:text-5xl md:text-6xl lg:text-[4rem]">
-              <InteractiveChars text="技术面试的" />
+            <h1 className="font-brand hero-fade mt-6 text-[2.75rem] font-bold leading-[1.08] tracking-tight sm:text-6xl md:text-7xl lg:text-[4.5rem]">
+              <span className="deepask-title-gradient">
+                <InteractiveChars text="深问" />
+              </span>
               <br />
-              <InteractiveChars text="训练引擎" />
+              <span className="text-slate-900">
+                <InteractiveChars text="往深处问" />
+              </span>
             </h1>
             <p
               className="hero-fade mt-6 max-w-lg text-base leading-8 text-slate-600 sm:text-lg"
               style={{ animationDelay: "0.1s" }}
             >
-              不只是简单问答。用可控状态机还原真实技术面：
+              不只是聊天套壳。深问用
+              <span className="hero-phrase">11 Agent 状态机</span>
+              还原真实技术面：
               <span className="hero-phrase">简历深挖</span>、
               <span className="hero-phrase">手撕判题</span>、
-              <span className="hero-phrase">逐题评分</span>
-              ，帮你更快拿到理想 Offer。
+              <span className="hero-phrase">可解释评分</span>
+              ，练到上场有把握。
             </p>
             <div className="hero-fade mt-9 flex flex-wrap items-center gap-3" style={{ animationDelay: "0.18s" }}>
               <MagneticButton
                 variant="primary"
-                className="!px-7 !py-3.5"
+                className="!bg-gradient-to-r !from-indigo-600 !to-sky-600 !px-7 !py-3.5 !shadow-indigo-600/25 hover:!from-indigo-500 hover:!to-sky-500"
                 onClick={() => openAuth("register")}
               >
-                立即开始模拟面试
+                开始深问一场
                 <span aria-hidden className="btn-arrow">
                   →
                 </span>
@@ -302,8 +340,8 @@ export default function Home() {
               </MagneticButton>
             </div>
             <div
-              className="hero-fade mt-10 grid max-w-md grid-cols-2 gap-x-6 gap-y-4"
-              style={{ animationDelay: "0.24s" }}
+              className="hero-fade mt-8 grid max-w-md grid-cols-2 gap-x-6 gap-y-4"
+              style={{ animationDelay: "0.22s" }}
             >
               {HERO_FEATURES.map((f) => (
                 <div
@@ -319,8 +357,14 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="hero-fade mt-12 w-full max-w-xl lg:mt-0" style={{ animationDelay: "0.28s" }}>
-            <BrowserFrame title="interview.app / session" image="/chat-preview.png?v=4" />
+          <div className="hero-fade relative mt-12 w-full max-w-xl lg:mt-0" style={{ animationDelay: "0.32s" }}>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-indigo-400/15 via-sky-400/10 to-cyan-400/15 blur-2xl"
+            />
+            <div className="relative">
+              <BrowserFrame title="deepask.app / session" image="/hero-session.png" />
+            </div>
           </div>
         </div>
 
@@ -338,9 +382,9 @@ export default function Home() {
 
       <section id="product" className="scroll-mt-24 bg-white">
         <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
-          <p className="text-xs font-medium tracking-[0.18em] text-sky-700/80">PRODUCT</p>
+          <p className="text-xs font-medium tracking-[0.18em] text-indigo-600/80">DEEPASK PRODUCT</p>
           <h2 className="font-brand mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-            <InteractiveChars text="像真一面一样练" />
+            <InteractiveChars text="深问，像真一面一样练" />
           </h2>
           <p className="mt-4 max-w-xl text-base leading-7 text-slate-500">
             <span className="hero-phrase">从开场对话到手撕算法</span>
@@ -392,10 +436,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="steps" className="scroll-mt-24 bg-[#f0f7ff]">
+      <section id="steps" className="scroll-mt-24 bg-gradient-to-b from-indigo-50/50 to-sky-50/80">
         <div className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
           <h2 className="font-brand text-center text-3xl font-semibold tracking-tight">
-            <InteractiveChars text="四步开始" />
+            <InteractiveChars text="四步，开始你的深问" />
           </h2>
           <p className="mx-auto mt-3 max-w-md text-center text-sm text-slate-500">
             浏览器打开即用，无需下载。
@@ -421,16 +465,17 @@ export default function Home() {
 
       <section className="bg-gradient-to-b from-white to-sky-50">
         <div className="mx-auto w-full max-w-6xl px-6 pb-20 pt-8">
-          <div className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-gradient-to-br from-sky-600 to-blue-600 px-8 py-14 text-center text-white shadow-xl shadow-sky-600/20 sm:px-14">
+          <div className="relative overflow-hidden rounded-[2rem] border border-indigo-100 bg-gradient-to-br from-indigo-700 via-sky-700 to-cyan-600 px-8 py-14 text-center text-white shadow-xl shadow-indigo-700/25 sm:px-14">
             <div
               aria-hidden
               className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl"
             />
-            <h2 className="font-brand relative text-3xl font-semibold tracking-tight sm:text-4xl">
-              <InteractiveChars text="下一场面试，多一分把握" />
+            <p className="relative text-xs font-medium tracking-[0.2em] text-sky-100/90">DEEPASK</p>
+            <h2 className="font-brand relative mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+              <InteractiveChars text="下一场面试，问得更深" />
             </h2>
             <p className="relative mx-auto mt-4 max-w-md text-sm leading-7 text-sky-50/90">
-              把简历变成一场真实技术面，练到心里有底再上场。
+              把简历变成一场真实技术面。深问帮你练到心里有底，再上场。
             </p>
             <div className="relative mt-8">
               <MagneticButton variant="white" className="!px-7 !py-3.5" onClick={() => openAuth("register")}>
@@ -444,14 +489,23 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-sky-100/80 bg-white py-8 text-center text-xs text-slate-400">
-        AI 面试模拟器 · 拟真技术面，帮你更快拿到 Offer
+      <footer className="border-t border-indigo-100/60 bg-white py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 text-center sm:flex-row sm:justify-between sm:text-left">
+          <Logo size="sm" />
+          <p className="text-xs leading-6 text-slate-400">
+            深问 DeepAsk · AI 技术面训练
+            <br className="sm:hidden" />
+            <span className="hidden sm:inline"> · </span>
+            往深处问，往 Offer 近
+          </p>
+          <p className="text-[11px] text-slate-300">© {new Date().getFullYear()} DeepAsk</p>
+        </div>
       </footer>
 
       <AuthModal
         open={authOpen}
         mode={authMode}
-        onClose={() => setAuthOpen(false)}
+        onClose={onAuthClose}
         onModeChange={setAuthMode}
       />
     </div>

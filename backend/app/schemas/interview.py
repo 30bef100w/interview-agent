@@ -40,6 +40,7 @@ class InterviewState:
     avoid_topics: list = field(default_factory=list)  # 去重：历史主题/题干摘要
     project_chains: list = field(default_factory=list)  # 拷打链（面试规划师生成）
     retrieved_material: str = ""  # 检索命中的相关题（注入规划官/追问官）
+    create_timings: dict = field(default_factory=dict)  # 创建会话各阶段耗时（秒）
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -66,4 +67,5 @@ class InterviewState:
             avoid_topics=list(d.get("avoid_topics") or []),
             project_chains=list(d.get("project_chains") or []),
             retrieved_material=str(d.get("retrieved_material") or ""),
+            create_timings=dict(d.get("create_timings") or {}),
         )

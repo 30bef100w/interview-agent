@@ -8,13 +8,20 @@ import queue
 import threading
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import Response, StreamingResponse
+import logging
+import time
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.services.create_timing_log import begin as trace_begin, finish as trace_finish
+
+logger = logging.getLogger(__name__)
+
 from app.api.deps import get_current_user
-from app.db import get_db
+from app.db import SessionLocal, get_db
 from app.models import (
     Answer,
     InterviewSession,
@@ -25,7 +32,13 @@ from app.models import (
     User,
     UserLlmSetting,
 )
-from app.schemas.api import AnswerOut, AnswerRequest, CreateSessionRequest, SessionOut
+from app.schemas.api import (
+    AnswerOut,
+    AnswerRequest,
+    CreateProgressOut,
+    CreateSessionRequest,
+    SessionOut,
+)
 from app.schemas.interview import InterviewState
 from app.services.billing import (
     assert_platform_allowed,
@@ -92,6 +105,29 @@ def _save_state(session: InterviewSession, state: InterviewState) -> None:
     session.current_q_index = state.cursor
     session.rounds_used = state.rounds_used
     session.plan_json = json.dumps(state.plan, ensure_ascii=False)
+
+
+def _build_session_view(session: InterviewSession, state: InterviewState) -> dict:
+    """会话前台视图（HTTP GET / WS snapshot 共用）。"""
+    current_coding = None
+    if state.stage == "ASKING" and state.cursor < len(state.plan):
+        q = state.plan[state.cursor]
+        if q["type"] == "coding":
+            from app.services.question_bank import build_problem_view
+
+            current_coding = build_problem_view(q.get("slug", ""))
+    return {
+        "session_id": session.id,
+        "mode": session.interview_mode,
+        "type": session.interview_type,
+        "status": session.status,
+        "stage": state.stage,
+        "history": state.history,
+        "topics": [q["topic"] for q in state.plan],
+        "current_coding": current_coding,
+        "rounds_used": state.rounds_used,
+        "total_rounds": state.total_rounds,
+    }
 
 
 def _collect_avoid_topics(db: Session, user_id: int, scope: str) -> list[str]:
@@ -331,25 +367,7 @@ def get_session(
 ) -> dict:
     session = _get_owned_session(db, session_id, current_user.id)
     state = _load_state(session)
-    current_coding = None
-    if state.stage == "ASKING" and state.cursor < len(state.plan):
-        q = state.plan[state.cursor]
-        if q["type"] == "coding":
-            from app.services.question_bank import build_problem_view
-
-            current_coding = build_problem_view(q.get("slug", ""))
-    return {
-        "session_id": session.id,
-        "mode": session.interview_mode,
-        "type": session.interview_type,
-        "status": session.status,
-        "stage": state.stage,
-        "history": state.history,
-        "topics": [q["topic"] for q in state.plan],
-        "current_coding": current_coding,
-        "rounds_used": state.rounds_used,
-        "total_rounds": state.total_rounds,
-    }
+    return _build_session_view(session, state)
 
 
 @router.post("/session/{session_id}/abandon")
@@ -455,9 +473,102 @@ def export_report(
     )
 
 
+_CREATE_STEP_META: dict[str, tuple[int, str]] = {
+    "begin": (5, "准备规划"),
+    "opening_llm": (18, "生成开场白"),
+    "plan_retrieval": (42, "检索题库与项目素材"),
+    "router": (55, "分配面试节奏"),
+    "build_plan": (82, "规划官拼题单"),
+    "engine_done": (96, "校验题单"),
+    "finish": (100, "规划完成"),
+    "failed": (0, "规划失败"),
+}
+
+
+def _read_create_progress(session_id: int) -> tuple[int, str, str]:
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "logs" / "create_trace" / f"{session_id}.json"
+    if not path.exists():
+        return 3, "准备规划", "begin"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return 3, "准备规划", "begin"
+    steps = data.get("steps") or []
+    if not steps:
+        return 3, "准备规划", "begin"
+    last = str(steps[-1].get("step") or "begin")
+    progress, label = _CREATE_STEP_META.get(last, (12, "规划中"))
+    return progress, label, last
+
+
+def _plan_session_background(session_id: int, user_id: int, payload: dict, meta: dict) -> None:
+    from app.services.create_timing_log import step as trace_step
+
+    db = SessionLocal()
+    api_t0 = time.perf_counter()
+    try:
+        session = db.get(InterviewSession, session_id)
+        user = db.get(User, user_id)
+        resume = db.get(Resume, meta["resume_id"])
+        if session is None or user is None or resume is None:
+            return
+        profile = json.loads(resume.profile_json) if resume.profile_json else {}
+        state, _opening = _engine_for(db, user, session.id).create(
+            session.id,
+            resume.raw_text,
+            profile,
+            payload["question_count"],
+            payload["interview_mode"],
+            payload["interview_type"],
+            target_role=payload.get("target_role") or "",
+            target_company=payload.get("target_company") or "",
+            practice_focus=meta.get("practice_focus") or "",
+            skip_coding=bool(meta.get("skip_coding")),
+            review_mode=bool(payload.get("review_mode")),
+            avoid_topics=list(meta.get("avoid_topics") or []),
+            asked_norms=set(meta.get("asked_norms") or []),
+        )
+        _save_state(session, state)
+        session.status = "active"
+        if meta.get("platform"):
+            deduct_platform_quota(db, user)
+        touch_active(user)
+        db.commit()
+        logger.info(
+            "create_session_done session=%s elapsed_s=%.2f plan_len=%d chains=%d",
+            session.id,
+            time.perf_counter() - api_t0,
+            len(state.plan or []),
+            len(state.project_chains or []),
+        )
+        trace_finish(
+            session.id,
+            api_elapsed_s=round(time.perf_counter() - api_t0, 2),
+            plan_len=len(state.plan or []),
+            chains=len(state.project_chains or []),
+            timings=getattr(state, "create_timings", None) or {},
+        )
+    except Exception:
+        session = db.get(InterviewSession, session_id)
+        if session is not None:
+            session.status = "failed"
+            db.add(session)
+            db.commit()
+        trace_step(session_id, "failed")
+        from app.services.session_guard_log import log_guard
+
+        log_guard(session_id, "create_failed")
+        logger.exception("create_session_failed session=%s", session_id)
+    finally:
+        db.close()
+
+
 @router.post("/session", response_model=SessionOut, status_code=status.HTTP_201_CREATED)
 def create_session(
     payload: CreateSessionRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> SessionOut:
@@ -468,20 +579,6 @@ def create_session(
     resume = db.get(Resume, payload.resume_id)
     if resume is None or resume.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="简历不存在")
-    profile = json.loads(resume.profile_json) if resume.profile_json else {}
-
-    session = InterviewSession(
-        user_id=current_user.id,
-        resume_id=resume.id,
-        interview_mode=payload.interview_mode,
-        interview_type=payload.interview_type,
-        question_count=payload.question_count,
-        status="active",
-        target_role=(payload.target_role or "").strip(),
-        target_company=(payload.target_company or "").strip(),
-    )
-    db.add(session)
-    db.flush()  # 先拿 session.id 再跑引擎（引擎内 history 记录不依赖 id，但报告引用）
 
     practice_focus = (payload.practice_focus or "").strip()
     if payload.review_mode:
@@ -499,45 +596,97 @@ def create_session(
     )
     skip_coding = bool(payload.skip_coding) and payload.interview_mode == "full"
 
-    state, opening = _engine_for(db, current_user, session.id).create(
-        session.id,
-        resume.raw_text,
-        profile,
-        payload.question_count,
+    logger.info(
+        "create_session_start user=%s resume_id=%s mode=%s rounds=%s role=%s",
+        current_user.id,
+        payload.resume_id,
         payload.interview_mode,
-        payload.interview_type,
-        target_role=payload.target_role or "",
-        target_company=payload.target_company or "",
-        practice_focus=practice_focus,
-        skip_coding=skip_coding,
-        review_mode=bool(payload.review_mode),
-        avoid_topics=avoid_topics,
-        asked_norms=asked_norms,
+        payload.question_count,
+        (payload.target_role or "").strip() or "(none)",
     )
-    _save_state(session, state)
-    quota_remaining = int(current_user.platform_quota or 0)
-    if platform:
-        quota_remaining = deduct_platform_quota(db, current_user)
-    touch_active(current_user)
+
+    # 先落库拿到 session.id 并立刻 commit，释放 SQLite 写锁；
+    # 否则引擎里 LLM/题库检索会把事务拖很久，并发请求直接 database is locked。
+    session = InterviewSession(
+        user_id=current_user.id,
+        resume_id=resume.id,
+        interview_mode=payload.interview_mode,
+        interview_type=payload.interview_type,
+        question_count=payload.question_count,
+        status="creating",
+        target_role=(payload.target_role or "").strip(),
+        target_company=(payload.target_company or "").strip(),
+    )
+    db.add(session)
     db.commit()
-    plan_types = [str(q.get("type") or "") for q in (state.plan or [])]
+    db.refresh(session)
+    trace_begin(
+        session.id,
+        user_id=current_user.id,
+        resume_id=payload.resume_id,
+        mode=payload.interview_mode,
+        rounds=payload.question_count,
+        role=(payload.target_role or "").strip(),
+        company=(payload.target_company or "").strip(),
+    )
+
+    background_tasks.add_task(
+        _plan_session_background,
+        session.id,
+        current_user.id,
+        payload.model_dump(),
+        {
+            "resume_id": resume.id,
+            "practice_focus": practice_focus,
+            "avoid_topics": avoid_topics,
+            "asked_norms": sorted(asked_norms),
+            "skip_coding": skip_coding,
+            "platform": platform,
+        },
+    )
+
     return SessionOut(
         session_id=session.id,
-        status=session.status,
-        stage=state.stage,
-        message=opening,
+        status="creating",
+        stage="",
+        message="",
         settings_applied={
             "skip_coding": skip_coding,
-            "has_coding": "coding" in plan_types,
-            "plan_types": plan_types,
             "dedup_scope": payload.dedup_scope,
             "avoid_topic_count": len(avoid_topics),
             "review_mode": bool(payload.review_mode),
             "question_count": payload.question_count,
             "used_platform_key": platform,
-            "platform_quota_remaining": quota_remaining,
+            "platform_quota_remaining": int(current_user.platform_quota or 0),
         },
     )
+
+
+@router.get("/session/{session_id}/create-progress", response_model=CreateProgressOut)
+def get_create_progress(
+    session_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CreateProgressOut:
+    session = _get_owned_session(db, session_id, current_user.id)
+    if session.status == "active":
+        state = _load_state(session)
+        plan_types = [str(q.get("type") or "") for q in (state.plan or [])]
+        return CreateProgressOut(
+            status="ready",
+            progress=100,
+            label="规划完成",
+            step="finish",
+            settings_applied={
+                "has_coding": "coding" in plan_types,
+                "plan_types": plan_types,
+                "question_count": session.question_count,
+            },
+        )
+    if session.status == "failed":
+        return CreateProgressOut(status="failed", progress=0, label="规划失败", step="failed")
+    progress, label, step = _read_create_progress(session_id)
+    return CreateProgressOut(status="creating", progress=progress, label=label, step=step)
 
 
 def _advance(
@@ -566,7 +715,7 @@ def _advance(
             qrow.follow_up_count += 1  # 追问，题目未前进
         _answer_row(db, session.id, qrow.id, text, state.per_question[f"q{before_cursor + 1}"])
     elif state.stage == "ASK_BACK":
-        state, report = engine.handle_ask_back(state, text)
+        state, report = engine.finish_interview(state)
         session.status = "finished"
         session.finished_at = datetime.now(timezone.utc)
         db.add(
@@ -579,8 +728,26 @@ def _advance(
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="面试阶段异常")
 
+    if state.stage == "SUMMARIZING":
+        state, report = engine.finish_interview(state)
+        session.status = "finished"
+        session.finished_at = datetime.now(timezone.utc)
+        db.add(
+            ScoreReport(
+                session_id=session.id,
+                report_json=json.dumps(report, ensure_ascii=False),
+            )
+        )
+        message = "面试结束，报告已生成。"
+
     _save_state(session, state)
     db.commit()
+    try:
+        from app.services.session_checkpoint import save_checkpoint
+
+        save_checkpoint(session.id, _build_session_view(session, state))
+    except Exception:  # noqa: BLE001  checkpoint 失败不影响主流程
+        logger.debug("checkpoint save failed session_id=%s", session.id, exc_info=True)
     return {
         "message": message,
         "stage": state.stage,
@@ -620,19 +787,38 @@ def submit_answer_stream(
     if session.status != "active":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="面试已结束")
 
+    # 请求级 Session 不能进后台线程（SQLAlchemy 非线程安全）；只捕获标量供子线程自建连接。
+    user_id = current_user.id
+    answer_text = payload.text
+
     def event_stream():
         q: queue.Queue = queue.Queue()
-        engine = _engine_for(db, current_user, session.id)
-        stream_engine = InterviewEngine(
-            StreamingLlm(engine.llm, lambda tok: q.put(("token", tok)))
-        )
 
         def producer() -> None:
+            thread_db = SessionLocal()
             try:
-                out = _advance(session, db, payload.text, stream_engine)
+                sess = thread_db.get(InterviewSession, session_id)
+                user = thread_db.get(User, user_id)
+                if sess is None or user is None or sess.user_id != user_id:
+                    q.put(("error", "会话不存在"))
+                    return
+                if sess.status != "active":
+                    q.put(("error", "面试已结束"))
+                    return
+                engine = _engine_for(thread_db, user, session_id)
+                stream_engine = InterviewEngine(
+                    StreamingLlm(engine.llm, lambda tok: q.put(("token", tok)))
+                )
+                out = _advance(sess, thread_db, answer_text, stream_engine)
                 q.put(("done", out))
             except Exception as e:  # noqa: BLE001  线程内异常转为 error 事件
+                try:
+                    thread_db.rollback()
+                except Exception:  # noqa: BLE001
+                    pass
                 q.put(("error", str(e)))
+            finally:
+                thread_db.close()
 
         threading.Thread(target=producer, daemon=True).start()
         while True:

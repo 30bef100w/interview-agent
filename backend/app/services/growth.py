@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import re
 from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 
@@ -73,6 +74,94 @@ DIM_TO_PRACTICE = {
     "沟通表达": ("hr", "本场请侧重表达清晰度、结构与倾听追问"),
     "综合素质": ("hr", "本场请侧重综合素质与行为面场景题"),
 }
+
+
+def _parse_started_at(iso: str | None) -> datetime | None:
+    if not iso:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def _weekly_stats(points: list[dict]) -> dict:
+    now = datetime.now(timezone.utc)
+    w0 = now - timedelta(days=7)
+    w1 = now - timedelta(days=14)
+    this_week = last_week = 0
+    for p in points:
+        t = _parse_started_at(p.get("started_at"))
+        if not t:
+            continue
+        if t >= w0:
+            this_week += 1
+        elif t >= w1:
+            last_week += 1
+    return {
+        "this_week": this_week,
+        "last_week": last_week,
+        "delta": this_week - last_week,
+    }
+
+
+def _milestones(
+    session_count: int,
+    latest_overall: float | None,
+    total_delta: float | None,
+) -> list[dict]:
+    out: list[dict] = []
+    if session_count >= 1:
+        out.append({"id": "first", "title": "完成首场模拟", "desc": "已建立成长基线"})
+    if session_count >= 3:
+        out.append({"id": "three", "title": "坚持三场", "desc": "纵向对比样本充足"})
+    if session_count >= 5:
+        out.append({"id": "five", "title": "练满五场", "desc": "近因能力画像更稳定"})
+    if latest_overall is not None and float(latest_overall) >= 7.5:
+        out.append(
+            {
+                "id": "high_score",
+                "title": "高分场次",
+                "desc": f"最近综合 {float(latest_overall):.1f}/10",
+            }
+        )
+    if total_delta is not None and float(total_delta) >= 1.0:
+        out.append(
+            {
+                "id": "improved",
+                "title": "累计明显提升",
+                "desc": f"首末综合分差 {float(total_delta):+.1f}",
+            }
+        )
+    return out
+
+
+def _focus_dimension(recency_dims: dict[str, float | None]) -> dict | None:
+    vals = [(k, float(v)) for k, v in recency_dims.items() if v is not None]
+    if not vals:
+        return None
+    dim, score = min(vals, key=lambda x: x[1])
+    return {"dimension": dim, "score": round(score, 2)}
+
+
+def _practice_streak_days(points: list[dict]) -> int:
+    """连续有练习的自然日（从今天往前数）。"""
+    days: set[str] = set()
+    for p in points:
+        t = _parse_started_at(p.get("started_at"))
+        if t:
+            days.add(t.date().isoformat())
+    if not days:
+        return 0
+    streak = 0
+    cursor = datetime.now(timezone.utc).date()
+    while cursor.isoformat() in days:
+        streak += 1
+        cursor -= timedelta(days=1)
+    return streak
 
 
 def _overall(dims: dict[str, Any]) -> float | None:
@@ -392,6 +481,11 @@ def build_growth_timeline(rows: list[dict]) -> dict:
     roles = [p.get("target_role") for p in points if p.get("target_role")]
     primary_role = roles[-1] if roles else ""
 
+    weekly = _weekly_stats(points)
+    milestones = _milestones(len(points), latest_overall, total_delta)
+    focus_dimension = _focus_dimension(recency_dims)
+    streak_days = _practice_streak_days(points)
+
     return {
         "session_count": len(points),
         "points": points,
@@ -401,6 +495,10 @@ def build_growth_timeline(rows: list[dict]) -> dict:
         "recency_dimensions": recency_dims,
         "skill_tags": skill_tags,
         "practice_suggestions": practice_suggestions,
+        "weekly_stats": weekly,
+        "milestones": milestones,
+        "focus_dimension": focus_dimension,
+        "practice_streak_days": streak_days,
         "summary": {
             "first_overall": first_overall,
             "latest_overall": latest_overall,

@@ -1,0 +1,259 @@
+% !TEX program = xelatex
+\documentclass[11pt,a4paper]{ctexart}
+
+\usepackage[
+  top=1.8cm,bottom=1.6cm,left=2.2cm,right=2.2cm,
+  headheight=0pt, footskip=1.2cm
+]{geometry}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{eso-pic}
+
+% ---------- Brand ----------
+\definecolor{DeepIndigo}{HTML}{312E81}
+\definecolor{DeepSky}{HTML}{0284C7}
+\definecolor{DeepCyan}{HTML}{0891B2}
+\definecolor{SoftBg}{HTML}{F0F9FF}
+\definecolor{CardBorder}{HTML}{E0E7FF}
+\definecolor{TextMuted}{HTML}{64748B}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=DeepSky,
+  urlcolor=DeepCyan,
+  pdftitle={深问 DeepAsk 产品介绍},
+}
+
+\setmainfont{Segoe UI}[
+  BoldFont=Segoe UI Semibold,
+  ItalicFont=Segoe UI Italic
+]
+\setCJKmainfont{Microsoft YaHei UI}[
+  BoldFont=Microsoft YaHei UI Bold
+]
+
+\pagestyle{empty}
+
+% Subtle page wash
+\AddToShipoutPictureBG{%
+  \AtPageLowerLeft{%
+    \begin{tikzpicture}[remember picture,overlay]
+      \fill[SoftBg!55] (current page.south west) rectangle (current page.north east);
+      \shade[left color=DeepIndigo!4, right color=DeepCyan!3, opacity=0.9]
+        ([yshift=0cm]current page.south west) rectangle ([yshift=3.2cm]current page.north east);
+    \end{tikzpicture}%
+  }%
+}
+
+% ---------- One feature = one page ----------
+\newcommand{\featurepage}[4]{%
+  \clearpage
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north west, text=DeepIndigo!08, scale=7, font=\bfseries]
+      at ([xshift=0.3cm,yshift=-0.6cm]current page.north west) {#1};
+  \end{tikzpicture}
+
+  \vspace*{0.2cm}
+  {\color{DeepSky}\small\bfseries\MakeUppercase{深问 DeepAsk}}\\[0.35em]
+  {\LARGE\bfseries\color{DeepIndigo} #2}\\[0.55em]
+  {\color{TextMuted}\normalsize #3}
+
+  \vspace{0.65em}
+  \begin{itemize}[
+    leftmargin=1.15em, itemsep=3pt, topsep=2pt,
+    label={\color{DeepSky}\small\textbullet}
+  ]
+    #4
+  \end{itemize}
+
+  \vfill
+  \begin{center}
+    \IfFileExists{images/#1}{%
+      \includegraphics[
+        width=\linewidth,
+        height=0.58\textheight,
+        keepaspectratio
+      ]{images/#1}%
+    }{%
+      \begin{tcolorbox}[
+        enhanced, arc=6mm, boxrule=0.6pt,
+        colback=white, colframe=CardBorder,
+        width=\linewidth, height=0.58\textheight,
+        halign=center, valign=center
+      ]
+        {\color{TextMuted}\large 截图缺失：\texttt{images/#1}}
+      \end{tcolorbox}%
+    }%
+  \end{center}
+  \vfill
+}
+
+\begin{document}
+
+% ===== Cover =====
+\begin{titlepage}
+  \AddToShipoutPictureBG*{%
+    \begin{tikzpicture}[remember picture,overlay]
+      \fill[SoftBg] (current page.south west) rectangle (current page.north east);
+      \shade[left color=DeepIndigo!20, right color=DeepCyan!12]
+        ([yshift=1.8cm]current page.west) rectangle ([yshift=9.5cm]current page.east);
+      \node[anchor=south east, opacity=0.07, scale=9, text=DeepIndigo]
+        at ([xshift=-0.8cm,yshift=-1.5cm]current page.north east) {问};
+      \node[anchor=north west, opacity=0.06, scale=7, text=DeepSky]
+        at ([xshift=1.2cm,yshift=-4.5cm]current page.south west) {深};
+    \end{tikzpicture}%
+  }
+
+  \vspace*{3.4cm}
+  \begin{center}
+    {\fontsize{46}{52}\selectfont\bfseries\color{DeepIndigo} 深问}\\[0.35em]
+    {\fontsize{22}{26}\selectfont\color{DeepSky}\bfseries DEEPASK}\\[2.4em]
+
+    {\LARGE\bfseries\color{black!82} 往深处问，往 Offer 近}\\[1.1em]
+    {\large\color{TextMuted}
+      面向技术岗的 AI 模拟面试平台\\[0.25em]
+      简历驱动 · 岗位定向 · 多轮追问 · 手撕判题 · 可解释评分
+    }
+
+    \vfill
+    \begin{tcolorbox}[
+      enhanced, arc=8mm, boxrule=0pt,
+      colback=white, colframe=white,
+      width=0.78\textwidth, halign=center,
+      drop fuzzy shadow
+    ]
+      \textbf{\color{DeepIndigo}Plan-then-Execute} 多 Agent 状态机\\[0.35em]
+      {\small\color{TextMuted}
+        自我介绍 → 项目深挖 → 八股 / 算法 → HR → 反问 → 终评报告
+      }
+    \end{tcolorbox}
+    \vfill
+
+    {\small\color{TextMuted} 产品介绍 · \today}
+  \end{center}
+\end{titlepage}
+
+% ===== Feature pages (one image each) =====
+\featurepage{00-landing.png}{产品首页}{品牌落地页，一眼看懂深问能做什么}{%
+  \item 清晰传达「往深处问」的产品定位与核心价值
+  \item 展示多轮追问、手撕判题、量化报告等核心能力
+  \item 右侧预览真实面试间体验，降低首次使用门槛
+}
+
+\featurepage{01-dashboard.png}{工作台}{登录后的中枢，练什么一眼看清}{%
+  \item 四大入口：开始面试、管理简历、面试记录、成长档案
+  \item 顶部汇总累计面试、已出报告与进行中场次
+  \item 最近场次可一键继续或查看报告
+}
+
+\featurepage{02-new-interview.png}{开始一场面试}{从简历到题单，三步开练}{%
+  \item 选择简历作为本场上下文，AI 读懂项目与技术栈
+  \item 设定岗位方向、目标企业与面试形式 / 类型
+  \item 支持全流程混合面或专项突击（项目 / 八股 / HR）
+}
+
+\featurepage{03-custom-settings.png}{自定义设置}{每场独立配置，贴合你的练习节奏}{%
+  \item 总轮次 4～20 轮：快速体验 ↔ 深度拷打
+  \item 本场练习焦点、去掉算法环节、复习模式与题目去重
+  \item 设置仅作用于当前场次，互不干扰
+}
+
+\featurepage{04-target-company.png}{岗位定向}{简历 + 企业 + 岗位，不是随机抽题}{%
+  \item 规划官先读简历，再结合岗位与企业拼出题单
+  \item 4.5 万+ 题库 A/B 双路召回，优先匹配大厂高频原题
+  \item 项目名与技术栈进入规划与追问链路
+}
+
+\featurepage{05-history.png}{面试记录}{每场独立存档，随时续练与复盘}{%
+  \item 支持关键词、状态、岗位与企业多维筛选
+  \item 进行中场次可继续，已结束场次直达报告
+  \item 标签化展示岗位方向与目标企业
+}
+
+\featurepage{06-growth.png}{成长档案}{跨场次看见进步与短板}{%
+  \item 已复盘场次、准备度、本周练习与连续练习天
+  \item 里程碑推动持续练习，标出当前最弱维度
+  \item 数据回流驱动下一轮针对性训练
+}
+
+\featurepage{07-targeted-practice.png}{针对性再练}{一键预填模式，专打薄弱项}{%
+  \item 按表达、缓存、项目、算法等维度推荐练习卡片
+  \item 点击卡片自动预填模式与焦点，确认即开练
+  \item 每场仍是独立测评，不继承历史对话
+}
+
+\featurepage{08-radar-weakness.png}{能力画像}{雷达图 + 短板标签，短板看得见}{%
+  \item 近 5 场加权四维雷达：技术深度、项目经验、沟通表达、综合素质
+  \item 分类短板标签一目了然，每条可「针对性再练」
+  \item 练完即更新，形成闭环
+}
+
+\featurepage{09-interview-chat.png}{面试间}{多轮追问 + 语音双向，像真一面}{%
+  \item 展示阶段与轮次进度，节奏可控
+  \item 题面支持 Markdown 渲染，复杂内容清晰可读
+  \item 面试官 TTS 播报，候选人可文字或麦克风实时转写
+}
+
+\featurepage{10-coding.png}{手撕算法}{题面 + 在线判题，算法环节不缺席}{%
+  \item 左侧 Markdown 题面含难度与标签
+  \item 右侧多语言编辑器，支持运行与提交判题
+  \item 通过后自动推进下一问，融入全流程
+}
+
+\featurepage{11-report.png}{面试报告}{可解释评分，练完立刻知道差在哪}{%
+  \item 雷达图与综合分基于真实作答，空答不高分
+  \item 维度拆解 + 总体评语，反馈可理解、可行动
+  \item 支持导出 Word / PDF，方便存档与分享
+}
+
+\featurepage{12-report-questions.png}{逐题复盘}{岗位定向的最佳验收入口}{%
+  \item 逐题展示来源、考点与简历关联
+  \item 大厂原题、简历深挖、算法与 HR 穿插呈现
+  \item 单题得分回流成长档案，驱动下一轮练习
+}
+
+% ===== Closing =====
+\clearpage
+\vspace*{2.2cm}
+\begin{center}
+  {\LARGE\bfseries\color{DeepIndigo} 面向计算机专业 · 互联网校招 / 社招}\\[0.55em]
+  {\normalsize\color{TextMuted}
+    为 CS / SE / AI 等计算机相关专业同学，以及备战大厂技术面与 HR 面的互联网求职者而生
+  }
+
+  \vspace{1.6em}
+  \begin{tcolorbox}[
+    enhanced, arc=6mm, boxrule=0.5pt,
+    colback=white, colframe=CardBorder,
+    width=0.84\textwidth, left=12pt, right=12pt
+  ]
+    \begin{itemize}[
+      leftmargin=1.2em, itemsep=8pt,
+      label={\color{DeepSky}\textbf{→}}
+    ]
+      \item 计算机相关专业：Agent / 后端 / 前端 / 算法 / 测试等方向
+      \item 互联网招聘：按岗位 + 目标企业（字节、阿里、腾讯等）定向练真题
+      \item 简历驱动深挖 + 手撕判题 + 可解释报告，贴近真实技术面流程
+    \end{itemize}
+  \end{tcolorbox}
+
+  \vfill
+  \begin{tcolorbox}[
+    enhanced, arc=10mm, boxrule=0pt,
+    colback=DeepIndigo, coltext=white,
+    width=0.76\linewidth, halign=center,
+    drop fuzzy shadow
+  ]
+    {\fontsize{22}{26}\selectfont\bfseries 深问 DeepAsk}\\[0.45em]
+    {\large\color{white!88} 往深处问，往 Offer 近}\\[0.65em]
+    {\normalsize\bfseries\color{DeepCyan!35!white} 即将上线，敬请期待}
+  \end{tcolorbox}
+  \vfill
+\end{center}
+
+\end{document}

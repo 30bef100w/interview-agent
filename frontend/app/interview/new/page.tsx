@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
@@ -67,6 +67,8 @@ function NewInterviewForm() {
   const [roleSuggestions, setRoleSuggestions] = useState<RoleOpt[]>([]);
   const [fromLabel, setFromLabel] = useState("");
   const [creating, setCreating] = useState(false);
+  const [planProgress, setPlanProgress] = useState(0);
+  const [planLabel, setPlanLabel] = useState("准备规划");
   const [prefilled, setPrefilled] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [custom, setCustom] = useState<CustomSettings>({
@@ -156,15 +158,36 @@ function NewInterviewForm() {
     else if (!roles.some((r) => r.name === targetRole)) setTargetRole("");
   }
 
+  async function waitForPlanReady(sessionId: number) {
+    const deadline = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < deadline) {
+      const p = await api<{
+        status: string;
+        progress: number;
+        label: string;
+        step: string;
+      }>(`/api/interview/session/${sessionId}/create-progress`);
+      setPlanProgress(p.progress);
+      setPlanLabel(p.label || "规划中");
+      if (p.status === "ready") return;
+      if (p.status === "failed") throw new Error("题单规划失败，请重试");
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+    throw new Error("规划超时，请稍后从历史记录进入或重试");
+  }
+
   async function start() {
     if (!resumeId) {
       toast.err("请先上传简历");
       return;
     }
     setCreating(true);
+    setPlanProgress(3);
+    setPlanLabel("准备规划");
     try {
       const session = await api<{
         session_id: number;
+        status?: string;
         settings_applied?: {
           skip_coding?: boolean;
           has_coding?: boolean;
@@ -205,7 +228,8 @@ function NewInterviewForm() {
         }
         if (bits.length) toast.ok(`本场设置：${bits.join(" · ")}`);
       }
-      router.push(`/interview/${session.session_id}`);
+      await waitForPlanReady(session.session_id);
+      window.location.assign(`/interview/${session.session_id}`);
     } catch (e) {
       toast.err(e instanceof Error ? e.message : "创建失败，请重试");
       setCreating(false);
@@ -579,7 +603,7 @@ function NewInterviewForm() {
             className="h-11 rounded-xl bg-gradient-to-r from-sky-600 to-emerald-600 px-8 text-sm font-semibold text-white shadow-lg shadow-sky-600/25 transition-all hover:from-sky-500 hover:to-emerald-500 hover:shadow-xl hover:shadow-sky-600/30 active:from-sky-700 active:to-emerald-700 disabled:opacity-50 sm:min-w-[180px]"
           >
             {creating
-              ? "正在准备面试…"
+              ? "规划中，约 1～3 分钟…"
               : custom.practiceFocus.trim() || custom.reviewMode
                 ? "开始本场定向面试 →"
                 : "开始面试 →"}
@@ -594,6 +618,29 @@ function NewInterviewForm() {
         onChange={setCustom}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {creating ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-sky-100 bg-white p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-zinc-900">正在规划本场面试</h3>
+            <p className="mt-1.5 text-sm text-zinc-500">
+              检索题库、生成拷打链并拼题单，通常 1～3 分钟，请勿关闭页面
+            </p>
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+                <span>{planLabel}</span>
+                <span>{planProgress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.max(3, planProgress)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

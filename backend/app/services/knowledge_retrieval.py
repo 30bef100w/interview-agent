@@ -84,9 +84,10 @@ def _score_question(
     if company and q.get("company") == company:
         score += 120  # 企业定向权重最高，防止被弱标签噪音淹没
     if scenes_set:
-        q_scenes = set((q.get("business_scene") or []) + (q.get("tech_scene") or []))
-        # 有岗位时场景只做加分，无岗位时保持原权重
-        score += len(scenes_set & q_scenes) * (15 if roles else 40)
+        q_scene_list = list((q.get("business_scene") or []) + (q.get("tech_scene") or []))
+        from app.services.scene_tag_similarity import scene_score_bonus
+
+        score += scene_score_bonus(list(scenes_set), q_scene_list, has_roles=bool(roles))
     if skills_low:
         text = f"{q.get('question','')} {q.get('answer') or ''}".lower()
         skill_hits = sum(1 for s in skills_low if s in text)
@@ -178,6 +179,36 @@ def _is_noisy(q: dict) -> bool:
     ):
         return True
     return False
+
+
+def sanitize_hits(
+    hits: list[dict],
+    roles: list[str] | None = None,
+    company: str | None = None,
+    *,
+    require_role: bool = False,
+) -> list[dict]:
+    """召回后清洗：去噪音/错题/攻略题，岗位硬过滤，目标企业时剔其他公司标签题。"""
+    roles_set = set(roles or [])
+    out: list[dict] = []
+    seen: set[str] = set()
+    for h in hits:
+        if _is_noisy(h):
+            continue
+        q_norm = _question_norm(h)
+        if not q_norm or q_norm in seen:
+            continue
+        q_roles = set(h.get("roles") or [])
+        if roles_set:
+            if require_role or q_roles:
+                if not (q_roles & roles_set):
+                    continue
+        h_company = str(h.get("company") or "").strip()
+        if company and h_company and h_company != company:
+            continue
+        seen.add(q_norm)
+        out.append(h)
+    return out
 
 
 def _bigrams(text: str) -> set[str]:
@@ -325,6 +356,8 @@ def search_questions(
     asked = asked_norms or set()
     scored = []
     for q in load_questions():
+        if _is_noisy(q):
+            continue
         s = _score_question(q, roles_set, company, skills_low, scenes_set, category)
         if s < min_score:
             continue
@@ -499,8 +532,10 @@ def search_projects(
         if skills:
             score += sum(10 for s in skills if s and s.lower() in text.lower())
         if scenes:
-            q_scenes = set((q.get("business_scene") or []) + (q.get("tech_scene") or []))
-            score += len(set(scenes) & q_scenes) * 40
+            q_scene_list = list((q.get("business_scene") or []) + (q.get("tech_scene") or []))
+            from app.services.scene_tag_similarity import scene_score_bonus
+
+            score += scene_score_bonus(scenes, q_scene_list, has_roles=False)
         if score < 20:
             continue
         score *= _era_weight(q.get("era"))
