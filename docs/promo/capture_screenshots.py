@@ -25,14 +25,14 @@ DB_PATH = BACKEND / "data" / "face_agent.db"
 
 BASE_URL = os.environ.get("PROMO_BASE_URL", "http://127.0.0.1:3000")
 API_URL = os.environ.get("PROMO_API_URL", "http://127.0.0.1:8001")
-USERNAME = os.environ.get("PROMO_USERNAME", "xuyongqi")
-PASSWORD = os.environ.get("PROMO_PASSWORD", "123456")
-USER_ID = int(os.environ.get("PROMO_USER_ID", "2"))
+USERNAME = os.environ.get("PROMO_USERNAME", "smoke_fin_5499")
+PASSWORD = os.environ.get("PROMO_PASSWORD", "test123456")
+USER_ID = int(os.environ.get("PROMO_USER_ID", "9"))
 VIEWPORT = {"width": 1440, "height": 900}
 DEVICE_SCALE = 2
 TARGET_WIDTH = 2880
 
-# 用户手工截图（xuyongqi 账号）→ 输出文件名
+# 默认从测试账号参考截图同步（可用 PROMO_MODE=live 实时截取）
 REFERENCE_MAP: dict[str, str] = {
     "00-landing.png": "*image-fe8042be*",
     "01-dashboard.png": "*image-1dc3cfef*",

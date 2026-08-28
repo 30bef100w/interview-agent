@@ -9,6 +9,7 @@ from openai import OpenAI
 from app.config import settings
 from app.observability.metrics import metrics_registry
 from app.services.llm.manager import estimate_cost
+from app.services.llm_alert import maybe_alert_llm_failure
 
 _client: OpenAI | None = None
 
@@ -54,6 +55,7 @@ class OpenAiLlm:
         input_price_per_m: float = 1.0,
         output_price_per_m: float = 2.0,
         on_usage: UsageCallback | None = None,
+        used_platform_key: bool = False,
     ) -> None:
         self.provider = provider
         self.model = model or settings.deepseek_model
@@ -66,6 +68,8 @@ class OpenAiLlm:
             self._client = _new_client(base_url, api_key)
         else:
             self._client = get_openai_client()
+        # 未显式传入自定义 Key 时走系统默认客户端，视为平台 Key
+        self._used_platform_key = used_platform_key if (base_url and api_key) else True
 
     def _record(self, usage) -> None:
         if not usage or not self.on_usage:
@@ -79,6 +83,17 @@ class OpenAiLlm:
         metrics_registry.record_llm(
             error=error, duration_ms=duration_ms, model=self.model
         )
+
+    def _on_llm_error(self, exc: Exception) -> None:
+        try:
+            maybe_alert_llm_failure(
+                exc,
+                provider=self.provider,
+                model=self.model,
+                used_platform_key=self._used_platform_key,
+            )
+        except Exception:
+            pass
 
     def chat_json(self, system: str, user: str, *, max_retries: int = 2) -> dict:
         last_err: Exception | None = None
@@ -100,6 +115,7 @@ class OpenAiLlm:
                 return _parse_json(resp.choices[0].message.content or "")
             except Exception as e:  # noqa: BLE001
                 self._record_llm_metric((time.perf_counter() - t0) * 1000, error=True)
+                self._on_llm_error(e)
                 last_err = e
         raise last_err  # type: ignore[misc]
 
@@ -124,8 +140,9 @@ class OpenAiLlm:
             self._record(resp.usage)
             self._record_llm_metric((time.perf_counter() - t0) * 1000)
             return (resp.choices[0].message.content or "").strip()
-        except Exception:
+        except Exception as e:
             self._record_llm_metric((time.perf_counter() - t0) * 1000, error=True)
+            self._on_llm_error(e)
             raise
 
     def chat_stream(self, system: str, user: str) -> Iterator[str]:
@@ -150,8 +167,9 @@ class OpenAiLlm:
                 delta = chunk.choices[0].delta.content
                 if delta:
                     yield delta
-        except Exception:
+        except Exception as e:
             err = True
+            self._on_llm_error(e)
             raise
         finally:
             self._record_llm_metric((time.perf_counter() - t0) * 1000, error=err)

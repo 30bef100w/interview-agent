@@ -1,5 +1,10 @@
 export const API_BASE = (() => {
   const configured = process.env.NEXT_PUBLIC_API_BASE;
+  if (typeof window !== "undefined") {
+    // 浏览器同源 /api（Next rewrite 或 Nginx 反代）
+    if (configured) return configured.replace(/\/$/, "");
+    return "";
+  }
   if (configured !== undefined) {
     return configured.replace(/\/$/, "");
   }

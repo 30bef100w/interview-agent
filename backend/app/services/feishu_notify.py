@@ -87,6 +87,24 @@ def send_feishu_text(title: str, body: str) -> bool:
         return False
 
 
+def send_throttled_ops_alert(
+    alert_key: str,
+    title: str,
+    *,
+    cooldown_seconds: int | None = None,
+    **fields: Any,
+) -> bool:
+    """同一 alert_key 在冷却期内只发一次飞书。"""
+    from app.services.alert_throttle import mark_alert_sent, should_send_alert
+
+    if not should_send_alert(alert_key, cooldown_seconds):
+        return False
+    ok = send_ops_alert(title, **fields)
+    if ok:
+        mark_alert_sent(alert_key)
+    return ok
+
+
 def send_ops_alert(title: str, **fields: Any) -> bool:
     lines = [
         f"时间：{datetime.now(timezone.utc).astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')}",

@@ -2,7 +2,16 @@
 
 ## 自动截图（推荐）
 
-默认从你在对话里提供的 **xuyongqi 账号参考截图** 同步，并放大到 2880px 宽：
+默认使用 **smoke 测试账号** 实时截取（`capture_homepage_promo.py`），或从参考图同步：
+
+```powershell
+cd docs/promo
+python capture_homepage_promo.py
+```
+
+账号：`smoke_fin_5499` / `smoke_m7_7955`，密码 `test123456`（虚构「张三」简历，无真实个人信息）。
+
+全量截图（旧流程，参考图同步）：
 
 ```powershell
 cd docs/promo
@@ -11,7 +20,7 @@ python capture_screenshots.py
 .\build.ps1
 ```
 
-账号密码可通过环境变量覆盖：`PROMO_USERNAME` / `PROMO_PASSWORD`（默认 xuyongqi / 123456）。
+账号密码可通过环境变量覆盖：`PROMO_USERNAME` / `PROMO_PASSWORD`（默认 smoke_fin_5499 / test123456）。
 
 尝试 Playwright 实时截取（需 frontend 能正常请求 API）：
 

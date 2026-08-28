@@ -47,11 +47,25 @@ def write_exception(
     path: str = "",
     user_id: int | None = None,
 ) -> None:
+    message = f"{type(exc).__name__}: {exc}"[:512]
     write_log(
         level="error",
         source=source,
         path=path,
-        message=f"{type(exc).__name__}: {exc}"[:512],
+        message=message,
         detail="".join(traceback.format_exception(type(exc), exc, exc.__traceback__)),
         user_id=user_id,
     )
+    try:
+        from app.services.feishu_notify import send_throttled_ops_alert
+
+        send_throttled_ops_alert(
+            "http_500",
+            "服务器未捕获异常",
+            source=source or "unhandled",
+            path=path,
+            error=message,
+            user_id=user_id,
+        )
+    except Exception:
+        pass

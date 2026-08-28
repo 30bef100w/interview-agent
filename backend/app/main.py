@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app import models  # noqa: F401  确保模型注册进 Base.metadata
+from app.middleware.load_alert_middleware import LoadAlertMiddleware
 from app.middleware.trace_middleware import TraceMiddleware
 from app.api import (
     admin,
@@ -75,6 +76,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
+app.add_middleware(LoadAlertMiddleware)
 app.add_middleware(TraceMiddleware)
 
 _cors = settings.cors_origin_list

@@ -3,6 +3,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
 import { IconSend } from "@/components/ui";
+import { getToken } from "@/lib/api";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 
 export type AnswerComposerHandle = {
@@ -89,7 +90,7 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
             {
               method: "POST",
               headers: {
-                Authorization: `Bearer ${localStorage.getItem("fa_token") || ""}`,
+                Authorization: `Bearer ${getToken() || ""}`,
               },
               body: fd,
             }

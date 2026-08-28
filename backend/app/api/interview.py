@@ -82,6 +82,7 @@ def _engine_for(
         input_price_per_m=cfg["input_price_per_m"],
         output_price_per_m=cfg["output_price_per_m"],
         on_usage=sink.record,
+        used_platform_key=platform,
     )
     return InterviewEngine(llm)
 
