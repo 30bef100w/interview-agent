@@ -1,9 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
 import { IconSend } from "@/components/ui";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
+
+export type AnswerComposerHandle = {
+  focus: () => void;
+};
 
 type Props = {
   value: string;
@@ -20,18 +24,22 @@ const SPEECH_HINT: Record<string, string> = {
   generic: "语音识别失败",
 };
 
-export default function AnswerComposer({
-  value,
-  onChange,
-  onSend,
-  disabled = false,
-  sending = false,
-}: Props) {
+const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerComposer(
+  { value, onChange, onSend, disabled = false, sending = false },
+  ref
+) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const speechActive = useRef(false);
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [whisperBusy, setWhisperBusy] = useState(false);
   const [whisperHint, setWhisperHint] = useState("");
+
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      textareaRef.current?.focus();
+    },
+  }));
 
   const { supported, listening, error, start, stop, clearError } = useSpeechToText({
     onInterim: (live) => {
@@ -124,6 +132,7 @@ export default function AnswerComposer({
   return (
     <div className="w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={(e) => {
           speechActive.current = false;
@@ -195,4 +204,6 @@ export default function AnswerComposer({
       </div>
     </div>
   );
-}
+});
+
+export default AnswerComposer;

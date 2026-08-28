@@ -57,10 +57,17 @@ export default function MessageTimeline({ messages, ttsAutoPlay }: Props) {
                   {label}
                 </span>
               ) : null}
-              <div className={`${m.streaming ? "streaming-cursor" : ""}`}>
+              <div>
                 {m.role === "interviewer" ? (
                   m.streaming ? (
-                    <div className="whitespace-pre-wrap">{m.text}</div>
+                    <div className="select-none whitespace-pre-wrap">
+                      {m.text}
+                      <span className="streaming-typing" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                    </div>
                   ) : (
                     <MarkdownRenderer content={m.text || "…"} />
                   )

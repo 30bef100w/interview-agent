@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { type PointerEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import CodeEditor, { type CodingProblem } from "@/components/CodeEditor";
-import AnswerComposer from "@/components/interview/AnswerComposer";
+import AnswerComposer, { type AnswerComposerHandle } from "@/components/interview/AnswerComposer";
 import DisconnectOverlay from "@/components/interview/DisconnectOverlay";
 import InterviewStatusBar from "@/components/interview/InterviewStatusBar";
 import MessageTimeline, { type ChatMsg } from "@/components/interview/MessageTimeline";
@@ -93,6 +93,7 @@ export default function ChatPage() {
   const [wsConnected, setWsConnected] = useState(false);
   const [ttsAutoPlay, setTtsAutoPlay] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<AnswerComposerHandle>(null);
 
   const typeBuf = useRef("");
   const typeTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -144,6 +145,7 @@ export default function ChatPage() {
         return m;
       });
       void refreshSession();
+      window.requestAnimationFrame(() => composerRef.current?.focus());
     },
     [refreshSession]
   );
@@ -188,6 +190,7 @@ export default function ChatPage() {
       setStreaming(false);
       setMsgs((m) => [...m, { role: "interviewer", text: raw.message }]);
       void refreshSession();
+      window.requestAnimationFrame(() => composerRef.current?.focus());
     },
     [finishTyping, refreshSession]
   );
@@ -492,6 +495,7 @@ export default function ChatPage() {
         ) : (
           <div className="mx-auto max-w-2xl">
             <AnswerComposer
+              ref={composerRef}
               value={input}
               onChange={setInput}
               onSend={send}
