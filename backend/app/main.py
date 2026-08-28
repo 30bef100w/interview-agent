@@ -56,24 +56,36 @@ def _configure_logging() -> None:
 _configure_logging()
 
 
+def _validate_settings() -> None:
+    if not settings.is_production:
+        return
+    if settings.jwt_secret in ("", "dev-secret-change-me"):
+        raise RuntimeError("生产环境必须设置 JWT_SECRET（不能使用默认值）")
+    if settings.debug:
+        logging.getLogger("app").warning("APP_ENV=production 但 DEBUG=true，建议关闭")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _validate_settings()
     Base.metadata.create_all(bind=engine)
     ensure_schema()
     yield
 
 
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 
 app.add_middleware(TraceMiddleware)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_cors = settings.cors_origin_list
+if _cors:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(auth.router)
 app.include_router(resume.router)

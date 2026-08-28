@@ -42,6 +42,10 @@ async def _stream_answer(ws: WebSocket, session_id: int, user_id: int, text: str
     q: asyncio.Queue[tuple[str, object]] = asyncio.Queue()
 
     def producer() -> None:
+        from app.observability.trace_context import new_trace_id, set_session_id, set_trace_id
+
+        set_session_id(session_id)
+        set_trace_id(new_trace_id())
         thread_db = SessionLocal()
         try:
             sess = thread_db.get(InterviewSession, session_id)

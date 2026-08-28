@@ -24,11 +24,26 @@ class MetricsRegistry:
             if error:
                 self._node_errors[node] += 1
 
-    def record_llm(self, *, error: bool = False) -> None:
+    def record_llm(
+        self,
+        *,
+        error: bool = False,
+        duration_ms: float = 0.0,
+        model: str = "",
+    ) -> None:
         with self._lock:
             self._llm_calls += 1
             if error:
                 self._llm_errors += 1
+            if model:
+                key = f"llm:{model}"
+                self._node_count[key] += 1
+                bucket = self._node_duration_ms[key]
+                bucket.append(duration_ms)
+                if len(bucket) > 500:
+                    del bucket[: len(bucket) - 500]
+                if error:
+                    self._node_errors[key] += 1
 
     def snapshot(self) -> dict:
         with self._lock:

@@ -3,7 +3,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_current_user
@@ -20,6 +20,7 @@ MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10MB 上限（约 1 分钟录音）
 @router.post("/transcribe")
 def transcribe_audio(
     file: UploadFile = File(...),
+    prompt: str = Query(default=""),
     current_user: User = Depends(get_current_user),
 ) -> dict:
     suffix = Path(file.filename or "").suffix.lower()
@@ -36,7 +37,7 @@ def transcribe_audio(
     tmp = Path(tempfile.gettempdir()) / f"{uuid.uuid4().hex}{suffix}"
     tmp.write_bytes(content)
     try:
-        text = transcribe(tmp)
+        text = transcribe(tmp, prompt=prompt.strip())
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail="语音转写失败，请改用文字输入"

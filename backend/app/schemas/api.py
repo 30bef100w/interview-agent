@@ -9,7 +9,8 @@ class CreateSessionRequest(BaseModel):
     # 目标岗位 / 企业：开练时写入，引擎规划与提问会消费
     target_role: str = Field(default="", max_length=128)
     target_company: str = Field(default="", max_length=128)
-    # 本场可选定向焦点（来自成长档案建议）；只影响本场规划，不跨场记忆
+    # 本场可选：岗位 JD / 练习焦点 —— 仅用于题库召回加权，不锁死规划范围
+    job_description: str = Field(default="", max_length=4000)
     practice_focus: str = Field(default="", max_length=500)
     # 自定义设置
     skip_coding: bool = False  # 全流程下去掉算法环节

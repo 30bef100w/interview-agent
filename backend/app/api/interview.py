@@ -524,6 +524,7 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
             payload["interview_type"],
             target_role=payload.get("target_role") or "",
             target_company=payload.get("target_company") or "",
+            job_description=payload.get("job_description") or "",
             practice_focus=meta.get("practice_focus") or "",
             skip_coding=bool(meta.get("skip_coding")),
             review_mode=bool(payload.get("review_mode")),
@@ -550,7 +551,7 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
             chains=len(state.project_chains or []),
             timings=getattr(state, "create_timings", None) or {},
         )
-    except Exception:
+    except Exception as exc:
         session = db.get(InterviewSession, session_id)
         if session is not None:
             session.status = "failed"
@@ -560,6 +561,18 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
         from app.services.session_guard_log import log_guard
 
         log_guard(session_id, "create_failed")
+        try:
+            from app.services.feishu_notify import send_ops_alert
+
+            send_ops_alert(
+                "面试规划失败",
+                session_id=session_id,
+                user_id=user_id,
+                role=(payload.get("target_role") or "")[:80],
+                error=str(exc)[:400],
+            )
+        except Exception:  # noqa: BLE001
+            pass
         logger.exception("create_session_failed session=%s", session_id)
     finally:
         db.close()
@@ -693,6 +706,9 @@ def _advance(
     session: InterviewSession, db: Session, text: str, engine: InterviewEngine
 ) -> dict:
     """推进状态机并写库。返回 {message, stage, status, finished, report}。"""
+    from app.observability.trace_context import set_session_id
+
+    set_session_id(session.id)
     state = _load_state(session)
     before_cursor = state.cursor
     report = None
@@ -792,6 +808,10 @@ def submit_answer_stream(
     answer_text = payload.text
 
     def event_stream():
+        from app.observability.trace_context import new_trace_id, set_session_id, set_trace_id
+
+        set_session_id(session_id)
+        set_trace_id(new_trace_id())
         q: queue.Queue = queue.Queue()
 
         def producer() -> None:

@@ -122,12 +122,12 @@ def build_problem_view(slug: str) -> dict | None:
     if not cfg or not meta:
         return None
     from app.services.code_lang import (
-        IO_HINT,
         LANG_META,
         SCRATCH_FILENAME,
         SUPPORTED_LANGS,
         build_templates,
     )
+    from app.services.scratch_io import build_io_hint
     from app.services.code_runner import available_languages
 
     examples = []
@@ -152,7 +152,7 @@ def build_problem_view(slug: str) -> dict | None:
             "function": {k: templates_fn[k] for k in SUPPORTED_LANGS},
             "scratch": {k: templates_sc[k] for k in SUPPORTED_LANGS},
         },
-        "io_hint": IO_HINT,
+        "io_hint": build_io_hint(cfg),
         "languages": [
             {
                 "id": lang,

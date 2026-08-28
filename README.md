@@ -96,6 +96,22 @@ npm run dev
 
 打开 http://localhost:3000 。前端默认请求 `http://localhost:8001`，可用 `NEXT_PUBLIC_API_BASE` 覆盖。
 
+## 生产部署（Docker）
+
+```bash
+cp deploy/env.example .env
+# 编辑 .env：DEEPSEEK_API_KEY、JWT_SECRET、POSTGRES_PASSWORD、ADMIN_USERNAMES
+docker compose --profile bundled-db up -d --build
+```
+
+访问 `http://服务器IP`（默认 80 端口）。详细说明见 [`deploy/README.md`](deploy/README.md)。
+
+要点：
+
+- **PostgreSQL**：compose 内置数据库；若本机已有 Postgres，改 `DATABASE_URL` 指向 `host.docker.internal`
+- **CORS**：Nginx 同源反代时 `CORS_ORIGINS` 可留空；直连前后端分离部署时填域名
+- **安全**：`APP_ENV=production` 且 `JWT_SECRET` 为默认值时后端拒绝启动
+
 ## 开源范围
 
 本仓库开源**产品架构与代码**。自行整理的面经、结构化题库、算法题配置不随仓库分发。

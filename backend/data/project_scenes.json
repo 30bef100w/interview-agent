@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "business_scenes": [
     {"id": "ecommerce", "name": "电商/交易", "keywords": ["秒杀", "订单", "支付", "购物车", "商品", "交易", "库存", "优惠券", "商城"]},
     {"id": "delivery", "name": "外卖/本地生活", "keywords": ["外卖", "点评", "商户", "骑手", "门店", "本地生活", "订餐"]},
@@ -22,8 +22,16 @@
     {"id": "mq", "name": "消息队列", "keywords": ["消息队列", "kafka", "rabbitmq", "rocketmq", "mq", "异步"]},
     {"id": "realtime", "name": "实时通信", "keywords": ["websocket", "netty", "长连接", "心跳", "推送", "实时"]},
     {"id": "search", "name": "搜索", "keywords": ["es", "elasticsearch", "搜索引擎", "倒排", "分词", "solr"]},
-    {"id": "ai_rag", "name": "AI/RAG/Agent", "keywords": ["rag", "agent", "langchain", "langgraph", "向量", "embedding", "prompt", "llm", "大模型", "微调"]},
+    {"id": "ai_rag", "name": "AI/RAG/Agent", "keywords": ["rag", "agent", "langchain", "langgraph", "向量", "embedding", "prompt", "llm", "大模型", "微调", "tool", "mcp", "function call"]},
+    {"id": "vector_db", "name": "向量数据库", "keywords": ["向量数据库", "milvus", "faiss", "chroma", "pinecone", "qdrant", "ann", "相似度检索", "embedding 存储"]},
+    {"id": "model_train", "name": "训练/微调", "keywords": ["预训练", "微调", "lora", "sft", "rlhf", "dpo", "蒸馏", "训练数据", "loss", "梯度"]},
+    {"id": "model_deploy", "name": "推理/部署", "keywords": ["推理", "部署", "量化", "vllm", "tensorrt", "onnx", "serving", "batch", "延迟", "吞吐", "gpu"]},
+    {"id": "model_eval", "name": "评估/对齐", "keywords": ["评估", "benchmark", "评测", "幻觉", "对齐", "reward", "judge", "指标", "bleu", "rouge"]},
+    {"id": "data_pipeline", "name": "数据工程", "keywords": ["数据清洗", "etl", "数据标注", "语料", "pipeline", "去重", "质检", "数据集"]},
+    {"id": "crawler", "name": "爬虫/采集", "keywords": ["爬虫", "采集", "抓取", "反爬", "风控", "解析", "scrapy", "playwright"]},
     {"id": "bigdata_proc", "name": "大数据处理", "keywords": ["spark", "flink", "hadoop", "hive", "hdfs", "流式计算"]},
+    {"id": "observability", "name": "可观测性", "keywords": ["监控", "日志", "trace", "metrics", "告警", "链路追踪", "prometheus", "grafana", "apm"]},
+    {"id": "container", "name": "容器/K8s", "keywords": ["docker", "kubernetes", "k8s", "容器", "helm", "pod", "编排", "ci/cd"]},
     {"id": "auth", "name": "权限/安全", "keywords": ["权限", "认证", "鉴权", "jwt", "token", "session", "越权", "登录"]},
     {"id": "async_task", "name": "定时/异步", "keywords": ["定时任务", "xxl-job", "quartz", "异步", "延迟队列", "任务调度"]},
     {"id": "storage", "name": "存储/数据库", "keywords": ["mysql", "分库分表", "索引", "事务", "读写分离", "主从", "sql"]}

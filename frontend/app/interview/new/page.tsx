@@ -61,6 +61,7 @@ function NewInterviewForm() {
   const [type, setType] = useState("full");
   const [targetRole, setTargetRole] = useState("");
   const [targetCompany, setTargetCompany] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
   const [category, setCategory] = useState("");
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogError, setCatalogError] = useState("");
@@ -206,6 +207,7 @@ function NewInterviewForm() {
           question_count: custom.count,
           target_role: targetRole.trim(),
           target_company: targetCompany.trim(),
+          job_description: jobDescription.trim(),
           practice_focus: custom.practiceFocus.trim(),
           skip_coding: mode === "full" ? custom.skipCoding : false,
           dedup_scope: custom.dedupScope,
@@ -406,6 +408,21 @@ function NewInterviewForm() {
                 选定后会贴近该岗位/企业高频考点；仍是一场独立面试。
               </p>
             </div>
+            <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                岗位 JD <span className="font-normal text-zinc-400">（可选）</span>
+              </label>
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value.slice(0, 4000))}
+                rows={4}
+                placeholder="粘贴招聘 JD；仅用于题库召回加权，不会整段塞进规划 Prompt"
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-950"
+              />
+              <p className="mt-2 text-[11px] leading-4 text-zinc-400">
+                与「自定义设置」里的练习焦点走同一路径：只影响检索排序，不锁死出题范围。
+              </p>
+            </div>
           </div>
         </div>
       </Card>
@@ -555,6 +572,12 @@ function NewInterviewForm() {
             <>
               <span className="mx-1.5 text-zinc-300">·</span>
               {targetCompany}
+            </>
+          ) : null}
+          {jobDescription.trim() ? (
+            <>
+              <span className="mx-1.5 text-zinc-300">·</span>
+              有 JD
             </>
           ) : null}
           {custom.skipCoding && mode === "full" ? (

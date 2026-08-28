@@ -474,6 +474,16 @@ class TagMismatchResolveBody(BaseModel):
     note: str = Field(default="", max_length=512)
 
 
+class TagMismatchApplyBody(BaseModel):
+    action: str = Field(..., description="update | delete")
+    roles: list[str] = Field(default_factory=list)
+    business_scene: list[str] = Field(default_factory=list)
+    tech_scene: list[str] = Field(default_factory=list)
+    company: str | None = None
+    category: str | None = None
+    note: str = Field(default="", max_length=512)
+
+
 def _tag_mismatch_item(row: TagMismatchReview) -> dict:
     import json
 
@@ -574,3 +584,277 @@ def admin_resolve_tag_mismatch(
         detail=row.question[:200],
     )
     return _tag_mismatch_item(row)
+
+
+@router.get("/question-bank/catalog")
+def admin_question_bank_catalog(
+    admin: User = Depends(require_admin),
+) -> dict:
+    from app.services.job_roles import all_roles, load_companies
+    from app.services.question_bank_editor import load_scene_catalog
+
+    roles = all_roles()
+    companies = load_companies()["companies"]
+    scenes = load_scene_catalog()
+    return {
+        "roles": [{"id": rid, "name": meta["name"]} for rid, meta in roles.items()],
+        "companies": [{"id": c["id"], "name": c["name"]} for c in companies],
+        "business_scenes": scenes["business_scenes"],
+        "tech_scenes": scenes["tech_scenes"],
+        "categories": [
+            {"id": "bagu", "name": "八股"},
+            {"id": "project", "name": "项目"},
+        ],
+    }
+
+
+@router.get("/tag-mismatches/{item_id}/question")
+def admin_tag_mismatch_question(
+    item_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    import json
+
+    from app.services.question_bank_editor import find_question
+
+    row = db.get(TagMismatchReview, item_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    kb = find_question(row.question_norm)
+    if kb:
+        return {
+            "found": True,
+            "question": kb.get("question"),
+            "roles": kb.get("roles") or [],
+            "business_scene": kb.get("business_scene") or [],
+            "tech_scene": kb.get("tech_scene") or [],
+            "company": kb.get("company"),
+            "category": kb.get("category") or "",
+        }
+    return {
+        "found": False,
+        "question": row.question,
+        "roles": json.loads(row.tagged_roles or "[]"),
+        "business_scene": [],
+        "tech_scene": json.loads(row.tagged_scenes or "[]"),
+        "company": row.company or None,
+        "category": row.category or "",
+    }
+
+
+@router.post("/tag-mismatches/{item_id}/apply")
+def admin_apply_tag_mismatch(
+    item_id: int,
+    body: TagMismatchApplyBody,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.services.job_roles import all_roles, load_companies
+    from app.services.question_bank_editor import (
+        delete_question,
+        load_scene_catalog,
+        update_question,
+    )
+
+    row = db.get(TagMismatchReview, item_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    action = body.action.strip().lower()
+    if action not in {"update", "delete"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效操作")
+
+    role_ids = set(all_roles().keys())
+    company_ids = {c["id"] for c in load_companies()["companies"]}
+    scenes = load_scene_catalog()
+    biz_ids = {s["id"] for s in scenes["business_scenes"]}
+    tech_ids = {s["id"] for s in scenes["tech_scenes"]}
+
+    try:
+        if action == "delete":
+            removed = delete_question(row.question_norm)
+            kb_result = {"action": "delete", "removed": removed}
+            audit_detail = f"删除题库 {removed} 条"
+        else:
+            roles = [r for r in body.roles if r in role_ids]
+            if not roles:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="请至少选择一个有效岗位",
+                )
+            business_scene = [s for s in body.business_scene if s in biz_ids]
+            tech_scene = [s for s in body.tech_scene if s in tech_ids]
+            company = body.company if body.company in company_ids else None
+            category = body.category if body.category in {"bagu", "project"} else "bagu"
+            updated = update_question(
+                row.question_norm,
+                {
+                    "roles": roles,
+                    "business_scene": business_scene,
+                    "tech_scene": tech_scene,
+                    "company": company,
+                    "category": category,
+                },
+            )
+            kb_result = {"action": "update", "question": updated.get("question")}
+            audit_detail = f"更新标签 roles={roles}"
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="题库文件 questions_dedup.jsonl 不存在，无法修改",
+        ) from None
+    except LookupError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="题库中未找到该题目，可能已被删除",
+        ) from None
+
+    row.status = "resolved"
+    row.note = (body.note or audit_detail)[:512]
+    row.resolved_by = admin.id
+    row.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+    _audit(
+        admin,
+        f"错标审核 apply:{action} → #{item_id}",
+        path=f"/api/admin/tag-mismatches/{item_id}/apply",
+        detail=row.question[:200],
+    )
+    return {"review": _tag_mismatch_item(row), "kb": kb_result}
+
+
+@router.get("/question-bank/catalog")
+def admin_question_bank_catalog(
+    admin: User = Depends(require_admin),
+) -> dict:
+    from app.services.job_roles import all_roles, load_companies
+    from app.services.question_bank_editor import load_scene_catalog
+
+    roles = all_roles()
+    companies = load_companies()["companies"]
+    scenes = load_scene_catalog()
+    return {
+        "roles": [{"id": rid, "name": meta["name"]} for rid, meta in roles.items()],
+        "companies": [{"id": c["id"], "name": c["name"]} for c in companies],
+        "business_scenes": scenes["business_scenes"],
+        "tech_scenes": scenes["tech_scenes"],
+        "categories": [
+            {"id": "bagu", "name": "八股"},
+            {"id": "project", "name": "项目"},
+        ],
+    }
+
+
+@router.get("/tag-mismatches/{item_id}/question")
+def admin_tag_mismatch_question(
+    item_id: int,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    import json
+
+    from app.services.question_bank_editor import find_question
+
+    row = db.get(TagMismatchReview, item_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    kb = find_question(row.question_norm)
+    if kb:
+        return {
+            "found": True,
+            "question": kb.get("question"),
+            "roles": kb.get("roles") or [],
+            "business_scene": kb.get("business_scene") or [],
+            "tech_scene": kb.get("tech_scene") or [],
+            "company": kb.get("company"),
+            "category": kb.get("category") or "",
+        }
+    return {
+        "found": False,
+        "question": row.question,
+        "roles": json.loads(row.tagged_roles or "[]"),
+        "business_scene": [],
+        "tech_scene": json.loads(row.tagged_scenes or "[]"),
+        "company": row.company or None,
+        "category": row.category or "",
+    }
+
+
+@router.post("/tag-mismatches/{item_id}/apply")
+def admin_apply_tag_mismatch(
+    item_id: int,
+    body: TagMismatchApplyBody,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.services.job_roles import all_roles, load_companies
+    from app.services.question_bank_editor import (
+        delete_question,
+        load_scene_catalog,
+        update_question,
+    )
+
+    row = db.get(TagMismatchReview, item_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="记录不存在")
+    action = body.action.strip().lower()
+    if action not in {"update", "delete"}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效操作")
+
+    role_ids = set(all_roles().keys())
+    company_ids = {c["id"] for c in load_companies()["companies"]}
+    scenes = load_scene_catalog()
+    biz_ids = {s["id"] for s in scenes["business_scenes"]}
+    tech_ids = {s["id"] for s in scenes["tech_scenes"]}
+
+    try:
+        if action == "delete":
+            removed = delete_question(row.question_norm)
+            kb_result = {"action": "delete", "removed": removed}
+            audit_detail = f"删除题库 {removed} 条"
+        else:
+            roles = [r for r in body.roles if r in role_ids]
+            if not roles:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="请至少选择一个有效岗位",
+                )
+            business_scene = [s for s in body.business_scene if s in biz_ids]
+            tech_scene = [s for s in body.tech_scene if s in tech_ids]
+            company = body.company if body.company in company_ids else None
+            category = body.category if body.category in {"bagu", "project"} else "bagu"
+            updated = update_question(
+                row.question_norm,
+                {
+                    "roles": roles,
+                    "business_scene": business_scene,
+                    "tech_scene": tech_scene,
+                    "company": company,
+                    "category": category,
+                },
+            )
+            kb_result = {"action": "update", "question": updated.get("question")}
+            audit_detail = f"更新标签 roles={roles}"
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="题库文件 questions_dedup.jsonl 不存在，无法修改",
+        ) from None
+    except LookupError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="题库中未找到该题目，可能已被删除",
+        ) from None
+
+    row.status = "resolved"
+    row.note = (body.note or audit_detail)[:512]
+    row.resolved_by = admin.id
+    row.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+    _audit(
+        admin,
+        f"错标审核 apply:{action} → #{item_id}",
+        path=f"/api/admin/tag-mismatches/{item_id}/apply",
+        detail=row.question[:200],
+    )
+    return {"review": _tag_mismatch_item(row), "kb": kb_result}

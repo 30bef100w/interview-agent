@@ -13,3 +13,5 @@ pytest
 python-docx
 fpdf2
 cryptography
+psycopg2-binary
+redis>=5.0

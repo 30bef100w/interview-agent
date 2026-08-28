@@ -1,51 +1,221 @@
 {
-  "version": 2,
-  "note": "DeepSeek 2026-08-17 峰谷调价：白天高峰价 = 空闲价 × 2；Flash 档高峰输入 3/输出 9（每百万 token，元）",
+  "version": 4,
+  "updated": "2026-08-27",
+  "note": "价格为参考值（元/百万 token，输入/输出）；以各平台控制台为准。DeepSeek 峰谷定价高峰为工作日 9-12、14-18 点。",
   "providers": [
     {
       "id": "deepseek",
       "name": "DeepSeek",
       "base_url": "https://api.deepseek.com",
+      "doc_url": "https://platform.deepseek.com/api_keys",
+      "key_hint": "在 platform.deepseek.com 注册并创建 API Key，充值后即可调用",
+      "key_prefix": "sk-",
       "models": [
-        {"id": "deepseek-chat", "name": "DeepSeek-V3（对话）", "input_price_per_m": 3.0, "output_price_per_m": 9.0, "off_peak_input": 1.5, "off_peak_output": 4.5},
-        {"id": "deepseek-reasoner", "name": "DeepSeek-R1（推理）", "input_price_per_m": 8.0, "output_price_per_m": 24.0, "off_peak_input": 4.0, "off_peak_output": 12.0}
+        {
+          "id": "deepseek-v4-flash",
+          "name": "DeepSeek-V4-Flash（推荐·对话）",
+          "input_price_per_m": 3.0,
+          "output_price_per_m": 9.0,
+          "off_peak_input": 1.5,
+          "off_peak_output": 4.5,
+          "recommended": true
+        },
+        {
+          "id": "deepseek-v4-pro",
+          "name": "DeepSeek-V4-Pro（旗舰·推理）",
+          "input_price_per_m": 9.0,
+          "output_price_per_m": 27.0,
+          "off_peak_input": 4.5,
+          "off_peak_output": 13.5
+        },
+        {
+          "id": "deepseek-chat",
+          "name": "deepseek-chat（兼容别名→V4-Flash）",
+          "input_price_per_m": 3.0,
+          "output_price_per_m": 9.0,
+          "off_peak_input": 1.5,
+          "off_peak_output": 4.5,
+          "tag": "兼容"
+        },
+        {
+          "id": "deepseek-reasoner",
+          "name": "deepseek-reasoner（兼容别名→思考模式）",
+          "input_price_per_m": 9.0,
+          "output_price_per_m": 27.0,
+          "off_peak_input": 4.5,
+          "off_peak_output": 13.5,
+          "tag": "兼容"
+        }
       ]
     },
     {
       "id": "zhipu",
       "name": "智谱 GLM",
       "base_url": "https://open.bigmodel.cn/api/paas/v4",
+      "doc_url": "https://open.bigmodel.cn/usercenter/apikeys",
+      "key_hint": "在 open.bigmodel.cn 创建 API Key",
+      "key_prefix": "",
       "models": [
-        {"id": "glm-4-flash", "name": "GLM-4-Flash（免费）", "input_price_per_m": 0.0, "output_price_per_m": 0.0},
-        {"id": "glm-4-air", "name": "GLM-4-Air（性价比）", "input_price_per_m": 0.5, "output_price_per_m": 1.0},
-        {"id": "glm-4-plus", "name": "GLM-4-Plus（旗舰）", "input_price_per_m": 50.0, "output_price_per_m": 50.0}
+        {
+          "id": "glm-5.3",
+          "name": "GLM-5.3（最新旗舰）",
+          "input_price_per_m": 8.0,
+          "output_price_per_m": 28.0,
+          "recommended": true
+        },
+        {
+          "id": "glm-5.3-flash",
+          "name": "GLM-5.3-Flash（高性价比）",
+          "input_price_per_m": 0.8,
+          "output_price_per_m": 2.8
+        },
+        {
+          "id": "glm-5-turbo",
+          "name": "GLM-5-Turbo（均衡）",
+          "input_price_per_m": 5.0,
+          "output_price_per_m": 22.0
+        },
+        {
+          "id": "glm-5",
+          "name": "GLM-5",
+          "input_price_per_m": 4.0,
+          "output_price_per_m": 18.0
+        },
+        {
+          "id": "glm-4.7-flash",
+          "name": "GLM-4.7-Flash（免费）",
+          "input_price_per_m": 0.0,
+          "output_price_per_m": 0.0,
+          "tag": "免费"
+        }
       ]
     },
     {
       "id": "qwen",
-      "name": "通义千问",
+      "name": "通义千问（阿里云百炼）",
       "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "doc_url": "https://bailian.console.aliyun.com/?apiKey=1#/api-key",
+      "key_hint": "在阿里云百炼控制台创建 API Key（DASHSCOPE_API_KEY）",
+      "key_prefix": "sk-",
       "models": [
-        {"id": "qwen-turbo", "name": "Qwen-Turbo", "input_price_per_m": 0.3, "output_price_per_m": 0.6},
-        {"id": "qwen-plus", "name": "Qwen-Plus", "input_price_per_m": 0.8, "output_price_per_m": 2.0},
-        {"id": "qwen-max", "name": "Qwen-Max", "input_price_per_m": 2.4, "output_price_per_m": 9.6}
+        {
+          "id": "qwen3.8-max",
+          "name": "Qwen3.8-Max（最新旗舰）",
+          "input_price_per_m": 12.0,
+          "output_price_per_m": 36.0,
+          "recommended": true
+        },
+        {
+          "id": "qwen3.7-max",
+          "name": "Qwen3.7-Max",
+          "input_price_per_m": 12.0,
+          "output_price_per_m": 36.0
+        },
+        {
+          "id": "qwen-plus",
+          "name": "Qwen-Plus（均衡）",
+          "input_price_per_m": 0.8,
+          "output_price_per_m": 2.0
+        },
+        {
+          "id": "qwen-turbo",
+          "name": "Qwen-Turbo（极速）",
+          "input_price_per_m": 0.3,
+          "output_price_per_m": 0.6
+        }
       ]
     },
     {
-      "id": "doubao",
-      "name": "字节豆包",
-      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "id": "moonshot",
+      "name": "Moonshot（Kimi）",
+      "base_url": "https://api.moonshot.cn/v1",
+      "doc_url": "https://platform.kimi.com/console/api-keys",
+      "key_hint": "在 platform.kimi.com 创建 API Key；Kimi K3 需充值 ≥10 元解锁",
+      "key_prefix": "sk-",
       "models": [
-        {"id": "doubao-pro-32k", "name": "豆包 Pro 32k", "input_price_per_m": 0.8, "output_price_per_m": 2.0}
+        {
+          "id": "kimi-k3",
+          "name": "Kimi K3（最新旗舰·1M 上下文）",
+          "input_price_per_m": 20.0,
+          "output_price_per_m": 100.0,
+          "recommended": true
+        },
+        {
+          "id": "kimi-k2.7-code-highspeed",
+          "name": "Kimi K2.7 Code HighSpeed（编程）",
+          "input_price_per_m": 14.0,
+          "output_price_per_m": 56.0
+        },
+        {
+          "id": "kimi-k2.7-code",
+          "name": "Kimi K2.7 Code（编程）",
+          "input_price_per_m": 7.0,
+          "output_price_per_m": 28.0
+        }
       ]
     },
     {
       "id": "siliconflow",
       "name": "硅基流动",
       "base_url": "https://api.siliconflow.cn/v1",
+      "doc_url": "https://cloud.siliconflow.cn/account/ak",
+      "key_hint": "在 cloud.siliconflow.cn 创建 API Key，可聚合调用多家开源模型",
+      "key_prefix": "sk-",
       "models": [
-        {"id": "deepseek-ai/DeepSeek-V3", "name": "DeepSeek-V3（硅基）", "input_price_per_m": 0.5, "output_price_per_m": 1.0},
-        {"id": "Qwen/Qwen2.5-72B-Instruct", "name": "Qwen2.5-72B", "input_price_per_m": 0.8, "output_price_per_m": 2.0}
+        {
+          "id": "deepseek-ai/DeepSeek-V4-Flash",
+          "name": "DeepSeek-V4-Flash（硅基）",
+          "input_price_per_m": 0.9,
+          "output_price_per_m": 2.0,
+          "recommended": true
+        },
+        {
+          "id": "deepseek-ai/DeepSeek-V4-Pro",
+          "name": "DeepSeek-V4-Pro（硅基）",
+          "input_price_per_m": 11.0,
+          "output_price_per_m": 22.0
+        },
+        {
+          "id": "zai-org/GLM-5.2",
+          "name": "GLM-5.2（硅基）",
+          "input_price_per_m": 8.0,
+          "output_price_per_m": 28.0
+        },
+        {
+          "id": "moonshotai/Kimi-K2-Instruct",
+          "name": "Kimi K2（硅基）",
+          "input_price_per_m": 4.0,
+          "output_price_per_m": 16.0
+        },
+        {
+          "id": "Qwen/Qwen3-32B",
+          "name": "Qwen3-32B（硅基）",
+          "input_price_per_m": 1.0,
+          "output_price_per_m": 2.0
+        }
+      ]
+    },
+    {
+      "id": "doubao",
+      "name": "火山方舟（豆包）",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+      "doc_url": "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
+      "key_hint": "在火山方舟创建推理接入点，model 填接入点 ID（ep- 开头）；下方为常用模型名参考",
+      "key_prefix": "",
+      "note": "豆包需在方舟控制台创建接入点，部分账号 model 需填 ep-xxxxxxxx 而非下方模型名",
+      "models": [
+        {
+          "id": "doubao-seed-1-6-250615",
+          "name": "豆包 Seed 1.6（参考）",
+          "input_price_per_m": 0.8,
+          "output_price_per_m": 2.0
+        },
+        {
+          "id": "doubao-1-5-pro-32k-250115",
+          "name": "豆包 1.5 Pro 32K（参考）",
+          "input_price_per_m": 0.8,
+          "output_price_per_m": 2.0
+        }
       ]
     }
   ]

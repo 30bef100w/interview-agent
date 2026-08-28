@@ -231,9 +231,6 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [exporting, setExporting] = useState<"docx" | "pdf" | null>(null);
-  const [showTraceLink, setShowTraceLink] = useState(
-    () => process.env.NODE_ENV === "development"
-  );
 
   const load = useCallback(() => {
     setError("");
@@ -254,11 +251,6 @@ export default function ReportPage() {
       return;
     }
     load();
-    if (process.env.NODE_ENV !== "development") {
-      api<{ is_admin?: boolean }>("/api/auth/me")
-        .then((me) => setShowTraceLink(!!me.is_admin))
-        .catch(() => {});
-    }
   }, [load, router]);
 
   async function exportFile(format: "docx" | "pdf") {
@@ -475,14 +467,6 @@ export default function ReportPage() {
         >
           再来一场
         </Link>
-        {showTraceLink ? (
-          <Link
-            href={`/report/${sessionId}/trace`}
-            className="rounded-xl border border-violet-200 bg-violet-50 px-6 py-2.5 text-sm font-medium text-violet-700 transition hover:bg-violet-100"
-          >
-            调试 Trace
-          </Link>
-        ) : null}
         <Link
           href="/dashboard"
           className="rounded-xl border border-zinc-200 bg-white px-6 py-2.5 text-sm text-zinc-600 transition hover:bg-zinc-50"

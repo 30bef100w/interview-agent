@@ -14,6 +14,7 @@ from app.services.llm.manager import (
     find_model,
     find_provider,
     list_providers,
+    normalize_model_id,
 )
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 class LlmSettingIn(BaseModel):
     provider: str = "deepseek"
-    model: str = "deepseek-chat"
+    model: str = "deepseek-v4-flash"
     api_key: str = ""  # 空 = 使用系统默认 key
 
 
@@ -29,7 +30,33 @@ class LlmSettingOut(BaseModel):
     provider: str
     model: str
     use_default: bool  # True = 未配自己的 key，走系统默认
+    catalog_version: int = 0
+    catalog_updated: str = ""
     providers: list
+
+
+def _catalog_meta() -> dict:
+    raw = __import__("app.services.llm.manager", fromlist=["load_providers"]).load_providers()
+    return {
+        "catalog_version": int(raw.get("version") or 0),
+        "catalog_updated": str(raw.get("updated") or ""),
+    }
+
+
+def _setting_out(
+    *,
+    provider: str,
+    model: str,
+    use_default: bool,
+) -> LlmSettingOut:
+    meta = _catalog_meta()
+    return LlmSettingOut(
+        provider=provider,
+        model=model,
+        use_default=use_default,
+        providers=list_providers(),
+        **meta,
+    )
 
 
 def _setting(db: Session, user_id: int) -> UserLlmSetting | None:
@@ -45,14 +72,15 @@ def get_llm_setting(
 ) -> LlmSettingOut:
     s = _setting(db, current_user.id)
     if s is None:
-        return LlmSettingOut(
-            provider="deepseek", model="deepseek-chat", use_default=True, providers=list_providers()
-        )
-    return LlmSettingOut(
+        return _setting_out(provider="deepseek", model="deepseek-v4-flash", use_default=True)
+    model = normalize_model_id(s.provider, s.model)
+    if model != s.model:
+        s.model = model
+        db.commit()
+    return _setting_out(
         provider=s.provider,
-        model=s.model,
+        model=model,
         use_default=bool(s.is_default or not s.api_key_encrypted),
-        providers=list_providers(),
     )
 
 
@@ -65,6 +93,8 @@ def put_llm_setting(
     provider = find_provider(payload.provider)
     if provider is None:
         raise HTTPException(status_code=400, detail="不支持的模型服务商")
+    if find_model(payload.provider, payload.model) is None:
+        payload.model = normalize_model_id(payload.provider, payload.model)
     if find_model(payload.provider, payload.model) is None:
         raise HTTPException(status_code=400, detail="不支持的模型")
     api_key = (payload.api_key or "").strip()
@@ -84,11 +114,10 @@ def put_llm_setting(
         s.is_default = 1
     s.updated_at = datetime.now(timezone.utc)
     db.commit()
-    return LlmSettingOut(
+    return _setting_out(
         provider=s.provider,
         model=s.model,
         use_default=bool(s.is_default or not s.api_key_encrypted),
-        providers=list_providers(),
     )
 
 

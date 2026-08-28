@@ -1,33 +1,23 @@
 from app.services.code_judger import get_problem, run_examples
 
-cfg = get_problem("find-first-and-last-position-of-element-in-sorted-array")
+cfg = get_problem("two-sum")
 code = r"""
-import sys, json
+import sys
 
-def searchRange(nums, target):
-    def find(first):
-        l, r, ans = 0, len(nums) - 1, -1
-        while l <= r:
-            m = (l + r) // 2
-            if nums[m] == target:
-                ans = m
-                if first:
-                    r = m - 1
-                else:
-                    l = m + 1
-            elif nums[m] < target:
-                l = m + 1
-            else:
-                r = m - 1
-        return ans
-    left = find(True)
-    if left == -1:
-        return [-1, -1]
-    return [left, find(False)]
+def twoSum(nums, target):
+    seen = {}
+    for i, x in enumerate(nums):
+        if target - x in seen:
+            return [seen[target - x], i]
+        seen[x] = i
+    return []
 
 def main():
-    args = json.loads(sys.stdin.readline())
-    print(json.dumps(searchRange(args[0], args[1])))
+    data = list(map(int, sys.stdin.read().split()))
+    n = data[0]
+    nums = data[1:1 + n]
+    target = data[1 + n]
+    print(*twoSum(nums, target))
 
 if __name__ == "__main__":
     main()

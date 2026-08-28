@@ -23,10 +23,10 @@ SCRATCH_FILENAME = {
 }
 
 IO_HINT = (
-    "手撕模式判题约定（每组用例单独喂入一次进程）：\n"
-    "· 标准输入第一行：JSON 数组 = 本题全部参数，例如 [[5,7,7,8,8,10], 8]\n"
-    "· 标准输出一行：JSON 结果，例如 [3,4]\n"
-    "· 若为原地修改题：请输出修改后的第一个参数\n"
+    "手撕模式按 ACM/OJ 习惯喂数字，不是 JSON。\n"
+    "· 输入：一维数组先给长度 n，再给 n 个数；单个数字单独一行。\n"
+    "· 输出：数字用空格或换行分开即可（也兼容 JSON）。\n"
+    "· 若为原地修改题：请输出修改后的数组。\n"
     "头文件/常用库已预置，请自行编写完整逻辑与输入输出。"
 )
 
@@ -216,7 +216,7 @@ from collections import defaultdict, Counter, deque, OrderedDict
 from typing import List, Optional, Tuple, Dict, Set, Any
 
 # {tip}
-# 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+# 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 
 def main() -> None:
     # 请自行完成输入输出与求解
@@ -233,7 +233,7 @@ import java.util.*;
 import java.math.*;
 
 // {tip}
-// 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+// 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 // 可用：List/Map/Set/Queue/Deque/PriorityQueue/Arrays/Collections/Math...
 
 public class Main {{
@@ -248,7 +248,7 @@ public class Main {{
 using namespace std;
 
 // {tip}
-// 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+// 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 // 已含：vector/string/map/set/unordered_*/queue/stack/algorithm/cmath...
 
 int main() {{
@@ -272,7 +272,7 @@ import (
 )
 
 // {tip}
-// 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+// 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 
 func main() {{
 	_ = bufio.NewReader

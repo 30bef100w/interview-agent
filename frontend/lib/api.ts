@@ -1,4 +1,10 @@
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8001";
+export const API_BASE = (() => {
+  const configured = process.env.NEXT_PUBLIC_API_BASE;
+  if (configured !== undefined) {
+    return configured.replace(/\/$/, "");
+  }
+  return "http://localhost:8001";
+})();
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;

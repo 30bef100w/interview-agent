@@ -9,6 +9,7 @@ import re
 import time
 
 from app.prompts.interview import (
+    ASK_QUESTION_STREAM_SYSTEM,
     ASK_QUESTION_SYSTEM,
     BAGU_SELECT_SYSTEM,
     FINAL_REPORT_SYSTEM,
@@ -16,6 +17,7 @@ from app.prompts.interview import (
     INTERVIEWER_SYSTEM,
     OPENING_SYSTEM,
     PLANNER_SYSTEM,
+    REFERENCE_ANSWER_SYSTEM,
     ROUTER_SYSTEM,
     SCORE_SYSTEM,
 )
@@ -33,6 +35,22 @@ ANSWER_TRUNCATE = 500
 NON_ANSWER_MAX_SCORE = 1.0
 ASK_BACK_TEXT = "我的问题问完了。你有什么想反问我的吗？"
 SUMMARIZING_TEXT = "本轮面试已全部结束，正在汇总你的表现并生成报告，请稍候…"
+
+_RUBRIC_BAND_RE = re.compile(r"\d{1,2}\s*分\s*[:：]")
+
+
+def looks_like_rubric(text: str | None) -> bool:
+    """评分档位/空壳提纲，不能当候选人可见的参考答案。"""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if len(_RUBRIC_BAND_RE.findall(t)) >= 2:
+        return True
+    if t.startswith("应包含") and len(t) < 160:
+        return True
+    if re.fullmatch(r"应(?:该)?(?:包含|讲清|说明).{0,100}", t):
+        return True
+    return False
 
 # 项目题补齐用的差异化角度（防全场都在「如何编排」）
 _DIVERSE_PROJECT_ANGLES: tuple[tuple[str, str], ...] = (
@@ -495,6 +513,7 @@ class InterviewEngine:
         interview_type: str,
         target_role: str = "",
         target_company: str = "",
+        job_description: str = "",
         practice_focus: str = "",
         skip_coding: bool = False,
         review_mode: bool = False,
@@ -515,10 +534,16 @@ class InterviewEngine:
             total_rounds=total_rounds,
             target_role=target_role.strip(),
             target_company=target_company.strip(),
+            job_description=job_description.strip()[:4000],
             practice_focus=practice_focus.strip()[:500],
             skip_coding=bool(skip_coding),
             review_mode=bool(review_mode),
             avoid_topics=list(avoid_topics or [])[:80],
+        )
+        from app.services.recall_boost import build_recall_boost_terms, recall_boost_context
+
+        boost_terms = build_recall_boost_terms(
+            state.job_description, state.practice_focus
         )
         timings: dict[str, float] = {}
         t0 = time.perf_counter()
@@ -530,37 +555,39 @@ class InterviewEngine:
         trace_step(session_id, "opening_llm", duration_s=round(timings["opening_llm_s"], 2))
         state.history.append({"role": "interviewer", "text": opening})
 
-        # 1) 召回 + 拷打链（与题单分开生成，互不替代）
-        t_ret = time.perf_counter()
-        self._plan_retrieval(state, asked_norms or set(), timings)
-        timings["plan_retrieval_s"] = time.perf_counter() - t_ret
-        trace_step(
-            session_id,
-            "plan_retrieval",
-            duration_s=round(timings["plan_retrieval_s"], 2),
-            role_hits=int(timings.get("retrieval_role_hits_n") or 0),
-            scene_hits=int(timings.get("retrieval_scene_hits_n") or 0),
-            chains=int(timings.get("project_chains_n") or 0),
-        )
+        with recall_boost_context(boost_terms):
+            # 1) 召回 + 拷打链（与题单分开生成，互不替代）
+            t_ret = time.perf_counter()
+            self._plan_retrieval(state, asked_norms or set(), timings)
+            timings["plan_retrieval_s"] = time.perf_counter() - t_ret
+            trace_step(
+                session_id,
+                "plan_retrieval",
+                duration_s=round(timings["plan_retrieval_s"], 2),
+                role_hits=int(timings.get("retrieval_role_hits_n") or 0),
+                scene_hits=int(timings.get("retrieval_scene_hits_n") or 0),
+                chains=int(timings.get("project_chains_n") or 0),
+                recall_boost_n=len(boost_terms),
+            )
 
-        # 2) Router 定项目/八股比例
-        t_router = time.perf_counter()
-        project_n, ba_gu_n, hr_n = self._plan_counts(state, mode, interview_type)
-        timings["router_s"] = time.perf_counter() - t_router
-        trace_step(
-            session_id,
-            "router",
-            duration_s=round(timings["router_s"], 2),
-            project_n=project_n,
-            ba_gu_n=ba_gu_n,
-            hr_n=hr_n,
-        )
+            # 2) Router 定项目/八股比例
+            t_router = time.perf_counter()
+            project_n, ba_gu_n, hr_n = self._plan_counts(state, mode, interview_type)
+            timings["router_s"] = time.perf_counter() - t_router
+            trace_step(
+                session_id,
+                "router",
+                duration_s=round(timings["router_s"], 2),
+                project_n=project_n,
+                ba_gu_n=ba_gu_n,
+                hr_n=hr_n,
+            )
 
-        # 3) 规划官出题单（项目主问 + HR；拷打链仅用于后续追问）
-        t_plan = time.perf_counter()
-        self._build_plan(state, mode, project_n, ba_gu_n, hr_n)
-        timings["build_plan_s"] = time.perf_counter() - t_plan
-        trace_step(session_id, "build_plan", duration_s=round(timings["build_plan_s"], 2))
+            # 3) 规划官出题单（项目主问 + HR；拷打链仅用于后续追问）
+            t_plan = time.perf_counter()
+            self._build_plan(state, mode, project_n, ba_gu_n, hr_n)
+            timings["build_plan_s"] = time.perf_counter() - t_plan
+            trace_step(session_id, "build_plan", duration_s=round(timings["build_plan_s"], 2))
 
         self._annotate_original_company(state)
         timings["create_total_s"] = time.perf_counter() - t0
@@ -1352,6 +1379,20 @@ class InterviewEngine:
         self, state: InterviewState, mode: str, project_n: int, ba_gu_n: int, hr_n: int
     ) -> None:
         """规划官出项目题签 + HR；八股从题库注入。拷打链不替代题单主问。"""
+        from app.observability.node_trace import trace_node
+
+        with trace_node(
+            "build_plan",
+            session_id=state.session_id,
+            project_n=project_n,
+            ba_gu_n=ba_gu_n,
+            hr_n=hr_n,
+        ):
+            self._build_plan_body(state, mode, project_n, ba_gu_n, hr_n)
+
+    def _build_plan_body(
+        self, state: InterviewState, mode: str, project_n: int, ba_gu_n: int, hr_n: int
+    ) -> None:
         raw_questions: list = []
         if project_n > 0 or hr_n > 0:
             t_planner = time.perf_counter()
@@ -2220,22 +2261,29 @@ class InterviewEngine:
     # ---------- 自我介绍回答 → 直接出第一题（计划已在创建时完成） ----------
 
     def handle_intro(self, state: InterviewState, answer: str):
+        from app.observability.node_trace import trace_node
+
         if not state.plan:
             raise ValueError("面试尚未规划")
         state.intro_text = answer
         state.history.append({"role": "candidate", "text": answer})
         state.stage = "ASKING"
 
-        message = self._ask_question(state)
+        with trace_node("handle_intro", session_id=state.session_id):
+            with trace_node("ask_question", session_id=state.session_id):
+                message = self._ask_question(state)
         state.history.append({"role": "interviewer", "text": message})
         return state, message
 
     # ---------- 正式面试回答 → 追问官 + 评分官并行 → 追问或下一题 ----------
 
     def handle_answer(self, state: InterviewState, answer: str):
+        from app.observability.node_trace import trace_node
+
         if not state.plan:
             raise ValueError("面试尚未规划")
         qid = f"q{state.cursor + 1}"
+        q = state.plan[state.cursor]
         pq = state.per_question[qid]
         clipped = answer[:ANSWER_TRUNCATE]
         pq["answers"].append(clipped)
@@ -2244,18 +2292,20 @@ class InterviewEngine:
 
         score_ctx = self._score_context(state, qid, answer_only=clipped)
         follow_ctx = self._question_context(state, qid)
-        judge, score = self.llm.chat_json_many(
-            [
-                (FOLLOW_UP_SYSTEM, follow_ctx + "\n\n【候选人最新回答】\n" + answer),
-                (SCORE_SYSTEM, score_ctx),
-            ]
-        )
-        sc, strengths, weaknesses = sanitize_score_fields(
-            [clipped],
-            score.get("score", 5),
-            score.get("strengths"),
-            score.get("weaknesses"),
-        )
+        with trace_node("follow_up_and_score", session_id=state.session_id):
+            judge, score = self.llm.chat_json_many(
+                [
+                    (FOLLOW_UP_SYSTEM, follow_ctx + "\n\n【候选人最新回答】\n" + answer),
+                    (SCORE_SYSTEM, score_ctx),
+                ]
+            )
+        with trace_node("score_sanitize", session_id=state.session_id):
+            sc, strengths, weaknesses = sanitize_score_fields(
+                [clipped],
+                score.get("score", 5),
+                score.get("strengths"),
+                score.get("weaknesses"),
+            )
         raw_sc = score.get("score", 5)
         try:
             raw_sc_f = float(raw_sc)
@@ -2317,21 +2367,25 @@ class InterviewEngine:
         ):
             pq["followups_so_far"] += 1
             pq["pending_asked_text"] = fq
-            pq["pending_reference_answer"] = str(
-                judge.get("follow_up_reference_answer") or ""
-            ).strip()
+            pq["pending_reference_answer"] = self._usable_reference(
+                judge.get("follow_up_reference_answer"), q, fq
+            )
+            self._stream_interviewer_message(fq)
             state.history.append({"role": "interviewer", "text": fq})
             return state, fq
 
-        pq["summary"] = self._make_summary(state, qid, pq)
+        with trace_node("question_summary", session_id=state.session_id):
+            pq["summary"] = self._make_summary(state, qid, pq)
         state.cursor += 1
         if state.cursor < len(state.plan):
-            message = self._ask_question(state)
+            with trace_node("ask_question", session_id=state.session_id):
+                message = self._ask_question(state)
             state.history.append({"role": "interviewer", "text": message})
             return state, message
 
         # 全部主问题完成 → 进入汇总（不再反问）
         state.stage = "SUMMARIZING"
+        self._stream_interviewer_message(SUMMARIZING_TEXT)
         state.history.append({"role": "interviewer", "text": SUMMARIZING_TEXT})
         return state, SUMMARIZING_TEXT
 
@@ -2372,9 +2426,12 @@ class InterviewEngine:
     # ---------- 汇总终评（跳过反问） ----------
 
     def finish_interview(self, state: InterviewState):
+        from app.observability.node_trace import trace_node
+
         state.stage = "FINISHED"
-        report = self.llm.chat_json(FINAL_REPORT_SYSTEM, self._report_user(state))
-        report = self._sanitize_report(state, report)
+        with trace_node("finish_interview", session_id=state.session_id):
+            report = self.llm.chat_json(FINAL_REPORT_SYSTEM, self._report_user(state))
+            report = self._sanitize_report(state, report)
         return state, report
 
     # ---------- 反问回答 → 终评（兼容旧会话） ----------
@@ -2412,6 +2469,40 @@ class InterviewEngine:
         pq["pending_asked_text"] = ""
         pq["pending_reference_answer"] = ""
 
+    def _stream_interviewer_message(self, text: str) -> None:
+        if not text:
+            return
+        emit = getattr(self.llm, "emit_tokens", None)
+        if callable(emit):
+            emit(text)
+
+    def _usable_reference(self, candidate: object, q: dict, asked: str) -> str:
+        text = str(candidate or "").strip()
+        if text and not looks_like_rubric(text) and len(text) >= 40:
+            return text
+        return self._compose_reference_answer(q, asked)
+
+    def _compose_reference_answer(self, q: dict, asked: str) -> str:
+        """生成候选人可见的完整口头参考答，绝不回落成 rubric 档位。"""
+        bank = str(q.get("bank_answer") or "").strip()
+        if bank and not looks_like_rubric(bank) and len(bank) >= 40:
+            return bank
+        asked = (asked or "").strip() or str(q.get("text") or q.get("topic") or "").strip()
+        user = (
+            f"面试官实际问出的问题：{asked}\n"
+            f"主题：{q.get('topic') or ''}\n"
+            f"关键问点：{q.get('text') or ''}\n"
+            f"覆盖要点（只作提纲，禁止照抄档位原文）：{q.get('rubric') or '无'}\n"
+        )
+        try:
+            raw = self.llm.chat_json(REFERENCE_ANSWER_SYSTEM, user)
+            ans = str((raw or {}).get("reference_answer") or "").strip()
+            if ans and not looks_like_rubric(ans) and len(ans) >= 80:
+                return ans
+        except Exception:
+            logger.exception("compose reference_answer failed")
+        return ""
+
     def _ask_question(self, state: InterviewState) -> str:
         q = state.plan[state.cursor]
         qid = q["qid"]
@@ -2424,13 +2515,17 @@ class InterviewEngine:
             )
             pq["pending_asked_text"] = message
             pq["pending_reference_answer"] = ""
+            self._stream_interviewer_message(message)
             return message
         # 八股库真题：用规划阶段润色后的口头题面；参考答案优先题库要点
         bank_q = str(q.get("bank_question") or "").strip()
         if q.get("type") == "ba_gu" and bank_q:
             message = str(q.get("text") or bank_q).strip() or bank_q
             pq["pending_asked_text"] = message
-            pq["pending_reference_answer"] = str(q.get("bank_answer") or "").strip()
+            pq["pending_reference_answer"] = self._usable_reference(
+                q.get("bank_answer"), q, message
+            )
+            self._stream_interviewer_message(message)
             return message
         past = self._past_summaries(state)
         chain_block = ""
@@ -2466,16 +2561,23 @@ class InterviewEngine:
             + "\n\n【现在请向候选人提出下面这道题】\n"
             + f"主题：{q['topic']}\n关键问点（只选其中 1 个来问，禁止堆成清单）：{q['text']}"
             + (f"\n评分参考（rubric）：{q['rubric']}" if q.get("rubric") else "")
-            + "\n要求：只围绕一个关键问点问出一道具体、自然的问题；严禁把多个问点串成一长串；"
+            + "\n要求：只围绕一个关键问点问出一道具体、自然的问题；结合简历与对话语境润色，可适当发挥衔接，严禁照搬素材/题库原句；"
+            "严禁把多个问点串成一长串；"
             "若本题考点不在白名单内，禁止说简历提到过，直接按目标岗位提问即可"
         )
-        raw = self.llm.chat_json(ASK_QUESTION_SYSTEM, user)
-        if not isinstance(raw, dict):
-            raw = {}
-        question = str(raw.get("question") or "").strip()
-        if not question:
-            # 兼容旧 FakeLlm / 异常回退
-            question = self.llm.chat_text(INTERVIEWER_SYSTEM, user)
+        streaming_ask = hasattr(self.llm, "emit_tokens")
+        raw: dict = {}
+        if streaming_ask:
+            question = self.llm.chat_text(ASK_QUESTION_STREAM_SYSTEM, user)
+            ref_answer = ""
+        else:
+            raw = self.llm.chat_json(ASK_QUESTION_SYSTEM, user)
+            if not isinstance(raw, dict):
+                raw = {}
+            question = str(raw.get("question") or "").strip()
+            ref_answer = str(raw.get("reference_answer") or "").strip()
+            if not question:
+                question = self.llm.chat_text(INTERVIEWER_SYSTEM, user)
         question = self._sanitize_resume_claim(question, state)
         # 出题硬去重：规划题签过了，口头现编仍可能撞历史换句题 / 空泛编排死循环
         asked_blobs = [
@@ -2506,20 +2608,31 @@ class InterviewEngine:
                 "必须换成具体落地角度（失败重试、评测指标、权限、RAG 幻觉等），禁止再问编排空话。"
             )
             try:
-                raw2 = self.llm.chat_json(ASK_QUESTION_SYSTEM, retry_user)
-                if isinstance(raw2, dict):
-                    q2 = str(raw2.get("question") or "").strip()
+                if streaming_ask:
+                    q2 = self.llm.chat_text(ASK_QUESTION_STREAM_SYSTEM, retry_user).strip()
                     if (
                         q2
                         and not _looks_like_vague_orchestration(q2)
                         and not _conflicts_historical_question(q2, asked_blobs)
                     ):
                         question = q2
-                        raw = raw2
+                else:
+                    raw2 = self.llm.chat_json(ASK_QUESTION_SYSTEM, retry_user)
+                    if isinstance(raw2, dict):
+                        q2 = str(raw2.get("question") or "").strip()
+                        if (
+                            q2
+                            and not _looks_like_vague_orchestration(q2)
+                            and not _conflicts_historical_question(q2, asked_blobs)
+                        ):
+                            question = q2
+                            raw = raw2
             except Exception:  # noqa: BLE001
                 pass
         pq["pending_asked_text"] = question
-        pq["pending_reference_answer"] = str(raw.get("reference_answer") or "").strip()
+        pq["pending_reference_answer"] = self._usable_reference(ref_answer, q, question)
+        if not streaming_ask:
+            self._stream_interviewer_message(question)
         return question
 
     def _resume_cite_whitelist(self, state: InterviewState) -> str:
@@ -2631,11 +2744,11 @@ class InterviewEngine:
                 "（例：目标搜广推时，不要把校园二手项目问成 Redis 缓存专项）。"
             )
         focus = ""
-        if state.practice_focus:
+        if state.practice_focus or state.job_description:
             focus = (
-                "\n\n【本场练习焦点——仅本场有效，不是跨场记忆】\n"
-                + state.practice_focus
-                + "\n请在规划与提问中优先覆盖上述焦点，但仍保持一场完整、独立的模拟面试。"
+                "\n\n【用户偏好（JD/练习焦点）】\n"
+                "候选人可能填写了岗位 JD 或练习焦点；系统已在题库召回阶段做关键词加权，"
+                "规划时仍以目标岗位+简历+题库硬约束为准，勿只围着偏好词出题、勿把 JD 当 few-shot。"
             )
         review = ""
         if state.review_mode:
@@ -2874,10 +2987,12 @@ class InterviewEngine:
                     qa_lines.append(f"\n===== 轮次：{label} =====")
                     qa_lines.append(f"【B. 本轮问题】{t.get('question') or q['text']}")
                     if q.get("rubric") and ti == 0:
-                        qa_lines.append(f"【B. rubric】{q['rubric']}")
+                        qa_lines.append(
+                            f"【B. rubric——评分尺子，严禁原样写入 reference_answer】{q['rubric']}"
+                        )
                     ans = t.get("answer") or ""
                     qa_lines.append(f"【C. 本轮作答】{ans or '（无作答）'}")
-                    if t.get("reference_answer"):
+                    if t.get("reference_answer") and not looks_like_rubric(str(t.get("reference_answer"))):
                         qa_lines.append(
                             "【已预置参考答案——优先写入 reference_answer】\n"
                             + str(t["reference_answer"])[:1500]
@@ -2950,7 +3065,11 @@ class InterviewEngine:
                         "strengths": list(t.get("strengths") or []),
                         "weaknesses": list(t.get("weaknesses") or []),
                         "feedback": "",
-                        "reference_answer": str(t.get("reference_answer") or ""),
+                        "reference_answer": (
+                            ""
+                            if looks_like_rubric(str(t.get("reference_answer") or ""))
+                            else str(t.get("reference_answer") or "")
+                        ),
                         "original_company": original if ti == 0 else "",
                         "_answers_raw": [ans] if ans else [],
                     }
@@ -2978,9 +3097,9 @@ class InterviewEngine:
                 if not item.get("feedback"):
                     item["feedback"] = str(llm_item.get("feedback") or "").strip()
                 if not item.get("reference_answer"):
-                    item["reference_answer"] = str(
-                        llm_item.get("reference_answer") or ""
-                    ).strip()
+                    llm_ref = str(llm_item.get("reference_answer") or "").strip()
+                    if llm_ref and not looks_like_rubric(llm_ref):
+                        item["reference_answer"] = llm_ref
                 if not item.get("strengths") and llm_item.get("strengths"):
                     item["strengths"] = llm_item.get("strengths")
                 if not item.get("weaknesses") and llm_item.get("weaknesses"):
@@ -3009,6 +3128,8 @@ class InterviewEngine:
                 )
                 if not weaknesses:
                     weaknesses = ["未有效回答本题要点"]
+            if looks_like_rubric(str(item.get("reference_answer") or "")):
+                item["reference_answer"] = ""
             item["score"] = sc
             item["strengths"] = strengths
             item["weaknesses"] = weaknesses

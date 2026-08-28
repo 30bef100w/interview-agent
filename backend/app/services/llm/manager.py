@@ -1,11 +1,8 @@
 """LLM 多 provider 管理：配置加载、key 加密、用量换算、按用户配置构造 client。
 
-- 预置 provider：DeepSeek / 智谱 GLM / 通义千问 / 字节豆包 / 硅基流动（均 OpenAI 兼容）
-- 用户可在设置页配自己的 key + 选模型；未配置的用户走系统默认 key（管理员兜底）
-- 每次调用记录 usage（token + 金额），按模型单价表换算
+配置源：backend/data/llm_providers.json（修改后无需重启，每次请求重新读取）
 """
 import json
-from functools import lru_cache
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -13,18 +10,67 @@ from cryptography.fernet import Fernet, InvalidToken
 from app.config import settings
 
 _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
+_PROVIDERS_PATH = _DATA_DIR / "llm_providers.json"
 
 
-@lru_cache(maxsize=1)
 def load_providers() -> dict:
-    with open(_DATA_DIR / "llm_providers.json", encoding="utf-8") as f:
+    """每次从磁盘读取，便于热更新 llm_providers.json。"""
+    with open(_PROVIDERS_PATH, encoding="utf-8") as f:
         return json.load(f)
+
+
+def catalog_version() -> int:
+    return int(load_providers().get("version") or 0)
+
+
+# 旧版 catalog 中的 model id → 新版（用户库里可能仍存旧 id）
+_MODEL_ALIASES: dict[str, str] = {
+    "deepseek-chat": "deepseek-v4-flash",
+    "deepseek-reasoner": "deepseek-v4-pro",
+    "glm-4-flash": "glm-4.7-flash",
+    "glm-4-air": "glm-5.3-flash",
+    "glm-4-plus": "glm-5.3",
+    "glm-4.7": "glm-5.3",
+    "glm-5": "glm-5.3",
+    "kimi-k2-turbo-preview": "kimi-k3",
+    "moonshot-v1-32k": "kimi-k3",
+    "moonshot-v1-8k": "kimi-k3",
+    "qwen-max": "qwen3.8-max",
+    "qwen3-max": "qwen3.8-max",
+    "doubao-pro-32k": "doubao-seed-1-6-250615",
+    "deepseek-ai/DeepSeek-V3": "deepseek-ai/DeepSeek-V4-Flash",
+    "zai-org/GLM-4.7": "zai-org/GLM-5.2",
+    "zai-org/GLM-5": "zai-org/GLM-5.2",
+}
+
+
+def normalize_model_id(provider_id: str, model_id: str) -> str:
+    """将历史 model id 映射到当前 catalog；无效则返回该 provider 的推荐模型。"""
+    mid = _MODEL_ALIASES.get(model_id, model_id)
+    if find_model(provider_id, mid):
+        return mid
+    p = find_provider(provider_id)
+    if not p:
+        return mid
+    for m in p.get("models") or []:
+        if m.get("recommended"):
+            return str(m["id"])
+    return str(p["models"][0]["id"]) if p.get("models") else mid
 
 
 def list_providers() -> list[dict]:
     """预置 provider 列表（不含 key）。"""
     return [
-        {"id": p["id"], "name": p["name"], "base_url": p["base_url"], "models": p["models"]}
+        {
+            "id": p["id"],
+            "name": p["name"],
+            "base_url": p["base_url"],
+            "doc_url": p.get("doc_url", ""),
+            "key_hint": p.get("key_hint", ""),
+            "key_prefix": p.get("key_prefix", ""),
+            "note": p.get("note", ""),
+            "models": p["models"],
+        }
         for p in load_providers()["providers"]
     ]
 

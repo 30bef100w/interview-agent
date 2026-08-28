@@ -1,11 +1,13 @@
 import json
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Callable, Iterator, Optional, Protocol
 
 from openai import OpenAI
 
 from app.config import settings
+from app.observability.metrics import metrics_registry
 from app.services.llm.manager import estimate_cost
 
 _client: OpenAI | None = None
@@ -73,9 +75,15 @@ class OpenAiLlm:
         cost = estimate_cost(inp, out, self._input_price, self._output_price)
         self.on_usage(self.provider, self.model, inp, out, cost)
 
+    def _record_llm_metric(self, duration_ms: float, *, error: bool = False) -> None:
+        metrics_registry.record_llm(
+            error=error, duration_ms=duration_ms, model=self.model
+        )
+
     def chat_json(self, system: str, user: str, *, max_retries: int = 2) -> dict:
         last_err: Exception | None = None
         for _ in range(max_retries + 1):
+            t0 = time.perf_counter()
             try:
                 resp = self._client.chat.completions.create(
                     model=self.model,
@@ -88,8 +96,10 @@ class OpenAiLlm:
                     temperature=0.5,
                 )
                 self._record(resp.usage)
+                self._record_llm_metric((time.perf_counter() - t0) * 1000)
                 return _parse_json(resp.choices[0].message.content or "")
             except Exception as e:  # noqa: BLE001
+                self._record_llm_metric((time.perf_counter() - t0) * 1000, error=True)
                 last_err = e
         raise last_err  # type: ignore[misc]
 
@@ -101,36 +111,50 @@ class OpenAiLlm:
             return [f.result() for f in futures]
 
     def chat_text(self, system: str, user: str) -> str:
-        resp = self._client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0.7,
-        )
-        self._record(resp.usage)
-        return (resp.choices[0].message.content or "").strip()
+        t0 = time.perf_counter()
+        try:
+            resp = self._client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0.7,
+            )
+            self._record(resp.usage)
+            self._record_llm_metric((time.perf_counter() - t0) * 1000)
+            return (resp.choices[0].message.content or "").strip()
+        except Exception:
+            self._record_llm_metric((time.perf_counter() - t0) * 1000, error=True)
+            raise
 
     def chat_stream(self, system: str, user: str) -> Iterator[str]:
-        resp = self._client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0.7,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
-        for chunk in resp:
-            if chunk.usage:
-                self._record(chunk.usage)
-            if not chunk.choices:
-                continue
-            delta = chunk.choices[0].delta.content
-            if delta:
-                yield delta
+        t0 = time.perf_counter()
+        err = False
+        try:
+            resp = self._client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0.7,
+                stream=True,
+                stream_options={"include_usage": True},
+            )
+            for chunk in resp:
+                if chunk.usage:
+                    self._record(chunk.usage)
+                if not chunk.choices:
+                    continue
+                delta = chunk.choices[0].delta.content
+                if delta:
+                    yield delta
+        except Exception:
+            err = True
+            raise
+        finally:
+            self._record_llm_metric((time.perf_counter() - t0) * 1000, error=err)
 
 
 class StreamingLlm:
@@ -158,6 +182,14 @@ class StreamingLlm:
 
     def chat_stream(self, system: str, user: str) -> Iterator[str]:
         yield from self._inner.chat_stream(system, user)
+
+    def emit_tokens(self, text: str) -> None:
+        """将已生成的面试官话术分片推给客户端（八股/追问等非 chat_text 路径）。"""
+        if not text:
+            return
+        step = 2
+        for i in range(0, len(text), step):
+            self._on_token(text[i : i + step])
 
 
 def _parse_json(content: str) -> dict:

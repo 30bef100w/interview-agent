@@ -22,6 +22,11 @@ from app.services.code_lang import (
     build_go_harness,
     build_java_harness,
 )
+from app.services.scratch_io import (
+    encode_scratch_stdin,
+    parse_scratch_stdout,
+    scratch_return_type,
+)
 
 RUNNER_TEMPLATE = '''\
 import json, sys, traceback
@@ -47,6 +52,41 @@ for c in cases:
         out.append({{"ok": False, "error": traceback.format_exc(limit=3)}})
 print(json.dumps(out, ensure_ascii=False, default=str))
 '''
+
+
+def _decode_bytes(data: bytes | None) -> str:
+    """解码编译器/进程输出。Windows 上 javac 诊断常是 GBK，不能用 UTF-8 replace。"""
+    if not data:
+        return ""
+    for enc in ("utf-8", "gb18030"):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def _javac_cmd(javac_bin: str, *src: str) -> list[str]:
+    # -encoding 管源文件；-J-D* 尽量让诊断走 UTF-8（JDK 17/18+）
+    return [
+        javac_bin,
+        "-J-Dfile.encoding=UTF-8",
+        "-J-Dsun.stderr.encoding=UTF-8",
+        "-J-Dstderr.encoding=UTF-8",
+        "-encoding",
+        "UTF-8",
+        *src,
+    ]
+
+
+def _java_cmd(java_bin: str, main: str) -> list[str]:
+    return [
+        java_bin,
+        "-Dfile.encoding=UTF-8",
+        "-Dsun.stderr.encoding=UTF-8",
+        "-Dstderr.encoding=UTF-8",
+        main,
+    ]
 
 
 def _clean_path(p: str | None) -> str | None:
@@ -122,7 +162,7 @@ def run_code(
     if lang not in SUPPORTED_LANGS:
         return {"results": [], "timed_out": False, "error": f"不支持的语言: {language}"}
     if mode == "scratch":
-        return _run_scratch(code, cases, lang, timeout_seconds)
+        return _run_scratch(code, cases, lang, timeout_seconds, problem_cfg)
     if lang == "python":
         return _run_python(code, cases, method, timeout_seconds)
     if problem_cfg is None:
@@ -136,12 +176,19 @@ def run_code(
     return {"results": [], "timed_out": False, "error": f"未实现: {lang}"}
 
 
-def _run_scratch(code: str, cases: list[dict], language: str, timeout_seconds: float) -> dict:
-    """手撕模式：每组用例单独启动进程，stdin 喂一行参数 JSON，解析 stdout 最后一行 JSON。"""
+def _run_scratch(
+    code: str,
+    cases: list[dict],
+    language: str,
+    timeout_seconds: float,
+    problem_cfg: dict | None = None,
+) -> dict:
+    """手撕模式：每组用例单独启动进程，stdin 喂 ACM 数字，解析 stdout（数字或 JSON）。"""
     start = time.monotonic()
+    ret_type = scratch_return_type(problem_cfg)
     results: list[dict] = []
     for c in cases:
-        stdin = json.dumps(c.get("args", []), ensure_ascii=False) + "\n"
+        stdin = encode_scratch_stdin(c.get("args") or [])
         one = _exec_program(code, language, stdin, timeout_seconds)
         if one.get("timed_out"):
             return {
@@ -151,23 +198,27 @@ def _run_scratch(code: str, cases: list[dict], language: str, timeout_seconds: f
                 "elapsed_ms": int((time.monotonic() - start) * 1000),
             }
         if one.get("error") and not (one.get("stdout") or "").strip():
-            results.append({"ok": False, "error": one["error"]})
+            err = one["error"]
+            if err.startswith("编译错误"):
+                return {
+                    "results": [],
+                    "timed_out": False,
+                    "error": err,
+                    "elapsed_ms": int((time.monotonic() - start) * 1000),
+                }
+            results.append({"ok": False, "error": err})
             continue
         stdout = (one.get("stdout") or "").strip()
         if not stdout:
             results.append({"ok": False, "error": one.get("error") or "标准输出为空"})
             continue
-        line = [ln for ln in stdout.splitlines() if ln.strip()]
-        if not line:
-            results.append({"ok": False, "error": "标准输出为空"})
-            continue
         try:
-            results.append({"ok": True, "result": json.loads(line[-1])})
-        except json.JSONDecodeError:
+            results.append({"ok": True, "result": parse_scratch_stdout(stdout, ret_type)})
+        except (ValueError, json.JSONDecodeError) as e:
             results.append(
                 {
                     "ok": False,
-                    "error": f"无法解析输出为 JSON（请向 stdout 打印一行 JSON）:\n{line[-1][:500]}",
+                    "error": f"无法解析输出（请打印空格分隔的数字，例如 0 1）：\n{stdout[:500]}\n{e}",
                 }
             )
     return {
@@ -209,19 +260,16 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                 java_bin, javac_bin = tools
                 (tmp / "Main.java").write_text(code, encoding="utf-8")
                 compile_proc = subprocess.run(
-                    [javac_bin, "-encoding", "UTF-8", "Main.java"],
+                    _javac_cmd(javac_bin, "Main.java"),
                     cwd=tmp,
                     capture_output=True,
                     timeout=30,
                 )
                 if compile_proc.returncode != 0:
-                    err = (
-                        compile_proc.stderr.decode("utf-8", errors="replace")
-                        or compile_proc.stdout.decode("utf-8", errors="replace")
-                    ).strip()
+                    err = (_decode_bytes(compile_proc.stderr) or _decode_bytes(compile_proc.stdout)).strip()
                     return {"stdout": "", "error": f"编译错误:\n{err}", "timed_out": False}
                 proc = subprocess.run(
-                    [java_bin, "-Dfile.encoding=UTF-8", "Main"],
+                    _java_cmd(java_bin, "Main"),
                     cwd=tmp,
                     input=stdin_text.encode("utf-8"),
                     capture_output=True,
@@ -244,7 +292,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                     timeout=30,
                 )
                 if compile_proc.returncode != 0:
-                    err = (compile_proc.stderr or compile_proc.stdout).decode("utf-8", errors="replace").strip()
+                    err = _decode_bytes(compile_proc.stderr or compile_proc.stdout).strip()
                     return {"stdout": "", "error": f"编译错误:\n{err}", "timed_out": False}
                 proc = subprocess.run(
                     [str(exe)],
@@ -270,8 +318,8 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
         except subprocess.TimeoutExpired:
             return {"stdout": "", "error": f"运行超时（>{timeout_seconds:.1f}s）", "timed_out": True}
 
-    stdout = proc.stdout.decode("utf-8", errors="replace")
-    stderr = proc.stderr.decode("utf-8", errors="replace")
+    stdout = _decode_bytes(proc.stdout)
+    stderr = _decode_bytes(proc.stderr)
     if proc.returncode != 0 and not stdout.strip():
         return {"stdout": stdout, "error": stderr.strip() or f"退出码 {proc.returncode}", "timed_out": False}
     return {"stdout": stdout, "error": stderr.strip(), "timed_out": False}
@@ -324,7 +372,7 @@ def _run_java(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) -
         (tmp / "Harness.java").write_text(build_java_harness(cfg, cases), encoding="utf-8")
         try:
             compile_proc = subprocess.run(
-                [javac_bin, "-encoding", "UTF-8", "Solution.java", "Harness.java"],
+                _javac_cmd(javac_bin, "Solution.java", "Harness.java"),
                 cwd=tmp,
                 capture_output=True,
                 timeout=30,
@@ -332,15 +380,11 @@ def _run_java(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) -
         except subprocess.TimeoutExpired:
             return {"results": [], "timed_out": True, "error": "编译超时"}
         if compile_proc.returncode != 0:
-            err = (
-                compile_proc.stderr.decode("utf-8", errors="replace")
-                or compile_proc.stdout.decode("utf-8", errors="replace")
-                or compile_proc.stderr.decode("gbk", errors="replace")
-            ).strip()
+            err = (_decode_bytes(compile_proc.stderr) or _decode_bytes(compile_proc.stdout)).strip()
             return {"results": [], "timed_out": False, "error": f"编译错误:\n{err or f'javac exit {compile_proc.returncode}'}"}
         try:
             proc = subprocess.run(
-                [java_bin, "-Dfile.encoding=UTF-8", "Harness"],
+                _java_cmd(java_bin, "Harness"),
                 cwd=tmp,
                 capture_output=True,
                 timeout=timeout_seconds,
@@ -377,7 +421,7 @@ def _run_cpp(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) ->
         except subprocess.TimeoutExpired:
             return {"results": [], "timed_out": True, "error": "编译超时"}
         if compile_proc.returncode != 0:
-            err = (compile_proc.stderr or compile_proc.stdout).decode("utf-8", errors="replace").strip()
+            err = _decode_bytes(compile_proc.stderr or compile_proc.stdout).strip()
             return {"results": [], "timed_out": False, "error": f"编译错误:\n{err}"}
         try:
             proc = subprocess.run([str(exe)], capture_output=True, timeout=timeout_seconds)
@@ -408,8 +452,8 @@ def _run_go(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) -> 
 
 
 def _parse_proc(proc: subprocess.CompletedProcess, start: float) -> dict:
-    out = proc.stdout.decode("utf-8", errors="replace").strip()
-    err = proc.stderr.decode("utf-8", errors="replace").strip()
+    out = _decode_bytes(proc.stdout).strip()
+    err = _decode_bytes(proc.stderr).strip()
     if proc.returncode != 0:
         return {
             "results": [],

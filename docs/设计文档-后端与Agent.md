@@ -1,7 +1,7 @@
 # AI 面试模拟器 — 后端与 Agent 设计文档（亮点版）
 
 > 校招答辩主文档。先讲 **亮点怎么做的**，再讲架构。  
-> 配套：`迭代与踩坑历史.md`、`Agent能力缺口分析.md`。  
+> 配套：`迭代与踩坑历史.md`、`Agent能力缺口分析.md`、`开发与运维-可观测性与兜底.md`。  
 > 对齐代码：`interviewer_engine.py` / `knowledge_retrieval.py` / `prompts/interview.py` / `api/interview.py`。
 
 ---

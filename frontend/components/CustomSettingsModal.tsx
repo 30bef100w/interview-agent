@@ -117,9 +117,12 @@ export default function CustomSettingsModal({
               value={value.practiceFocus}
               onChange={(e) => patch({ practiceFocus: e.target.value.slice(0, 500) })}
               rows={3}
-              placeholder="例如：重点考察缓存一致性与高并发读链路；留空则为常规独立模拟"
+              placeholder="例如：缓存一致性、高并发读链路；与岗位 JD 一样只用于题库加权召回"
               className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20"
             />
+            <p className="mt-1.5 text-[11px] leading-4 text-slate-400">
+              不会整段写入规划 Prompt；开练页粘贴 JD 时与此合并加权。
+            </p>
           </section>
 
           <section>

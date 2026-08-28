@@ -1,4 +1,4 @@
-"""可观测性 API：指标摘要 + 会话 trace（运维 / 本人会话调试）。"""
+"""可观测性 API：指标摘要 + 会话 trace（仅管理员）。"""
 from __future__ import annotations
 
 import json
@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_admin
+from app.api.deps import require_admin
 from app.db import get_db
 from app.models import InterviewSession, User
 from app.observability.metrics import metrics_registry
@@ -27,14 +27,12 @@ def observability_metrics(admin: User = Depends(require_admin)) -> dict:
 @router.get("/sessions/{session_id}/trace")
 def session_trace(
     session_id: int,
-    current_user: User = Depends(get_current_user),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     sess = db.get(InterviewSession, session_id)
     if sess is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="会话不存在")
-    if sess.user_id != current_user.id and not current_user.is_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权查看")
     create_trace = None
     cp = _CREATE_TRACE / f"{session_id}.json"
     if cp.exists():
@@ -55,4 +53,57 @@ def session_trace(
         "engine_trace": read_session_trace(session_id),
         "create_trace": create_trace,
         "guard_events": guard_events,
+        "timeline": _build_timeline(session_id, create_trace, guard_events),
     }
+
+
+def _build_timeline(
+    session_id: int,
+    create_trace: dict | None,
+    guard_events: list[dict],
+) -> list[dict]:
+    """合并 create / engine / guard 为按时间排序的时间线。"""
+    events: list[dict] = []
+    if create_trace:
+        for step in create_trace.get("steps") or []:
+            events.append(
+                {
+                    "kind": "create",
+                    "ts": step.get("at") or create_trace.get("started_at"),
+                    "node": step.get("step") or "step",
+                    "duration_ms": round(float(step.get("duration_s") or 0) * 1000, 1),
+                    "detail": {k: v for k, v in step.items() if k not in ("step", "at", "duration_s")},
+                }
+            )
+    for row in read_session_trace(session_id):
+        events.append(
+            {
+                "kind": "engine",
+                "ts": row.get("ts"),
+                "node": row.get("node"),
+                "duration_ms": row.get("duration_ms"),
+                "outcome": row.get("outcome"),
+                "detail": {
+                    k: v
+                    for k, v in row.items()
+                    if k not in ("ts", "node", "duration_ms", "outcome")
+                },
+            }
+        )
+    for row in guard_events:
+        events.append(
+            {
+                "kind": "guard",
+                "ts": row.get("ts"),
+                "node": row.get("event") or "guard",
+                "duration_ms": None,
+                "outcome": "warn",
+                "detail": {k: v for k, v in row.items() if k not in ("ts", "event")},
+            }
+        )
+
+    def _sort_key(e: dict) -> str:
+        return str(e.get("ts") or "")
+
+    events.sort(key=_sort_key)
+    return events

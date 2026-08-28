@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type PointerEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import CodeEditor, { type CodingProblem } from "@/components/CodeEditor";
 import AnswerComposer from "@/components/interview/AnswerComposer";
@@ -32,6 +32,50 @@ type StreamDone = {
 };
 
 const TTS_KEY = "fa_tts_autoplay";
+
+function ResizableCodingFrame({ children }: { children: ReactNode }) {
+  const [height, setHeight] = useState<number | null>(null);
+  const drag = useRef<{ y: number; h: number } | null>(null);
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.parentElement;
+    if (!box) return;
+    drag.current = { y: e.clientY, h: box.getBoundingClientRect().height };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const next = drag.current.h + (drag.current.y - e.clientY);
+    const max = typeof window === "undefined" ? next : window.innerHeight * 0.9;
+    setHeight(Math.round(Math.min(Math.max(next, 240), max)));
+  };
+  const onPointerUp = () => {
+    drag.current = null;
+  };
+
+  return (
+    <div
+      className="relative mx-auto w-full max-w-5xl"
+      style={{ height: height ?? "58vh", minHeight: 240, maxHeight: "90vh" }}
+    >
+      <div
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="拖动调整编辑器高度"
+        title="拖动调整高度"
+        className="absolute -top-1 left-0 right-0 z-10 flex h-3 cursor-ns-resize touch-none items-center justify-center"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
+        <span className="h-1 w-12 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+      </div>
+      <div className="h-full min-h-0">{children}</div>
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const params = useParams();
@@ -437,14 +481,14 @@ export default function ChatPage() {
             )}
           </div>
         ) : showCoding && info.current_coding ? (
-          <div className="mx-auto h-[58vh] w-full max-w-5xl">
+          <ResizableCodingFrame>
             <CodeEditor
               key={`${info.current_coding.slug}-${info.current_coding.templates_by_mode ? "v2" : "v1"}`}
               sessionId={sessionId}
               problem={info.current_coding}
               onSubmitted={onCodingSubmitted}
             />
-          </div>
+          </ResizableCodingFrame>
         ) : (
           <div className="mx-auto max-w-2xl">
             <AnswerComposer

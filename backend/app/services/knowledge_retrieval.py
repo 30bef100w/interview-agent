@@ -56,6 +56,7 @@ def _score_question(
     skills_low: list[str],
     scenes_set: set[str],
     category: str | None,
+    recall_boost_terms: list[str] | None = None,
 ) -> float:
     if category and q.get("category") != category:
         return 0.0
@@ -92,6 +93,15 @@ def _score_question(
         text = f"{q.get('question','')} {q.get('answer') or ''}".lower()
         skill_hits = sum(1 for s in skills_low if s in text)
         score += skill_hits * (4 if roles else 10)
+    boost_terms = recall_boost_terms if recall_boost_terms is not None else None
+    if boost_terms is None:
+        from app.services.recall_boost import active_recall_boost_terms
+
+        boost_terms = active_recall_boost_terms()
+    if boost_terms:
+        text = f"{q.get('question','')} {q.get('answer') or ''}".lower()
+        boost_hits = sum(1 for t in boost_terms if str(t).lower() in text)
+        score += min(boost_hits, 8) * 7
     if score <= 0:
         return 0.0
     score *= _era_weight(q.get("era"))
@@ -261,6 +271,7 @@ def retrieve(
     top_n: int = 8,
     pool_size: int = 30,
     min_score: int = 30,
+    recall_boost_terms: list[str] | None = None,
 ) -> list[dict]:
     """召回：打分 → 历史已问惩罚 → 候选池 → 主题分散 → 抽 top_n。
 
@@ -275,7 +286,9 @@ def retrieve(
     for q in load_questions():
         if _is_noisy(q):
             continue
-        s = _score_question(q, roles_set, company, skills_low, scenes_set, category)
+        s = _score_question(
+            q, roles_set, company, skills_low, scenes_set, category, recall_boost_terms
+        )
         if s < min_score:
             continue
         s *= _asked_score_penalty(_question_norm(q), asked)
@@ -348,6 +361,7 @@ def search_questions(
     asked_norms: set[str] | None = None,
     top_n: int = 8,
     min_score: int = 10,
+    recall_boost_terms: list[str] | None = None,
 ) -> list[dict]:
     """简单版：纯打分排序取 Top N；同样对历史已问题目降权。"""
     roles_set = set(roles or [])
@@ -358,7 +372,9 @@ def search_questions(
     for q in load_questions():
         if _is_noisy(q):
             continue
-        s = _score_question(q, roles_set, company, skills_low, scenes_set, category)
+        s = _score_question(
+            q, roles_set, company, skills_low, scenes_set, category, recall_boost_terms
+        )
         if s < min_score:
             continue
         s *= _asked_score_penalty(_question_norm(q), asked)

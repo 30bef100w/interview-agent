@@ -12,6 +12,7 @@ from app.services.interviewer_engine import (
     MAX_FOLLOW_UPS_PER_QUESTION,
     filter_strengths,
     is_non_answer,
+    looks_like_rubric,
     sanitize_score_fields,
 )
 
@@ -138,16 +139,30 @@ class FakeLlm:
                 if len(selected) >= n:
                     break
             return {"selected": selected}
+        if "参考答案撰写员" in system:
+            return {
+                "reference_answer": (
+                    "上下文管理分短期窗口和长期记忆。短期用 Redis List 存最近对话并设 TTL，"
+                    "工具调用结果必须写回同一会话键，避免用户重复提供参数。"
+                    "常见坑是只存用户话、不存 tool 返回，导致多轮对不齐。"
+                )
+            }
         if "提出【一道】具体问题" in system or ASK_QUESTION_SYSTEM[:40] in system:
             return {
                 "question": "面试官的问题文本",
-                "reference_answer": "参考：应讲清架构与取舍",
+                "reference_answer": (
+                    "会先讲项目架构分层和关键取舍，再补失败路径、降级与可量化指标，"
+                    "避免只报技术名词却说不清落地。"
+                ),
             }
         if FOLLOW_UP_SYSTEM in system:
             return {
                 "needs_follow_up": self.follow_up,
                 "follow_up_question": "你刚才说用了 Redis 缓存，那缓存失效怎么办？",
-                "follow_up_reference_answer": "应讲清过期策略与一致性",
+                "follow_up_reference_answer": (
+                    "缓存失效要同时讲 TTL、主动删除和双写一致性：先更新存储再删缓存，"
+                    "并说明短暂不一致可接受的窗口，避免只说一句过期就结束。"
+                ),
             }
         if SCORE_SYSTEM in system:
             return {"score": 7, "strengths": ["回答具体"], "weaknesses": ["缺少细节"]}
@@ -510,6 +525,17 @@ def test_non_answer_detection():
     assert is_non_answer(["不会"])
     assert is_non_answer([])
     assert not is_non_answer(["项目用了 Spring Boot 和 Redis 做库存扣减"])
+
+
+def test_looks_like_rubric():
+    assert looks_like_rubric(
+        "6分:能说明上下文管理的基本方法;8分:能讲清 Redis 数据结构设计与持久化策略;"
+        "9分:能结合工具调用场景分析状态管理对用户体验的优化"
+    )
+    assert looks_like_rubric("应包含架构、难点、量化指标")
+    assert not looks_like_rubric(
+        "上下文管理分短期窗口和长期记忆。短期用 Redis List 存最近对话并设 TTL。"
+    )
 
 
 def test_sanitize_blocks_hallucinated_strengths_on_skip():

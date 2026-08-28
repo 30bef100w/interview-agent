@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 
+import { TracePayload, TraceTimeline } from "@/components/admin/TraceTimeline";
 import { ErrorBanner, Card } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -13,7 +15,8 @@ type Metrics = {
 export default function AdminObservabilityPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [sessionId, setSessionId] = useState("");
-  const [trace, setTrace] = useState<Record<string, unknown> | null>(null);
+  const [trace, setTrace] = useState<TracePayload | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
   const [error, setError] = useState("");
 
   const loadMetrics = useCallback(() => {
@@ -31,7 +34,8 @@ export default function AdminObservabilityPage() {
     const id = sessionId.trim();
     if (!id) return;
     setError("");
-    api<Record<string, unknown>>(`/api/observability/sessions/${id}/trace`)
+    setShowRaw(false);
+    api<TracePayload>(`/api/observability/sessions/${id}/trace`)
       .then(setTrace)
       .catch((e) => setError(e instanceof Error ? e.message : "Trace 加载失败"));
   }
@@ -43,7 +47,7 @@ export default function AdminObservabilityPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-100">可观测性</h1>
         <p className="mt-1 text-sm text-zinc-400">
-          引擎节点耗时与错误率（内存聚合，参考 Gua GraphTrace）；会话级 trace 合并 create_trace / engine_trace / session_guard。
+          引擎节点耗时与错误率；会话级 trace 合并 create_trace / engine_trace / session_guard（仅运维端）
         </p>
       </div>
 
@@ -101,11 +105,15 @@ export default function AdminObservabilityPage() {
 
       <Card className="border-zinc-800 bg-zinc-900/60 p-4">
         <div className="text-sm font-medium text-zinc-200">会话 Trace 查询</div>
+        <p className="mt-1 text-xs text-zinc-500">
+          输入面试 session_id，查看规划耗时、引擎节点与兜底门禁事件时间线
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <input
             value={sessionId}
             onChange={(e) => setSessionId(e.target.value)}
-            placeholder="session_id"
+            onKeyDown={(e) => e.key === "Enter" && loadTrace()}
+            placeholder="session_id，如 78"
             className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-600"
           />
           <button
@@ -115,11 +123,23 @@ export default function AdminObservabilityPage() {
           >
             查询
           </button>
+          {sessionId.trim() ? (
+            <Link
+              href={`/admin/observability/sessions/${sessionId.trim()}`}
+              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-500"
+            >
+              独立页面打开
+            </Link>
+          ) : null}
         </div>
         {trace ? (
-          <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-zinc-950 p-3 text-xs text-zinc-300">
-            {JSON.stringify(trace, null, 2)}
-          </pre>
+          <div className="mt-4">
+            <TraceTimeline
+              trace={trace}
+              showRaw={showRaw}
+              onToggleRaw={() => setShowRaw((v) => !v)}
+            />
+          </div>
         ) : null}
       </Card>
     </div>

@@ -139,18 +139,24 @@ def enqueue_llm_filtered_hits(
             _append_jsonl(payload)
             enqueued += 1
         db.commit()
+        if enqueued:
+            logger.info(
+                "tag_mismatch enqueued=%s lane=%s session_id=%s",
+                enqueued,
+                lane,
+                session_id,
+            )
+            try:
+                from app.services.feishu_notify import maybe_notify_tag_mismatch_batch
+
+                maybe_notify_tag_mismatch_batch(db)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("tag_mismatch feishu alert skipped: %s", exc)
     except Exception:
         db.rollback()
         raise
     finally:
         db.close()
-    if enqueued:
-        logger.info(
-            "tag_mismatch enqueued=%s lane=%s session_id=%s",
-            enqueued,
-            lane,
-            session_id,
-        )
     return enqueued
 
 

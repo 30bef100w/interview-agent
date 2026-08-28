@@ -18,6 +18,10 @@ backend/data/knowledge_base/*.json
 backend/data/uploads/
 backend/data/*.db
 backend/data/*.db-journal
+backend/data/*.db-shm
+backend/data/*.db-wal
+backend/data/knowledge_base/backups/
+backend/logs/
 backend/data/whisper-tiny/
 backend/data/e2e_kb_report.json
 backend/data/hot100.json
@@ -50,6 +54,11 @@ xhs_llm_interview_scraper.py
 xiaohongshu_rag_collector.py
 /scripts/
 backend/data/knowledge_base/REPORT.md
+face-agent-deploy*.tar.gz
+temp_post*.txt
+temp_append*.jsonl
+_asu-skills/
+_compare_gua/
 
 # misc
 *.log

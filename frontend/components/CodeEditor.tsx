@@ -122,7 +122,7 @@ import functools
 from collections import defaultdict, Counter, deque, OrderedDict
 from typing import List, Optional, Tuple, Dict, Set, Any
 
-# 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+# 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 
 def main() -> None:
     # 请自行完成输入输出与求解
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 import java.util.*;
 import java.math.*;
 
-// 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+// 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -147,7 +147,7 @@ public class Main {
   cpp: `#include <bits/stdc++.h>
 using namespace std;
 
-// 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+// 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 
 int main() {
     ios::sync_with_stdio(false);
@@ -167,7 +167,7 @@ import (
 	"sort"
 )
 
-// 判题：stdin 第一行 = 参数 JSON 数组；stdout 打印一行结果 JSON
+// 判题：数组先 n 再 n 个数，其余参数各占一行；输出数字空格分隔
 
 func main() {
 	_ = bufio.NewReader
@@ -406,7 +406,7 @@ export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
             ) : (
               <pre className="whitespace-pre-wrap font-sans leading-relaxed">
                 {problem.io_hint ||
-                  "手撕模式：请自行编写完整程序（含输入输出）。stdin 第一行为参数 JSON 数组，stdout 打印一行结果 JSON。"}
+                  "手撕模式：按 ACM 习惯读数字。数组先读 n 再读 n 个数，输出空格分隔即可。"}
               </pre>
             )}
           </div>
@@ -505,6 +505,15 @@ export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
   );
 }
 
+function formatJudgeValue(v: unknown) {
+  if (typeof v === "string") return v;
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
+
 function RunPanel({ out }: { out: JudgeResult }) {
   const allPass = out.verdict === "passed";
   return (
@@ -513,14 +522,19 @@ function RunPanel({ out }: { out: JudgeResult }) {
         {allPass ? `示例用例全部通过（${out.passed}/${out.total}）` : `示例用例未全过（${out.passed}/${out.total}）`}
       </div>
       {out.results?.map((r) => (
-        <div key={r.case} className="flex gap-2 py-1 text-xs">
-          <span className={r.ok ? "text-emerald-500" : "text-red-500"}>{r.ok ? "✓" : "✗"}</span>
-          <span className="text-zinc-500">用例 {r.case}：</span>
-          {r.ok ? (
-            <span>输出 {JSON.stringify(r.actual)}</span>
-          ) : (
-            <span className="text-red-500">期望 {JSON.stringify(r.expected)}，实际 {JSON.stringify(r.actual)}</span>
-          )}
+        <div key={r.case} className="py-1 text-xs">
+          <div className="flex gap-2">
+            <span className={r.ok ? "text-emerald-500" : "text-red-500"}>{r.ok ? "✓" : "✗"}</span>
+            <span className="text-zinc-500">用例 {r.case}：</span>
+            {r.ok ? <span>输出 {formatJudgeValue(r.actual)}</span> : (
+              <span className="text-red-500">期望 {formatJudgeValue(r.expected)}</span>
+            )}
+          </div>
+          {!r.ok ? (
+            <pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-red-50 p-2 font-mono text-[11px] leading-relaxed text-red-700 dark:bg-red-950/40 dark:text-red-300">
+              {formatJudgeValue(r.actual)}
+            </pre>
+          ) : null}
         </div>
       ))}
       <div className="mt-2 text-xs text-zinc-500">运行自测通过后再点「提交」进行完整判题（随机对拍 + 性能测试）。</div>

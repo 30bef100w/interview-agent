@@ -34,7 +34,8 @@ class InterviewState:
     intro_text: str = ""
     target_role: str = ""  # 目标岗位（JD 方向）
     target_company: str = ""  # 目标企业
-    practice_focus: str = ""  # 本场可选定向（用户主动开启，不跨场记忆）
+    job_description: str = ""  # 可选岗位 JD（仅检索加权，不进规划 Prompt）
+    practice_focus: str = ""  # 本场可选定向（仅检索加权 + 复习提示，不跨场记忆）
     skip_coding: bool = False
     review_mode: bool = False
     avoid_topics: list = field(default_factory=list)  # 去重：历史主题/题干摘要
@@ -61,6 +62,7 @@ class InterviewState:
             intro_text=d.get("intro_text", ""),
             target_role=d.get("target_role", ""),
             target_company=d.get("target_company", ""),
+            job_description=d.get("job_description", ""),
             practice_focus=d.get("practice_focus", ""),
             skip_coding=bool(d.get("skip_coding", False)),
             review_mode=bool(d.get("review_mode", False)),
