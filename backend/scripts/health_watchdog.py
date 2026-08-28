@@ -10,9 +10,13 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+# 以脚本方式运行时，确保能 import app.*
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services.alert_throttle import mark_alert_sent, should_send_alert
 from app.services.feishu_notify import send_ops_alert, send_feishu_text
