@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { useFeedback } from "@/components/FeedbackProvider";
 import { Card, btnCls } from "@/components/ui";
 
 const FAQ = [
@@ -15,7 +16,7 @@ const FAQ = [
   },
   {
     q: "可以语音作答吗？",
-    a: "可以。面试会话页提供语音输入，会转写为文字后再交给面试官追问。",
+    a: "可以。面试页支持浏览器实时转写（Web Speech）和服务端 Whisper 录音识别。注意：浏览器规定麦克风只能在 HTTPS 或 localhost 下使用；若通过 http://IP 访问会无法录音，请等域名 HTTPS 生效后使用语音，或先用文字输入。",
   },
   {
     q: "报告怎么导出？",
@@ -40,6 +41,8 @@ const FAQ = [
 ];
 
 export default function HelpPage() {
+  const { openContact } = useFeedback();
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-8">
       <div>
@@ -63,6 +66,9 @@ export default function HelpPage() {
         <Link href="/notifications" className={btnCls("secondary", "sm")}>
           通知中心
         </Link>
+        <button type="button" onClick={openContact} className={btnCls("primary", "sm")}>
+          意见反馈
+        </button>
       </div>
 
       <div className="flex flex-col gap-3">

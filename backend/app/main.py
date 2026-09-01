@@ -12,6 +12,7 @@ from app.api import (
     admin,
     auth,
     code,
+    feedback,
     interview,
     interview_ws,
     meta,
@@ -90,6 +91,7 @@ if _cors:
     )
 
 app.include_router(auth.router)
+app.include_router(feedback.router)
 app.include_router(resume.router)
 app.include_router(interview.router)
 app.include_router(interview_ws.router)

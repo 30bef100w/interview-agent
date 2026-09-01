@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import OnboardingModal from "@/components/OnboardingModal";
+import { FeedbackProvider, useFeedback } from "@/components/FeedbackProvider";
 import { ToastProvider } from "@/components/Toast";
 import { IconChart, IconHistory, IconMic, IconReport, IconSliders, IconTarget, IconUpload, Logo } from "@/components/ui";
 import { api, clearToken, getToken } from "@/lib/api";
@@ -60,9 +61,33 @@ function IconHelp({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-export default function AppShell({ children }: { children: ReactNode }) {
+function IconMail({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6M3 17l6.5-5M21 17l-6.5-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SidebarFeedbackButton({ className = "" }: { className?: string }) {
+  const { openContact } = useFeedback();
+  return (
+    <button
+      type="button"
+      onClick={openContact}
+      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm text-slate-600 transition-colors hover:bg-sky-50/70 hover:text-slate-900 ${className}`}
+    >
+      <IconMail className="h-4.5 w-4.5" />
+      意见反馈
+    </button>
+  );
+}
+
+function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { openContact } = useFeedback();
   const [username, setUsername] = useState<string | null>(() => usernameOf());
   const [isAdmin, setIsAdmin] = useState(() => isAdminOf());
   const [unread, setUnread] = useState(0);
@@ -106,30 +131,23 @@ export default function AppShell({ children }: { children: ReactNode }) {
     router.replace("/");
   }
 
-  const bare =
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname.startsWith("/admin");
-  const fullscreen = pathname.startsWith("/interview/") && pathname !== "/interview/new";
   const navItems = NAV;
 
-  if (bare || fullscreen) {
-    return (
-      <ToastProvider>
-        <div className="flex h-full min-h-0 flex-1 flex-col">{children}</div>
-      </ToastProvider>
-    );
-  }
-
   return (
-    <ToastProvider>
-      <div className="flex min-h-full flex-1 flex-col bg-gradient-to-br from-sky-50/40 via-white to-sky-50/30 md:flex-row">
+    <div className="flex min-h-full flex-1 flex-col bg-gradient-to-br from-sky-50/40 via-white to-sky-50/30 md:flex-row">
         <div className="flex items-center justify-between border-b border-sky-100/80 bg-white/90 px-4 py-3 backdrop-blur md:hidden">
           <Link href="/dashboard">
             <Logo size="sm" />
           </Link>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={openContact}
+              className="text-slate-500"
+              aria-label="意见反馈"
+            >
+              <IconMail className="h-5 w-5" />
+            </button>
             <Link href="/notifications" className="relative text-slate-500">
               <IconBell className="h-5 w-5" />
               {unread > 0 && (
@@ -187,6 +205,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </span>
               )}
             </Link>
+            <SidebarFeedbackButton />
             <Link
               href="/help"
               className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm transition-colors ${
@@ -246,6 +265,31 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>
         <OnboardingModal />
       </div>
+  );
+}
+
+export default function AppShell({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const bare =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname.startsWith("/admin");
+  const fullscreen = pathname.startsWith("/interview/") && pathname !== "/interview/new";
+
+  if (bare || fullscreen) {
+    return (
+      <ToastProvider>
+        <div className="flex h-full min-h-0 flex-1 flex-col">{children}</div>
+      </ToastProvider>
+    );
+  }
+
+  return (
+    <ToastProvider>
+      <FeedbackProvider>
+        <AppShellInner>{children}</AppShellInner>
+      </FeedbackProvider>
     </ToastProvider>
   );
 }

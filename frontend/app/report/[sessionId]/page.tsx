@@ -6,8 +6,13 @@ import { useCallback, useEffect, useState } from "react";
 
 import RadarChart from "@/components/RadarChart";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import FeedbackModal from "@/components/FeedbackModal";
 import { Badge, Card, ErrorBanner, IconSparkles } from "@/components/ui";
 import { API_BASE, ApiError, api, getToken } from "@/lib/api";
+import {
+  SECOND_SESSION_DISMISS_KEY,
+  SECOND_SESSION_SUBMITTED_KEY,
+} from "@/lib/contact";
 
 type PerQuestion = {
   topic: string;
@@ -231,6 +236,7 @@ export default function ReportPage() {
   const [error, setError] = useState("");
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [exporting, setExporting] = useState<"docx" | "pdf" | null>(null);
+  const [secondFeedbackOpen, setSecondFeedbackOpen] = useState(false);
 
   const load = useCallback(() => {
     setError("");
@@ -252,6 +258,40 @@ export default function ReportPage() {
     }
     load();
   }, [load, router]);
+
+  useEffect(() => {
+    if (!data) return;
+    try {
+      if (localStorage.getItem(SECOND_SESSION_DISMISS_KEY)) return;
+      if (localStorage.getItem(SECOND_SESSION_SUBMITTED_KEY)) return;
+    } catch {
+      return;
+    }
+    api<{ finished_count: number }>("/api/feedback/finished-count")
+      .then((res) => {
+        if (res.finished_count === 2) setSecondFeedbackOpen(true);
+      })
+      .catch(() => {});
+  }, [data]);
+
+  function dismissSecondFeedback() {
+    try {
+      localStorage.setItem(SECOND_SESSION_DISMISS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setSecondFeedbackOpen(false);
+  }
+
+  function onSecondFeedbackSubmitted() {
+    try {
+      localStorage.setItem(SECOND_SESSION_SUBMITTED_KEY, "1");
+      localStorage.setItem(SECOND_SESSION_DISMISS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+    setSecondFeedbackOpen(false);
+  }
 
   async function exportFile(format: "docx" | "pdf") {
     setExporting(format);
@@ -311,6 +351,12 @@ export default function ReportPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-6 py-8">
+      <FeedbackModal
+        mode="second_session"
+        open={secondFeedbackOpen}
+        onClose={dismissSecondFeedback}
+        onSubmitted={onSecondFeedbackSubmitted}
+      />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">面试报告</h1>

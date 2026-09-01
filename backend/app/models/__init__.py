@@ -1,4 +1,5 @@
 from app.models.admin import QuotaGrant, SystemLog
+from app.models.feedback import UserFeedback
 from app.models.interview import (
     Answer,
     CodeSubmission,
@@ -23,5 +24,6 @@ __all__ = [
     "SystemLog",
     "TagMismatchReview",
     "User",
+    "UserFeedback",
     "UserLlmSetting",
 ]
