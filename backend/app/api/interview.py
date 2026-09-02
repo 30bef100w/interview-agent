@@ -476,32 +476,81 @@ def export_report(
 
 _CREATE_STEP_META: dict[str, tuple[int, str]] = {
     "begin": (5, "准备规划"),
-    "opening_llm": (18, "生成开场白"),
-    "plan_retrieval": (42, "检索题库与项目素材"),
-    "router": (55, "分配面试节奏"),
-    "build_plan": (82, "规划官拼题单"),
-    "engine_done": (96, "校验题单"),
+    "opening_llm": (12, "生成开场白"),
+    "retrieval_role_filter": (22, "岗位真题过滤"),
+    "retrieval_scene_filter": (30, "场景真题过滤"),
+    "project_chains": (48, "生成项目拷打链"),
+    "plan_retrieval": (55, "检索题库与项目素材"),
+    "router": (62, "分配面试节奏"),
+    "planner_llm": (75, "规划官出题"),
+    "bagu_inject": (88, "注入八股题库"),
+    "build_plan": (92, "规划官拼题单"),
+    "engine_done": (98, "校验题单"),
     "finish": (100, "规划完成"),
     "failed": (0, "规划失败"),
 }
 
 
-def _read_create_progress(session_id: int) -> tuple[int, str, str]:
+def _create_trace_path(session_id: int):
     from pathlib import Path
 
-    path = Path(__file__).resolve().parents[2] / "logs" / "create_trace" / f"{session_id}.json"
+    return Path(__file__).resolve().parents[2] / "logs" / "create_trace" / f"{session_id}.json"
+
+
+def _read_create_trace(session_id: int) -> dict | None:
+    path = _create_trace_path(session_id)
     if not path.exists():
-        return 3, "准备规划", "begin"
+        return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
+        return None
+
+
+def _friendly_create_error(raw: str) -> str:
+    text = (raw or "").strip()
+    low = text.lower()
+    if not text:
+        return "规划阶段异常，请稍后重试"
+    if "authentication" in low or "invalid api key" in low or "401" in low:
+        return "模型 API Key 无效或已过期，请到「模型设置」改回系统默认或更换 Key"
+    if "insufficient" in low or "余额" in text or "quota" in low:
+        return "模型账户余额或额度不足，请检查 Key 对应平台余额"
+    if "timeout" in low or "timed out" in low:
+        return "模型接口超时，请稍后重试"
+    if "rate limit" in low or "429" in low:
+        return "模型接口限流，请稍后再试"
+    return text[:240]
+
+
+def _read_create_failure_detail(session_id: int) -> str:
+    data = _read_create_trace(session_id)
+    if not data:
+        return ""
+    for step in reversed(data.get("steps") or []):
+        if str(step.get("step") or "") == "failed":
+            return _friendly_create_error(str(step.get("error") or ""))
+    return ""
+
+
+def _read_create_progress(session_id: int) -> tuple[int, str, str]:
+    data = _read_create_trace(session_id)
+    if not data:
         return 3, "准备规划", "begin"
     steps = data.get("steps") or []
     if not steps:
         return 3, "准备规划", "begin"
-    last = str(steps[-1].get("step") or "begin")
-    progress, label = _CREATE_STEP_META.get(last, (12, "规划中"))
-    return progress, label, last
+  # 取已记录步骤里进度最高的一步，避免长耗时子步骤未落盘时 UI 回退
+    best_step = "begin"
+    best_progress = 0
+    for row in steps:
+        step = str(row.get("step") or "begin")
+        progress, _ = _CREATE_STEP_META.get(step, (12, "规划中"))
+        if progress >= best_progress:
+            best_progress = progress
+            best_step = step
+    progress, label = _CREATE_STEP_META.get(best_step, (12, "规划中"))
+    return progress, label, best_step
 
 
 def _plan_session_background(session_id: int, user_id: int, payload: dict, meta: dict) -> None:
@@ -558,10 +607,10 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
             session.status = "failed"
             db.add(session)
             db.commit()
-        trace_step(session_id, "failed")
+        trace_step(session_id, "failed", error=str(exc)[:400])
         from app.services.session_guard_log import log_guard
 
-        log_guard(session_id, "create_failed")
+        log_guard(session_id, "create_failed", error=str(exc)[:200])
         try:
             from app.services.feishu_notify import send_ops_alert
 
@@ -698,7 +747,13 @@ def get_create_progress(
             },
         )
     if session.status == "failed":
-        return CreateProgressOut(status="failed", progress=0, label="规划失败", step="failed")
+        return CreateProgressOut(
+            status="failed",
+            progress=0,
+            label="规划失败",
+            step="failed",
+            detail=_read_create_failure_detail(session_id),
+        )
     progress, label, step = _read_create_progress(session_id)
     return CreateProgressOut(status="creating", progress=progress, label=label, step=step)
 

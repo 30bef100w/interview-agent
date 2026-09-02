@@ -49,6 +49,105 @@ def _dedupe_lines(hits: list[dict], limit: int) -> list[str]:
     return lines
 
 
+def _project_chain_user(
+    p: dict,
+    *,
+    target_role: str,
+    roles: list[str],
+    asked: set[str],
+    company: str | None,
+    retrieval,
+) -> tuple[str, str] | None:
+    """准备单个项目的 LLM user prompt；无项目名则跳过。"""
+    name = str(p.get("name") or "").strip()
+    tech = [str(x) for x in (p.get("tech_stack") or p.get("tech") or []) if str(x).strip()]
+    desc = str(p.get("desc") or p.get("description") or "")
+    scene_tags = [str(x) for x in (p.get("scene_tags") or []) if str(x).strip()]
+    if not name:
+        return None
+
+    role_hits: list[dict] = []
+    scene_hits: list[dict] = []
+    if roles:
+        role_hits += retrieval.search_questions(
+            roles=roles,
+            category="project",
+            asked_norms=asked,
+            top_n=6,
+            min_score=10,
+        )
+        role_hits += retrieval.search_questions(
+            roles=roles, asked_norms=asked, top_n=6, min_score=10
+        )
+        role_hits = retrieval.sanitize_hits(
+            role_hits, roles=roles, company=company, require_role=True
+        )
+        if scene_tags or tech:
+            company_scene: list[dict] = []
+            if company:
+                company_scene = retrieval.search_questions(
+                    roles=roles,
+                    company=company,
+                    skills=tech,
+                    scenes=scene_tags,
+                    category="project",
+                    asked_norms=asked,
+                    top_n=5,
+                    min_score=10,
+                )
+            untagged_scene = retrieval.search_questions(
+                roles=roles,
+                skills=tech,
+                scenes=scene_tags,
+                category="project",
+                asked_norms=asked,
+                top_n=6,
+                min_score=15,
+            )
+            proj_hits = retrieval.search_projects(
+                name, tech, scene_tags, top_n=5, asked_norms=asked
+            )
+            proj_hits = retrieval.sanitize_hits(
+                proj_hits, roles=roles, company=company, require_role=True
+            )
+            if hasattr(retrieval, "merge_company_and_untagged"):
+                scene_hits = retrieval.merge_company_and_untagged(
+                    company_scene,
+                    untagged_scene,
+                    company=company,
+                    limit=8,
+                    extra=proj_hits,
+                )
+            else:
+                scene_hits = list(company_scene) + [
+                    h for h in untagged_scene if not h.get("company")
+                ] + list(proj_hits)
+            scene_hits = retrieval.sanitize_hits(
+                scene_hits, roles=roles, company=company, require_role=True
+            )
+    elif scene_tags or tech:
+        scene_hits += retrieval.search_projects(
+            name, tech, scene_tags, top_n=4, asked_norms=asked
+        )
+
+    role_lines = _dedupe_lines(role_hits, 6)
+    scene_lines = _dedupe_lines(scene_hits, 6)
+    role_hint = f"\n【目标岗位】{target_role}\n" if target_role else ""
+    user = (
+        f"【项目】{name}\n"
+        f"技术栈：{'、'.join(tech) or '（未标注）'}\n"
+        f"描述：{desc[:300]}\n"
+        f"场景标签：{'、'.join(scene_tags) or '（未标注）'}"
+        + role_hint
+        + "\n\n【A. 目标岗位相关真实面经/高频题】\n"
+        + ("\n".join(role_lines) if role_lines else "（无命中）")
+        + "\n\n【B. 本项目场景相关真实面经（已岗位过滤，须改写拧到目标岗位）】\n"
+        + ("\n".join(scene_lines) if scene_lines else "（无命中）")
+        + "\n\n请综合 A+B 现编该项目的拷打链（模拟真人追问，勿照搬原题）。"
+    )
+    return name, user
+
+
 def build_project_chains(
     llm,
     profile: dict,
@@ -73,105 +172,51 @@ def build_project_chains(
         roles = resolve_target_roles(target_role)
 
     asked = asked_norms or set()
-    chains_out: list[dict] = []
+    prepared: list[tuple[str, str]] = []
     for p in projects[:3]:
-        name = str(p.get("name") or "").strip()
-        tech = [str(x) for x in (p.get("tech_stack") or p.get("tech") or []) if str(x).strip()]
-        desc = str(p.get("desc") or p.get("description") or "")
-        scene_tags = [str(x) for x in (p.get("scene_tags") or []) if str(x).strip()]
-        if not name:
-            continue
-
-        role_hits: list[dict] = []
-        scene_hits: list[dict] = []
-        if roles:
-            role_hits += retrieval.search_questions(
-                roles=roles,
-                category="project",
-                asked_norms=asked,
-                top_n=6,
-                min_score=10,
-            )
-            role_hits += retrieval.search_questions(
-                roles=roles, asked_norms=asked, top_n=6, min_score=10
-            )
-            role_hits = retrieval.sanitize_hits(
-                role_hits, roles=roles, company=company, require_role=True
-            )
-            if scene_tags or tech:
-                company_scene: list[dict] = []
-                if company:
-                    company_scene = retrieval.search_questions(
-                        roles=roles,
-                        company=company,
-                        skills=tech,
-                        scenes=scene_tags,
-                        category="project",
-                        asked_norms=asked,
-                        top_n=5,
-                        min_score=10,
-                    )
-                untagged_scene = retrieval.search_questions(
-                    roles=roles,
-                    skills=tech,
-                    scenes=scene_tags,
-                    category="project",
-                    asked_norms=asked,
-                    top_n=6,
-                    min_score=15,
-                )
-                proj_hits = retrieval.search_projects(
-                    name, tech, scene_tags, top_n=5, asked_norms=asked
-                )
-                proj_hits = retrieval.sanitize_hits(
-                    proj_hits, roles=roles, company=company, require_role=True
-                )
-                if hasattr(retrieval, "merge_company_and_untagged"):
-                    scene_hits = retrieval.merge_company_and_untagged(
-                        company_scene,
-                        untagged_scene,
-                        company=company,
-                        limit=8,
-                        extra=proj_hits,
-                    )
-                else:
-                    scene_hits = list(company_scene) + [
-                        h for h in untagged_scene if not h.get("company")
-                    ] + list(proj_hits)
-                scene_hits = retrieval.sanitize_hits(
-                    scene_hits, roles=roles, company=company, require_role=True
-                )
-        elif scene_tags or tech:
-            scene_hits += retrieval.search_projects(
-                name, tech, scene_tags, top_n=4, asked_norms=asked
-            )
-
-        role_lines = _dedupe_lines(role_hits, 6)
-        scene_lines = _dedupe_lines(scene_hits, 6)
-
-        role_hint = f"\n【目标岗位】{target_role}\n" if target_role else ""
-        user = (
-            f"【项目】{name}\n"
-            f"技术栈：{'、'.join(tech) or '（未标注）'}\n"
-            f"描述：{desc[:300]}\n"
-            f"场景标签：{'、'.join(scene_tags) or '（未标注）'}"
-            + role_hint
-            + "\n\n【A. 目标岗位相关真实面经/高频题】\n"
-            + ("\n".join(role_lines) if role_lines else "（无命中）")
-            + "\n\n【B. 本项目场景相关真实面经（已岗位过滤，须改写拧到目标岗位）】\n"
-            + ("\n".join(scene_lines) if scene_lines else "（无命中）")
-            + "\n\n请综合 A+B 现编该项目的拷打链（模拟真人追问，勿照搬原题）。"
+        item = _project_chain_user(
+            p,
+            target_role=target_role,
+            roles=roles,
+            asked=asked,
+            company=company,
+            retrieval=retrieval,
         )
+        if item:
+            prepared.append(item)
+
+    if not prepared:
+        return []
+
+    chains_out: list[dict] = []
+    calls = [(PROJECT_CHAIN_SYSTEM, user) for _, user in prepared]
+    try:
+        results = llm.chat_json_many(calls)
+    except Exception:
+        results = []
+        for _, user in prepared:
+            try:
+                results.append(llm.chat_json(PROJECT_CHAIN_SYSTEM, user, max_retries=1))
+            except Exception as exc:  # noqa: BLE001
+                from app.services.session_guard_log import log_guard
+
+                log_guard(
+                    session_id,
+                    "project_chain_skipped",
+                    reason=type(exc).__name__,
+                )
+                results.append({})
+
+    for (name, _), result in zip(prepared, results, strict=False):
         try:
-            result = llm.chat_json(PROJECT_CHAIN_SYSTEM, user, max_retries=1)
-            chains = result.get("chains") or []
+            chains = (result or {}).get("chains") or []
             if chains:
                 chains_out.append({"project": name, "chains": chains[:6]})
             else:
                 from app.services.session_guard_log import log_guard
 
                 log_guard(session_id, "project_chain_empty", project=name)
-        except Exception as exc:  # noqa: BLE001  拷打链失败跳过该项目
+        except Exception as exc:  # noqa: BLE001
             from app.services.session_guard_log import log_guard
 
             log_guard(
@@ -180,7 +225,6 @@ def build_project_chains(
                 project=name,
                 reason=type(exc).__name__,
             )
-            continue
     return chains_out
 
 

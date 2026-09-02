@@ -550,7 +550,16 @@ class InterviewEngine:
         from app.services.create_timing_log import step as trace_step
 
         t_open = time.perf_counter()
-        opening = self.llm.chat_text(OPENING_SYSTEM, self._ctx_block(state))
+        try:
+            opening = self.llm.chat_text(OPENING_SYSTEM, self._ctx_block(state))
+        except Exception as exc:  # noqa: BLE001
+            from app.services.session_guard_log import log_guard
+
+            log_guard(session_id, "opening_llm_failed", reason=type(exc).__name__)
+            opening = (
+                "你好，欢迎参加本次模拟面试。"
+                "请先结合简历做一个简短的自我介绍，重点讲技术背景和最想展开的项目。"
+            )
         timings["opening_llm_s"] = time.perf_counter() - t_open
         trace_step(session_id, "opening_llm", duration_s=round(timings["opening_llm_s"], 2))
         state.history.append({"role": "interviewer", "text": opening})
@@ -897,6 +906,9 @@ class InterviewEngine:
         )
 
         # 拷打链：与题单分开；每简历项目各生成一条完整链（失败跳过单项目）
+        from app.services.create_timing_log import step as trace_step
+
+        trace_step(state.session_id, "project_chains", status="started")
         t_chains = _t()
         state.project_chains = pc.build_project_chains(
             self.llm,
@@ -910,8 +922,6 @@ class InterviewEngine:
         if timings is not None:
             timings["project_chains_s"] = _t() - t_chains
             timings["project_chains_n"] = float(len(state.project_chains or []))
-        from app.services.create_timing_log import step as trace_step
-
         trace_step(
             state.session_id,
             "project_chains",

@@ -160,21 +160,25 @@ function NewInterviewForm() {
   }
 
   async function waitForPlanReady(sessionId: number) {
-    const deadline = Date.now() + 5 * 60 * 1000;
+    // 真实简历 + 多项目拷打链常需 6～8 分钟，勿过早判超时
+    const deadline = Date.now() + 10 * 60 * 1000;
     while (Date.now() < deadline) {
       const p = await api<{
         status: string;
         progress: number;
         label: string;
         step: string;
+        detail?: string;
       }>(`/api/interview/session/${sessionId}/create-progress`);
       setPlanProgress(p.progress);
       setPlanLabel(p.label || "规划中");
       if (p.status === "ready") return;
-      if (p.status === "failed") throw new Error("题单规划失败，请重试");
+      if (p.status === "failed") {
+        throw new Error(p.detail?.trim() || "题单规划失败，请重试");
+      }
       await new Promise((r) => setTimeout(r, 1200));
     }
-    throw new Error("规划超时，请稍后从历史记录进入或重试");
+    throw new Error("规划耗时较长仍未完成，请稍后在「面试记录」查看是否已生成，或重试");
   }
 
   async function start() {

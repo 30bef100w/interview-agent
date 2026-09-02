@@ -32,6 +32,7 @@ class CreateProgressOut(BaseModel):
     progress: int = 0
     label: str = ""
     step: str = ""
+    detail: str = ""  # 规划失败时的可读原因（如 LLM Key 无效）
     settings_applied: dict | None = None
 
 
