@@ -67,6 +67,8 @@ class FakeLlm:
         self.users.append(user)
         self.last_user = user
         # 引擎发送的是标记替换后的 prompt，用稳定子串匹配
+        if "挑选检索标签" in system or "本场 B 路" in system:
+            return {"scenes": [], "skills": ["Redis"]}
         if "一个简历项目生成" in system and "拷打链" in system:
             return {
                 "project": "校园二手交易平台",

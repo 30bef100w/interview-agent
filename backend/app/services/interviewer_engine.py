@@ -640,10 +640,11 @@ class InterviewEngine:
         asked_norms: set[str],
         timings: dict[str, float] | None = None,
     ) -> None:
-        """多路召回（存 retrieved_material）+ 生成项目拷打链（存 project_chains）。
+        """多路召回（存 retrieved_material 给规划官作参考）+ 生成项目拷打链（存 project_chains）。
 
-        A 路：目标岗位真题（岗位硬过滤 + LLM 复核）
-        B 路：简历项目场景真题（同样硬卡岗位 + LLM 复核）
+        A 路：岗+企学出题风格（技术点仅辅助权重，不传场景）
+        B 路：技术点+场景学问法（LLM 从简历闭集勾选；岗位仍硬卡）
+        注入规划官的是参考题面，要求改写交叉，不是从池子里勾原题。
         拷打链：每简历项目独立生成，供面试追问；不写入题单主问。
         """
         from app.services import knowledge_retrieval as kr
@@ -668,16 +669,19 @@ class InterviewEngine:
             else ""
         )
 
+        from app.services.b_lane_query import collect_resume_scenes, collect_resume_skills
+
         skills = [str(s) for s in (profile.get("skills") or [])]
-        scenes: list[str] = []
-        seen_sc: set[str] = set()
-        for p in profile.get("projects") or []:
-            for x in p.get("scene_tags") or []:
-                s = str(x).strip()
-                if s and s not in seen_sc:
-                    seen_sc.add(s)
-                    scenes.append(s)
         retrieve_skills = skills[:6] if roles else skills
+        can_b_lane = bool(collect_resume_scenes(profile) or collect_resume_skills(profile))
+        role_limit, scene_limit = kr.planner_material_limits(state.total_rounds)
+        if not can_b_lane:
+            role_limit = role_limit + scene_limit
+            scene_limit = 0
+        role_fetch = role_limit + 4
+        scene_fetch = (scene_limit + 4) if scene_limit else 0
+        role_pool = max(32, role_limit * 2)
+        scene_pool = max(32, scene_limit * 2)
         _t = time.perf_counter
 
         # —— A 路：岗位（有企业时：企业原题 + 无企业标签 双路合并）——
@@ -690,7 +694,8 @@ class InterviewEngine:
                     skills=retrieve_skills,
                     scenes=None,
                     asked_norms=asked_norms,
-                    top_n=8,
+                    top_n=role_limit,
+                    pool_size=role_pool,
                     min_score=20,
                 )
                 untagged_role = kr.retrieve(
@@ -699,14 +704,15 @@ class InterviewEngine:
                     skills=retrieve_skills,
                     scenes=None,
                     asked_norms=asked_norms,
-                    top_n=8,
+                    top_n=role_limit,
+                    pool_size=role_pool,
                     min_score=20,
                 )
                 role_hits = kr.merge_company_and_untagged(
                     company_role,
                     untagged_role,
                     company=company_id,
-                    limit=12,
+                    limit=role_fetch,
                 )
             else:
                 role_hits = kr.retrieve(
@@ -715,15 +721,16 @@ class InterviewEngine:
                     skills=retrieve_skills,
                     scenes=None,  # 场景走 B 路，避免和岗位硬门槛搅在一起
                     asked_norms=asked_norms,
-                    top_n=10,
+                    top_n=role_fetch,
+                    pool_size=role_pool,
                     min_score=20,
                 )
-            if len(role_hits) < 6:
+            if len(role_hits) < max(6, role_limit // 2):
                 more_plain = kr.search_questions(
                     roles=roles,
                     company=None,
                     asked_norms=asked_norms,
-                    top_n=12,
+                    top_n=role_fetch,
                     min_score=10,
                 )
                 if company_id:
@@ -731,18 +738,18 @@ class InterviewEngine:
                         roles=roles,
                         company=company_id,
                         asked_norms=asked_norms,
-                        top_n=12,
+                        top_n=role_fetch,
                         min_score=10,
                     )
                     role_hits = kr.merge_company_and_untagged(
                         more_co,
                         more_plain,
                         company=company_id,
-                        limit=12,
+                        limit=role_fetch,
                         extra=role_hits,
                     )
                 else:
-                    role_hits = kr.merge_hits(role_hits, more_plain, limit=12)
+                    role_hits = kr.merge_hits(role_hits, more_plain, limit=role_fetch)
             role_hits = kr.sanitize_hits(
                 role_hits, roles=roles, company=company_id, require_role=True
             )
@@ -768,93 +775,110 @@ class InterviewEngine:
                 roles=None,
                 company=company_id,
                 skills=retrieve_skills,
-                scenes=scenes,
+                scenes=collect_resume_scenes(profile) or None,
                 asked_norms=asked_norms,
-                top_n=10,
+                top_n=role_fetch,
+                pool_size=role_pool,
                 min_score=30,
             )
 
         scene_roles = roles if roles else None
-        # —— B 路：项目场景（有岗位时同样硬卡岗位标签）——
+        # —— B 路：技术点 + 场景（岗位硬卡；LLM 从简历闭集勾选）——
         scene_hits: list[dict] = []
-        if scenes:
+        b_scenes, b_skills = self._select_b_lane_query(
+            state, roles, timings=timings
+        )
+        b_skill_arg = b_skills or None
+        b_scene_arg = b_scenes or None
+        if b_scenes or b_skills:
             if company_id:
                 company_scene = kr.retrieve(
                     roles=scene_roles,
                     company=company_id,
-                    skills=None,
-                    scenes=scenes,
+                    skills=b_skill_arg,
+                    scenes=b_scene_arg,
                     category="project",
                     asked_norms=asked_norms,
-                    top_n=6,
-                    min_score=20,
+                    top_n=scene_limit,
+                    pool_size=scene_pool,
+                    min_score=28,
+                    lane="b",
                 )
                 untagged_scene = kr.retrieve(
                     roles=scene_roles,
                     company=None,
-                    skills=None,
-                    scenes=scenes,
+                    skills=b_skill_arg,
+                    scenes=b_scene_arg,
                     category="project",
                     asked_norms=asked_norms,
-                    top_n=8,
-                    min_score=25,
+                    top_n=scene_limit,
+                    pool_size=scene_pool,
+                    min_score=28,
+                    lane="b",
                 )
                 scene_hits = kr.merge_company_and_untagged(
                     company_scene,
                     untagged_scene,
                     company=company_id,
-                    limit=10,
+                    limit=scene_fetch,
                 )
             else:
                 scene_hits = kr.retrieve(
                     roles=scene_roles,
                     company=None,
-                    skills=None,
-                    scenes=scenes,
+                    skills=b_skill_arg,
+                    scenes=b_scene_arg,
                     category="project",
                     asked_norms=asked_norms,
-                    top_n=8,
-                    min_score=25,
+                    top_n=scene_fetch,
+                    pool_size=scene_pool,
+                    min_score=28,
+                    lane="b",
                 )
-            if len(scene_hits) < 4:
+            if len(scene_hits) < max(4, scene_limit // 3):
                 more = kr.search_questions(
                     roles=scene_roles,
-                    skills=retrieve_skills[:4] or None,
-                    scenes=scenes,
+                    skills=b_skill_arg,
+                    scenes=b_scene_arg,
                     category="project",
                     asked_norms=asked_norms,
-                    top_n=8,
-                    min_score=15,
+                    top_n=scene_fetch,
+                    min_score=20,
+                    lane="b",
                 )
                 if company_id:
                     more_co = kr.search_questions(
                         roles=scene_roles,
                         company=company_id,
-                        scenes=scenes,
+                        skills=b_skill_arg,
+                        scenes=b_scene_arg,
                         category="project",
                         asked_norms=asked_norms,
-                        top_n=6,
-                        min_score=10,
+                        top_n=scene_limit,
+                        min_score=15,
+                        lane="b",
                     )
                     scene_hits = kr.merge_company_and_untagged(
                         more_co,
                         more,
                         company=company_id,
-                        limit=10,
+                        limit=scene_fetch,
                         extra=scene_hits,
                     )
                 else:
-                    scene_hits = kr.merge_hits(scene_hits, more, limit=10)
+                    scene_hits = kr.merge_hits(scene_hits, more, limit=scene_fetch)
             # 再补一轮不限 category，防止场景项目题过少
-            if len(scene_hits) < 4:
+            if len(scene_hits) < max(4, scene_limit // 3):
                 more2 = kr.search_questions(
                     roles=scene_roles,
-                    scenes=scenes,
+                    skills=b_skill_arg,
+                    scenes=b_scene_arg,
                     asked_norms=asked_norms,
-                    top_n=8,
-                    min_score=20,
+                    top_n=scene_fetch,
+                    min_score=24,
+                    lane="b",
                 )
-                scene_hits = kr.merge_hits(scene_hits, more2, limit=10)
+                scene_hits = kr.merge_hits(scene_hits, more2, limit=scene_fetch)
             scene_hits = kr.sanitize_hits(
                 scene_hits,
                 roles=roles,
@@ -882,6 +906,8 @@ class InterviewEngine:
         if timings is not None:
             timings["retrieval_role_hits_n"] = float(len(role_hits))
             timings["retrieval_scene_hits_n"] = float(len(scene_hits))
+            timings["b_lane_skills_n"] = float(len(b_skills))
+            timings["b_lane_scenes_n"] = float(len(b_scenes))
 
         # 供规划后回填「企业原题」徽标（前端展示名）——岗位路 + 场景路里的企业题
         self._enterprise_hits = [
@@ -901,8 +927,8 @@ class InterviewEngine:
             scene_hits,
             company=company_id,
             company_label=company_label,
-            role_limit=8,
-            scene_limit=8,
+            role_limit=role_limit,
+            scene_limit=scene_limit,
         )
 
         # 拷打链：与题单分开；每简历项目各生成一条完整链（失败跳过单项目）
@@ -928,6 +954,67 @@ class InterviewEngine:
             duration_s=round(timings.get("project_chains_s", 0), 2) if timings else 0,
             chains=len(state.project_chains or []),
         )
+
+    def _select_b_lane_query(
+        self,
+        state: InterviewState,
+        roles: list[str],
+        timings: dict[str, float] | None = None,
+    ) -> tuple[list[str], list[str]]:
+        """本场 B 路 scenes/skills：LLM 从简历闭集勾选，失败则规则兜底。"""
+        from app.services.b_lane_query import (
+            B_LANE_QUERY_SYSTEM,
+            build_b_lane_user,
+            clip_b_lane_query,
+            collect_resume_scenes,
+            collect_resume_skills,
+            fallback_b_lane_query,
+        )
+        from app.services.session_guard_log import log_guard
+
+        profile = state.profile or {}
+        if not collect_resume_scenes(profile) and not collect_resume_skills(profile):
+            return [], []
+
+        t0 = time.perf_counter()
+        source = "fallback"
+        try:
+            raw = self.llm.chat_json(
+                B_LANE_QUERY_SYSTEM,
+                build_b_lane_user(profile, state.target_role, roles),
+                max_retries=1,
+            )
+            scenes, skills = clip_b_lane_query(raw, profile=profile)
+            if scenes or skills:
+                source = "llm"
+            else:
+                scenes, skills = fallback_b_lane_query(profile)
+                log_guard(
+                    state.session_id,
+                    "b_lane_query_empty_fallback",
+                    role_n=len(roles),
+                )
+        except Exception as exc:  # noqa: BLE001
+            scenes, skills = fallback_b_lane_query(profile)
+            log_guard(
+                state.session_id,
+                "b_lane_query_failed",
+                reason=type(exc).__name__,
+            )
+        if timings is not None:
+            timings["b_lane_query_s"] = time.perf_counter() - t0
+            timings["b_lane_query_source"] = 1.0 if source == "llm" else 0.0
+        from app.services.create_timing_log import step as trace_step
+
+        trace_step(
+            state.session_id,
+            "b_lane_query",
+            duration_s=round(time.perf_counter() - t0, 2),
+            source=source,
+            scenes=len(scenes),
+            skills=len(skills),
+        )
+        return scenes, skills
 
     def _filter_hits_by_llm(
         self,

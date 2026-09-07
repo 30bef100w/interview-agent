@@ -73,6 +73,14 @@ class _ChainLlm:
         }
 
 
+def test_planner_material_is_four_times_main_questions():
+    assert kr.planner_material_limits(8) == (16, 16)
+    assert sum(kr.planner_material_limits(8)) == 32
+    assert sum(kr.planner_material_limits(4)) == 32
+    assert sum(kr.planner_material_limits(12)) == 48
+    assert sum(kr.planner_material_limits(20)) == 48
+
+
 def test_format_dual_hits_has_both_sections():
     text = kr.format_dual_hits(
         [{"question": "JVM 有哪些垃圾回收器？", "roles": ["java_backend"], "era": "2025"}],
@@ -85,7 +93,7 @@ def test_format_dual_hits_has_both_sections():
         ],
     )
     assert "【A. 目标岗位相关" in text
-    assert "【B. 简历项目场景相关" in text
+    assert "【B. 简历技术点与场景相关" in text
     assert "JVM" in text
     assert "优惠券" in text
     assert "综合 A+B" in text or "交叉" in text

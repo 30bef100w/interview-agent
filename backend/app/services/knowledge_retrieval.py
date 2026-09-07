@@ -57,9 +57,11 @@ def _score_question(
     scenes_set: set[str],
     category: str | None,
     recall_boost_terms: list[str] | None = None,
+    lane: str = "a",
 ) -> float:
     if category and q.get("category") != category:
         return 0.0
+    lane_b = (lane or "a").lower() == "b"
     score = 0.0
     q_roles = set(q.get("roles") or [])
     if roles:
@@ -68,31 +70,42 @@ def _score_question(
         if not overlap:
             return 0.0
         primary = (q.get("roles") or [None])[0]
-        if primary in roles:
-            score += 80
+        if lane_b:
+            # B 路岗位只做门禁；主分交给场景/技术点，避免退化成 A 路
+            score += 20 if primary in roles else 8
         else:
-            score += 35  # 仅次标签命中，弱于主岗位
-        # 岗位关键词命中：同标签池内优先真正相关题（KB 弱标签噪音多）
-        from app.services.job_roles import all_roles
+            if primary in roles:
+                score += 80
+            else:
+                score += 35  # 仅次标签命中，弱于主岗位
+            from app.services.job_roles import all_roles
 
-        text_all = f"{q.get('question','')} {q.get('answer') or ''}".lower()
-        kw_hits = 0
-        for rid in overlap:
-            for kw in all_roles().get(rid, {}).get("keywords") or []:
-                if kw.lower() in text_all:
-                    kw_hits += 1
-        score += min(kw_hits, 6) * 12
+            text_all = f"{q.get('question','')} {q.get('answer') or ''}".lower()
+            kw_hits = 0
+            for rid in overlap:
+                for kw in all_roles().get(rid, {}).get("keywords") or []:
+                    if kw.lower() in text_all:
+                        kw_hits += 1
+            score += min(kw_hits, 6) * 12
     if company and q.get("company") == company:
-        score += 120  # 企业定向权重最高，防止被弱标签噪音淹没
+        score += 40 if lane_b else 120  # A 路企业是风格主权重；B 路仅辅助
     if scenes_set:
         q_scene_list = list((q.get("business_scene") or []) + (q.get("tech_scene") or []))
         from app.services.scene_tag_similarity import scene_score_bonus
 
-        score += scene_score_bonus(list(scenes_set), q_scene_list, has_roles=bool(roles))
+        score += scene_score_bonus(
+            list(scenes_set),
+            q_scene_list,
+            has_roles=bool(roles) and not lane_b,
+        )
     if skills_low:
         text = f"{q.get('question','')} {q.get('answer') or ''}".lower()
         skill_hits = sum(1 for s in skills_low if s in text)
-        score += skill_hits * (4 if roles else 10)
+        if lane_b:
+            unit = 20 if roles else 12
+        else:
+            unit = 4 if roles else 10
+        score += skill_hits * unit
     boost_terms = recall_boost_terms if recall_boost_terms is not None else None
     if boost_terms is None:
         from app.services.recall_boost import active_recall_boost_terms
@@ -272,10 +285,12 @@ def retrieve(
     pool_size: int = 30,
     min_score: int = 30,
     recall_boost_terms: list[str] | None = None,
+    lane: str = "a",
 ) -> list[dict]:
     """召回：打分 → 历史已问惩罚 → 候选池 → 主题分散 → 抽 top_n。
 
     asked_norms：历史问过的题（归一化）；精确命中 ×0.01，近似命中强降权。
+    lane=a：岗企风格为主、技术辅助；lane=b：场景/技术点为主，岗位仍硬卡。
     """
     roles_set = set(roles or [])
     skills_low = [s.lower() for s in (skills or []) if s]
@@ -287,7 +302,14 @@ def retrieve(
         if _is_noisy(q):
             continue
         s = _score_question(
-            q, roles_set, company, skills_low, scenes_set, category, recall_boost_terms
+            q,
+            roles_set,
+            company,
+            skills_low,
+            scenes_set,
+            category,
+            recall_boost_terms,
+            lane=lane,
         )
         if s < min_score:
             continue
@@ -362,6 +384,7 @@ def search_questions(
     top_n: int = 8,
     min_score: int = 10,
     recall_boost_terms: list[str] | None = None,
+    lane: str = "a",
 ) -> list[dict]:
     """简单版：纯打分排序取 Top N；同样对历史已问题目降权。"""
     roles_set = set(roles or [])
@@ -373,7 +396,14 @@ def search_questions(
         if _is_noisy(q):
             continue
         s = _score_question(
-            q, roles_set, company, skills_low, scenes_set, category, recall_boost_terms
+            q,
+            roles_set,
+            company,
+            skills_low,
+            scenes_set,
+            category,
+            recall_boost_terms,
+            lane=lane,
         )
         if s < min_score:
             continue
@@ -687,14 +717,30 @@ def format_hits(
     return "\n".join(lines)
 
 
+PLANNER_MATERIAL_MIN = 32
+PLANNER_MATERIAL_MAX = 48
+PLANNER_MATERIAL_MULTIPLIER = 4
+
+
+def planner_material_limits(total_rounds: int) -> tuple[int, int]:
+    """规划官参考题条数（写入 retrieved_material，不是检索内部候选池）。
+
+    主问 ×4，默认 8×4=32，A/B 对半；上限 48，避免规划 Prompt 过长。
+    """
+    n = max(PLANNER_MATERIAL_MIN, max(1, int(total_rounds or 8)) * PLANNER_MATERIAL_MULTIPLIER)
+    n = min(n, PLANNER_MATERIAL_MAX)
+    role_n = (n + 1) // 2
+    return role_n, n - role_n
+
+
 def format_dual_hits(
     role_hits: list[dict],
     scene_hits: list[dict],
     *,
     company: str | None = None,
     company_label: str | None = None,
-    role_limit: int = 8,
-    scene_limit: int = 6,
+    role_limit: int = 16,
+    scene_limit: int = 16,
 ) -> str:
     """岗位路 + 场景路 → 分区注入规划官；两路都有时模型综合出题单/参考。"""
     parts: list[str] = []
@@ -708,16 +754,16 @@ def format_dual_hits(
     )
     if scene_block:
         parts.append(
-            "【B. 简历项目场景相关真实面试题/高频题】\n"
-            "（目标企业场景题 + 无企业标签通用场景题，二者一起参考；"
-            "同类业务/技术场景下真人常怎么挖项目；规划项目题与拷打方向时必须参考）\n"
+            "【B. 简历技术点与场景相关真实面试题/高频题】\n"
+            "（本场按目标岗位从简历勾选的技术点 + 场景；岗位硬过滤；"
+            "学同类业务/技术下真人问法，规划项目题与拷打方向时必须参考）\n"
             + scene_block
         )
     if not parts:
         return ""
     parts.append(
         "【规划用法】题单与项目深挖综合 A+B："
-        "A 定岗位考察能力，B 定场景下真人问法；企业原题与无企业标签题都要吃，丰富问法；"
+        "A 学岗企出题风格（技术仅辅助），B 学简历技术点与场景问法（仍硬卡岗位）；"
         "改写组织语言，严禁照搬原题面；"
         "优先做「场景真题 × 岗位考察点」交叉，勿只空编脱离简历场景的设计题。"
     )
