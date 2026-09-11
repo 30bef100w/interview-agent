@@ -30,7 +30,7 @@ backend/scripts/build_problems.py
 backend/data/test_resume.pdf
 backend/data/test_report_export.docx
 backend/data/test_voice.mp3
-backend/data/_java_debug/
+backend/data/tts_cache/
 
 # frontend
 frontend/node_modules/

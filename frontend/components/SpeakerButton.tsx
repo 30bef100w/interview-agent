@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 
-import { API_BASE, getToken } from "@/lib/api";
+import { fetchTtsBlob } from "@/lib/tts";
 
 type Props = {
   text: string;
@@ -16,14 +16,9 @@ export default function SpeakerButton({ text }: Props) {
   async function play() {
     if (playing) return;
     setFailed(false);
+    setPlaying(true);
     try {
-      const token = getToken();
-      const res = await fetch(
-        `${API_BASE}/api/voice/tts?text=${encodeURIComponent(text.slice(0, 500))}`,
-        { headers: token ? { Authorization: `Bearer ${token}` } : {} }
-      );
-      if (!res.ok) throw new Error();
-      const blob = await res.blob();
+      const blob = await fetchTtsBlob(text);
       audioRef.current?.pause();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
@@ -32,7 +27,6 @@ export default function SpeakerButton({ text }: Props) {
         URL.revokeObjectURL(url);
       };
       audioRef.current = audio;
-      setPlaying(true);
       await audio.play();
     } catch {
       setPlaying(false);
@@ -42,9 +36,9 @@ export default function SpeakerButton({ text }: Props) {
 
   return (
     <button
-      onClick={play}
+      onClick={() => void play()}
       disabled={playing}
-      title="播放语音"
+      title={playing ? "正在合成/播放语音" : "播放语音"}
       className={`ml-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors disabled:opacity-50 ${
         failed
           ? "border-red-200 text-red-500 dark:border-red-900"

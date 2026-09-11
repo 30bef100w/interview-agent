@@ -4,6 +4,7 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
 import { IconSend } from "@/components/ui";
 import { getToken } from "@/lib/api";
+import { canUseMicrophone, micBlockedMessage } from "@/lib/mic";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 
 export type AnswerComposerHandle = {
@@ -42,7 +43,7 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
     },
   }));
 
-  const { supported, listening, error, start, stop, clearError } = useSpeechToText({
+  const { listening, error, start, stop, clearError } = useSpeechToText({
     onInterim: (live) => {
       if (speechActive.current) onChange(live);
     },
@@ -54,6 +55,10 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
   function toggleVoice() {
     clearError();
     setWhisperHint("");
+    if (!canUseMicrophone()) {
+      setWhisperHint(micBlockedMessage());
+      return;
+    }
     if (listening) {
       stop();
       speechActive.current = false;
@@ -67,6 +72,10 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
     if (whisperBusy || disabled || sending) return;
     setWhisperHint("");
     clearError();
+    if (!canUseMicrophone()) {
+      setWhisperHint(micBlockedMessage());
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
@@ -120,8 +129,13 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
       setTimeout(() => {
         if (rec.state === "recording") rec.stop();
       }, 60000);
-    } catch {
-      setWhisperHint("无法访问麦克风");
+    } catch (e) {
+      const name = e instanceof DOMException ? e.name : "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setWhisperHint("麦克风权限被拒绝，请在浏览器地址栏允许后重试");
+      } else {
+        setWhisperHint(micBlockedMessage());
+      }
     }
   }
 
@@ -131,7 +145,15 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
   }
 
   return (
-    <div className="w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+    <div
+      className="relative z-20 w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+      onMouseDown={(e) => {
+        const el = e.target as HTMLElement;
+        if (el.closest("button, textarea, a, input")) return;
+        e.preventDefault();
+        textareaRef.current?.focus();
+      }}
+    >
       <textarea
         ref={textareaRef}
         value={value}
@@ -152,11 +174,11 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
         rows={3}
         disabled={disabled || sending}
         placeholder="输入回答，或点麦克风实时转写 / Whisper 录音识别…"
-        className="w-full resize-none bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-50"
+        className="relative z-10 w-full resize-none bg-white text-sm text-zinc-900 caret-zinc-900 outline-none placeholder:text-zinc-400 [transform:translateZ(0)] dark:bg-zinc-900 dark:text-zinc-50 dark:caret-zinc-50"
       />
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          {supported ? (
+          {canUseMicrophone() ? (
             <button
               type="button"
               onClick={toggleVoice}
@@ -177,16 +199,22 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
               if (whisperHint === "录音中… 再点一次结束并识别") stopWhisperRecord();
               else startWhisperRecord();
             }}
-            disabled={disabled || sending || listening}
+            disabled={disabled || sending || listening || !canUseMicrophone()}
             className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-40 dark:border-zinc-600 dark:text-zinc-300"
-            title="服务端 Whisper 识别（对标 Gua 上传转写兜底）"
+            title={
+              canUseMicrophone()
+                ? "服务端 Whisper 识别（对标 Gua 上传转写兜底）"
+                : micBlockedMessage()
+            }
           >
             {whisperBusy ? "识别中…" : "Whisper"}
           </button>
           {listening ? (
             <span className="animate-pulse text-xs text-red-500">实时转写中…</span>
-          ) : (
+          ) : canUseMicrophone() ? (
             <span className="text-xs text-zinc-400">Web Speech / Whisper 双路径</span>
+          ) : (
+            <span className="text-xs text-amber-600">语音需 HTTPS，当前请用文字输入</span>
           )}
           {error ? (
             <span className="text-xs text-red-500">{SPEECH_HINT[error] || error}</span>

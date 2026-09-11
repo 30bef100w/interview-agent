@@ -35,7 +35,7 @@ export default function InterviewStatusBar({
   const pct = totalRounds > 0 ? Math.min(100, Math.round((roundsUsed / totalRounds) * 100)) : 0;
 
   return (
-    <div className="border-b border-zinc-200/80 bg-white/90 px-4 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/90">
+    <div className="border-b border-zinc-200/80 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
       <div className="mx-auto flex max-w-2xl flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">

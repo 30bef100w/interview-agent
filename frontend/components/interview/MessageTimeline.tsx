@@ -31,6 +31,11 @@ export default function MessageTimeline({ messages, ttsAutoPlay }: Props) {
     );
   }
 
+  let lastInterviewer = -1;
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === "interviewer" && !messages[i].streaming) lastInterviewer = i;
+  }
+
   return (
     <div className="flex flex-col gap-3.5">
       {messages.map((m, i) => {
@@ -76,7 +81,11 @@ export default function MessageTimeline({ messages, ttsAutoPlay }: Props) {
                 )}
               </div>
               {m.role === "interviewer" && !m.streaming && m.text ? (
-                <InterviewAudioPlayer text={m.text} autoPlay={ttsAutoPlay} />
+                <InterviewAudioPlayer
+                  text={m.text}
+                  autoPlay={ttsAutoPlay}
+                  prefetch={i === lastInterviewer}
+                />
               ) : null}
             </div>
             {m.role === "candidate" && (

@@ -311,6 +311,8 @@ export default function ChatPage() {
   }, [info?.status, info?.stage, refreshSession, wsConnected]);
 
   useEffect(() => {
+    const active = document.activeElement;
+    if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT")) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, streaming, info?.current_coding]);
 
@@ -389,7 +391,7 @@ export default function ChatPage() {
         }}
       />
 
-      <div className="flex items-center justify-between border-b border-zinc-200/80 bg-white/80 px-5 py-3 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+      <div className="flex items-center justify-between border-b border-zinc-200/80 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-50"
@@ -458,7 +460,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="border-t border-zinc-200/80 bg-white/80 p-4 backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/80">
+      <div className="relative z-20 border-t border-zinc-200/80 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
         {info?.status === "finished" || info?.stage === "FINISHED" || isAbandoned ? (
           <div className="flex flex-wrap items-center justify-center gap-3">
             <span className="inline-flex items-center gap-1.5 text-sm text-zinc-500">
