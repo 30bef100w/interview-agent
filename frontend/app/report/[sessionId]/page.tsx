@@ -60,6 +60,47 @@ function scoreColor(v: number): string {
       : "text-red-600";
 }
 
+function asStrings(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((x) => String(x ?? ""));
+}
+
+function normalizeQuestion(q: Partial<PerQuestion> | null | undefined): PerQuestion {
+  const raw = q ?? {};
+  return {
+    topic: String(raw.topic ?? ""),
+    question: String(raw.question ?? ""),
+    my_answers: asStrings(raw.my_answers),
+    score: Number.isFinite(Number(raw.score)) ? Number(raw.score) : 0,
+    strengths: asStrings(raw.strengths),
+    weaknesses: asStrings(raw.weaknesses),
+    feedback: String(raw.feedback ?? ""),
+    reference_answer: String(raw.reference_answer ?? ""),
+    is_followup: Boolean(raw.is_followup),
+    original_company: raw.original_company ? String(raw.original_company) : undefined,
+  };
+}
+
+function normalizeReport(raw: Partial<ReportData> | null | undefined): ReportData {
+  const r = raw ?? {};
+  const dims: Record<string, number> = {};
+  if (r.dimension_scores && typeof r.dimension_scores === "object") {
+    for (const [k, v] of Object.entries(r.dimension_scores)) {
+      dims[String(k)] = Number(v) || 0;
+    }
+  }
+  return {
+    summary: String(r.summary ?? ""),
+    dimension_scores: dims,
+    per_question: Array.isArray(r.per_question)
+      ? r.per_question.map((q) => normalizeQuestion(q))
+      : [],
+    strengths: asStrings(r.strengths),
+    weaknesses: asStrings(r.weaknesses),
+    suggestions: asStrings(r.suggestions),
+  };
+}
+
 function QuestionDetailModal({
   q,
   index,
@@ -135,11 +176,11 @@ function QuestionDetailModal({
             <div className="mb-1.5 text-xs font-medium text-slate-400">问题</div>
             <MarkdownRenderer content={q.question} className="text-slate-800" />
           </div>
-          {q.my_answers.length > 0 && (
+          {(q.my_answers ?? []).length > 0 && (
             <div>
               <div className="mb-1.5 text-xs font-medium text-slate-400">我的作答</div>
               <div className="flex flex-col gap-2">
-                {q.my_answers.map((a, j) => (
+                {(q.my_answers ?? []).map((a, j) => (
                   <div
                     key={j}
                     className="rounded-xl bg-sky-50/80 px-3.5 py-2.5 leading-7 text-slate-600"
@@ -154,28 +195,28 @@ function QuestionDetailModal({
             <div>
               <div className="mb-1.5 text-xs font-medium text-slate-400">AI 点评</div>
               <div className="leading-7 text-slate-800">
-                {q.strengths.length > 0 && (
+                {(q.strengths ?? []).length > 0 && (
                   <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
-                    亮点 {q.strengths.length}
+                    亮点 {(q.strengths ?? []).length}
                   </span>
                 )}
-                {q.weaknesses.length > 0 && (
+                {(q.weaknesses ?? []).length > 0 && (
                   <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
-                    待改进 {q.weaknesses.length}
+                    待改进 {(q.weaknesses ?? []).length}
                   </span>
                 )}
                 {q.feedback}
               </div>
-              {q.strengths.length > 0 && (
+              {(q.strengths ?? []).length > 0 && (
                 <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-xs leading-5 text-emerald-700/90">
-                  {q.strengths.map((s, j) => (
+                  {(q.strengths ?? []).map((s, j) => (
                     <li key={j}>{s}</li>
                   ))}
                 </ul>
               )}
-              {q.weaknesses.length > 0 && (
+              {(q.weaknesses ?? []).length > 0 && (
                 <ul className="mt-2 flex list-disc flex-col gap-1 pl-4 text-xs leading-5 text-red-600/90">
-                  {q.weaknesses.map((w, j) => (
+                  {(q.weaknesses ?? []).map((w, j) => (
                     <li key={j}>{w}</li>
                   ))}
                 </ul>
@@ -243,7 +284,12 @@ export default function ReportPage() {
   const load = useCallback(() => {
     setError("");
     api<ReportRes>(`/api/interview/session/${sessionId}/report`)
-      .then(setData)
+      .then((res) =>
+        setData({
+          ...res,
+          report: normalizeReport(res?.report),
+        }),
+      )
       .catch((e) => {
         if (e instanceof ApiError && e.status === 401) {
           router.replace("/login");
@@ -483,7 +529,7 @@ export default function ReportPage() {
                   {i + 1}. {q.topic}（{q.score}/10）
                 </div>
                 <div className="mt-1 text-zinc-600">问：{q.question}</div>
-                <div className="mt-1 text-zinc-600">答：{q.my_answers.join(" / ")}</div>
+                <div className="mt-1 text-zinc-600">答：{(q.my_answers ?? []).join(" / ")}</div>
                 <div className="mt-1 text-zinc-600">评：{q.feedback}</div>
               </div>
             ))}
@@ -495,7 +541,7 @@ export default function ReportPage() {
         <Card className="border-emerald-200/70 p-5">
           <h2 className="mb-2.5 text-sm font-semibold text-emerald-700">优点</h2>
           <ul className="flex list-disc flex-col gap-1.5 pl-4 text-sm leading-6 text-slate-700">
-            {r.strengths.map((s, i) => (
+            {(r.strengths ?? []).map((s, i) => (
               <li key={i}>{s}</li>
             ))}
           </ul>
@@ -503,7 +549,7 @@ export default function ReportPage() {
         <Card className="border-red-200/70 p-5">
           <h2 className="mb-2.5 text-sm font-semibold text-red-700">待提升</h2>
           <ul className="flex list-disc flex-col gap-1.5 pl-4 text-sm leading-6 text-slate-700">
-            {r.weaknesses.map((w, i) => (
+            {(r.weaknesses ?? []).map((w, i) => (
               <li key={i}>{w}</li>
             ))}
           </ul>
@@ -513,7 +559,7 @@ export default function ReportPage() {
       <Card className="animate-fade-up p-5" style={{ animationDelay: "0.2s" }}>
         <h2 className="mb-2.5 text-sm font-semibold text-slate-900">提升建议</h2>
         <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm leading-6 text-slate-700">
-          {r.suggestions.map((s, i) => (
+          {(r.suggestions ?? []).map((s, i) => (
             <li key={i}>{s}</li>
           ))}
         </ol>

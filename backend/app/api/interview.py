@@ -310,13 +310,30 @@ def _review_focus_hint(db: Session, user_id: int) -> str:
 def _parse_stored_report(raw: str | None) -> dict:
     try:
         data = json.loads(raw or "")
+        parsed_ok = True
     except json.JSONDecodeError:
-        return {
-            "summary": "报告数据无法解析，面试过程仍保留在本场记录里。",
-            "dimension_scores": {},
-            "per_question": [],
-        }
-    return data if isinstance(data, dict) else {"summary": str(data)}
+        data = {}
+        parsed_ok = False
+    if not isinstance(data, dict):
+        data = {"summary": str(data)}
+    out = {
+        "summary": "",
+        "overall_score": None,
+        "dimension_scores": {},
+        "per_question": [],
+        "strengths": [],
+        "weaknesses": [],
+        "suggestions": [],
+        **data,
+    }
+    if not isinstance(out.get("dimension_scores"), dict):
+        out["dimension_scores"] = {}
+    for key in ("per_question", "strengths", "weaknesses", "suggestions"):
+        if not isinstance(out.get(key), list):
+            out[key] = []
+    if not parsed_ok and not str(out.get("summary") or "").strip():
+        out["summary"] = "报告数据无法解析，面试过程仍保留在本场记录里。"
+    return out
 
 
 def _validated_report(

@@ -671,8 +671,15 @@ def test_failed_coding_submit_is_non_answer():
 def test_parse_stored_report_tolerates_bad_json():
     from app.api.interview import _parse_stored_report
 
-    assert _parse_stored_report("{not json")["per_question"] == []
-    assert _parse_stored_report('{"summary":"ok"}')["summary"] == "ok"
+    broken = _parse_stored_report("{not json")
+    assert broken["per_question"] == []
+    assert broken["strengths"] == []
+    assert broken["dimension_scores"] == {}
+    assert "无法解析" in broken["summary"]
+    ok = _parse_stored_report('{"summary":"ok"}')
+    assert ok["summary"] == "ok"
+    assert ok["per_question"] == []
+    assert ok["suggestions"] == []
 
 
 def test_finish_interview_falls_back_when_llm_json_fails():
