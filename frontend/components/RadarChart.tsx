@@ -34,9 +34,11 @@ export default function RadarChart({
       })
       .join(" ");
 
-  const valuePoints = data.map((d, i) =>
-    point(i, (Math.min(Math.max(d.value, 0), MAX) / MAX) * r)
-  );
+  const valuePoints = data.map((d, i) => {
+    const n = Number(d.value);
+    const clamped = Number.isFinite(n) ? Math.min(Math.max(n, 0), MAX) : 0;
+    return point(i, (clamped / MAX) * r);
+  });
 
   const tip = active !== null ? data[active] : null;
   const tipPos = active !== null ? valuePoints[active] : null;

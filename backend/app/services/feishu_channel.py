@@ -156,6 +156,16 @@ def format_report(report: dict | None, url: str) -> str:
     score = report.get("overall_score")
     if score is None:
         score = report.get("score")
+    if score is None:
+        dims = report.get("dimension_scores") or {}
+        nums = []
+        for v in dims.values():
+            try:
+                nums.append(float(v))
+            except (TypeError, ValueError):
+                continue
+        if nums:
+            score = round(sum(nums) / len(nums), 1)
     if score is not None:
         lines.append(f"综合分：{score}")
     summary = str(report.get("summary") or "").strip()

@@ -3278,4 +3278,48 @@ class InterviewEngine:
         report.pop("per_question_calibrated", None)
         if not str(report.get("summary") or "").strip():
             report["summary"] = "本场有效作答有限，整体表现不足以支撑高分评价。"
+        scores: list[float] = []
+        for item in out:
+            try:
+                scores.append(float(item.get("score")))
+            except (TypeError, ValueError):
+                continue
+        avg = round(sum(scores) / len(scores), 1) if scores else None
+        dims = report.get("dimension_scores")
+        dims_empty = not isinstance(dims, dict) or not dims
+        dims_floor = False
+        if isinstance(dims, dict) and dims:
+            try:
+                dims_floor = all(float(v) <= 1.01 for v in dims.values())
+            except (TypeError, ValueError):
+                dims_floor = True
+        all_non = bool(state.plan) and all(
+            is_non_answer(state.per_question.get(q["qid"], {}).get("answers"))
+            for q in state.plan
+        )
+        if avg is not None and (dims_empty or dims_floor) and not all_non:
+            report["dimension_scores"] = {
+                "技术深度": avg,
+                "项目经验": avg,
+                "沟通表达": avg,
+                "综合素质": avg,
+            }
+        if avg is not None and report.get("overall_score") is None:
+            report["overall_score"] = avg
+        summary = str(report.get("summary") or "")
+        if avg is not None and "终评模型输出异常" in summary:
+            report["summary"] = (
+                f"本场共 {len(out)} 条问答（含追问），过程评分均分 {avg}。"
+                "终评模型未产出完整 JSON，报告按面试中已打出的逐题分汇总。"
+            )
+            if report.get("weaknesses") == ["终评生成失败"]:
+                weak = [
+                    str(item.get("topic") or "题目")
+                    for item in out
+                    if float(item.get("score") or 0) <= 3
+                ][:4]
+                report["weaknesses"] = weak or ["部分题目深度不足"]
+                report["suggestions"] = [
+                    "建议针对低分题补齐对比、边界与落地细节；网页可查看逐题点评。"
+                ]
         return report

@@ -668,6 +668,13 @@ def test_failed_coding_submit_is_non_answer():
     assert strengths == []
 
 
+def test_parse_stored_report_tolerates_bad_json():
+    from app.api.interview import _parse_stored_report
+
+    assert _parse_stored_report("{not json")["per_question"] == []
+    assert _parse_stored_report('{"summary":"ok"}')["summary"] == "ok"
+
+
 def test_finish_interview_falls_back_when_llm_json_fails():
     class BoomLlm(FakeLlm):
         def chat_json(self, system: str, user: str, **kwargs) -> dict:
@@ -679,4 +686,5 @@ def test_finish_interview_falls_back_when_llm_json_fails():
     state, _ = run_to_asking(engine, make_state())
     state, report = engine.finish_interview(state)
     assert state.stage == "FINISHED"
-    assert "异常" in str(report.get("summary") or "")
+    assert isinstance(report.get("dimension_scores"), dict)
+    assert report.get("per_question") is not None

@@ -51,9 +51,11 @@ const MODE_LABEL: Record<string, string> = {
 };
 
 function scoreColor(v: number): string {
-  return v >= 8
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "text-slate-500";
+  return n >= 8
     ? "text-emerald-600"
-    : v >= 6
+    : n >= 6
       ? "text-amber-600"
       : "text-red-600";
 }
@@ -343,9 +345,21 @@ export default function ReportPage() {
     );
   }
 
-  const r = data.report;
-  const dims = Object.entries(r.dimension_scores);
-  const total = dims.length ? dims.reduce((s, [, v]) => s + v, 0) / dims.length : 0;
+  const r = data.report ?? {
+    summary: "",
+    dimension_scores: {},
+    per_question: [],
+    strengths: [],
+    weaknesses: [],
+    suggestions: [],
+  };
+  const dims = Object.entries(r.dimension_scores ?? {}).map(([k, v]) => [
+    k,
+    Number(v) || 0,
+  ]);
+  const total = dims.length
+    ? dims.reduce((s, [, v]) => s + Number(v), 0) / dims.length
+    : 0;
   const perQ = r.per_question ?? [];
   const activeQ = activeIdx !== null ? perQ[activeIdx] : null;
 

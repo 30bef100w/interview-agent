@@ -201,6 +201,15 @@ def test_format_report_and_split():
     assert parts == ["ab", "cd"]
 
 
+def test_format_report_uses_dimension_average_when_overall_missing():
+    text = format_report(
+        {"summary": "兜底", "dimension_scores": {"技术深度": 8, "沟通表达": 6}},
+        "https://x/2",
+    )
+    assert "综合分：7.0" in text
+    assert "完整报告：https://x/2" in text
+
+
 def test_build_text_content_keeps_list_after_colon():
     raw = "就是这三件事：\n\n1. 简历\n2. 模式\n3. 轮次"
     payload = build_text_content(raw)

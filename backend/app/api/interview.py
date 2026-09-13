@@ -307,6 +307,18 @@ def _review_focus_hint(db: Session, user_id: int) -> str:
     return ""
 
 
+def _parse_stored_report(raw: str | None) -> dict:
+    try:
+        data = json.loads(raw or "")
+    except json.JSONDecodeError:
+        return {
+            "summary": "报告数据无法解析，面试过程仍保留在本场记录里。",
+            "dimension_scores": {},
+            "per_question": [],
+        }
+    return data if isinstance(data, dict) else {"summary": str(data)}
+
+
 def _validated_report(
     session: InterviewSession, report: dict, db: Session | None = None
 ) -> dict:
@@ -415,7 +427,7 @@ def get_report(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="报告尚未生成"
         )
-    report = _validated_report(session, json.loads(report_row.report_json), db)
+    report = _validated_report(session, _parse_stored_report(report_row.report_json), db)
     return {
         "session_id": session.id,
         "mode": session.interview_mode,
@@ -444,7 +456,7 @@ def export_report(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="报告尚未生成"
         )
-    report = _validated_report(session, json.loads(report_row.report_json), db)
+    report = _validated_report(session, _parse_stored_report(report_row.report_json), db)
     mode_label = (
         "全流程混合面"
         if session.interview_mode == "full"
@@ -759,6 +771,43 @@ def get_create_progress(
     return CreateProgressOut(status="creating", progress=progress, label=label, step=step)
 
 
+def _fallback_score_report() -> dict:
+    return {
+        "summary": "终评模型输出异常，面试过程已保存。可稍后在网页查看本场记录。",
+        "overall_score": None,
+        "dimension_scores": {},
+        "per_question": [],
+        "strengths": [],
+        "weaknesses": ["终评生成失败"],
+        "suggestions": ["请到网页打开本场报告或历史记录。"],
+    }
+
+
+def _close_with_report(session: InterviewSession, db: Session, state, engine):
+    """终评失败也要落库，避免最后一答被回滚、飞书报「处理出错」。"""
+    try:
+        state, report = engine.finish_interview(state)
+    except Exception:
+        logger.exception("finish_interview failed session=%s", session.id)
+        report = _fallback_score_report()
+        try:
+            report = engine._sanitize_report(state, report)
+        except Exception:
+            logger.exception("sanitize fallback report failed session=%s", session.id)
+        state.stage = "FINISHED"
+    session.status = "finished"
+    session.finished_at = datetime.now(timezone.utc)
+    payload = json.dumps(report, ensure_ascii=False, default=str)
+    existing = db.scalars(
+        select(ScoreReport).where(ScoreReport.session_id == session.id)
+    ).first()
+    if existing is None:
+        db.add(ScoreReport(session_id=session.id, report_json=payload))
+    else:
+        existing.report_json = payload
+    return state, report, "面试结束，报告已生成。"
+
+
 def _advance(
     session: InterviewSession, db: Session, text: str, engine: InterviewEngine
 ) -> dict:
@@ -787,31 +836,16 @@ def _advance(
         if state.cursor == before_cursor:
             qrow.follow_up_count += 1  # 追问，题目未前进
         _answer_row(db, session.id, qrow.id, text, state.per_question[f"q{before_cursor + 1}"])
-    elif state.stage == "ASK_BACK":
-        state, report = engine.finish_interview(state)
-        session.status = "finished"
-        session.finished_at = datetime.now(timezone.utc)
-        db.add(
-            ScoreReport(
-                session_id=session.id,
-                report_json=json.dumps(report, ensure_ascii=False),
-            )
-        )
-        message = "面试结束，报告已生成。"
+        if state.stage == "SUMMARIZING":
+            _save_state(session, state)
+            db.commit()
+    elif state.stage in {"ASK_BACK", "SUMMARIZING"}:
+        message = ""
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="面试阶段异常")
 
-    if state.stage == "SUMMARIZING":
-        state, report = engine.finish_interview(state)
-        session.status = "finished"
-        session.finished_at = datetime.now(timezone.utc)
-        db.add(
-            ScoreReport(
-                session_id=session.id,
-                report_json=json.dumps(report, ensure_ascii=False),
-            )
-        )
-        message = "面试结束，报告已生成。"
+    if state.stage in {"SUMMARIZING", "ASK_BACK"}:
+        state, report, message = _close_with_report(session, db, state, engine)
 
     _save_state(session, state)
     db.commit()
