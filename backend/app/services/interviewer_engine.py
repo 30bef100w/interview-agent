@@ -2527,7 +2527,21 @@ class InterviewEngine:
 
         state.stage = "FINISHED"
         with trace_node("finish_interview", session_id=state.session_id):
-            report = self.llm.chat_json(FINAL_REPORT_SYSTEM, self._report_user(state))
+            try:
+                report = self.llm.chat_json(FINAL_REPORT_SYSTEM, self._report_user(state))
+            except Exception:
+                logger.exception(
+                    "finish_interview json failed session=%s", state.session_id
+                )
+                report = {
+                    "summary": "终评模型输出异常，面试过程已保存。可稍后在网页查看本场记录。",
+                    "overall_score": None,
+                    "dimension_scores": {},
+                    "per_question": [],
+                    "strengths": [],
+                    "weaknesses": ["终评生成失败"],
+                    "suggestions": ["请到网页打开本场报告或历史记录。"],
+                }
             report = self._sanitize_report(state, report)
         return state, report
 

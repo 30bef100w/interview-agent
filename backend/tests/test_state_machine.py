@@ -666,3 +666,17 @@ def test_failed_coding_submit_is_non_answer():
     )
     assert sc <= 1
     assert strengths == []
+
+
+def test_finish_interview_falls_back_when_llm_json_fails():
+    class BoomLlm(FakeLlm):
+        def chat_json(self, system: str, user: str, **kwargs) -> dict:
+            if FINAL_REPORT_SYSTEM in system:
+                raise ValueError("bad json")
+            return super().chat_json(system, user, **kwargs)
+
+    engine = InterviewEngine(BoomLlm())
+    state, _ = run_to_asking(engine, make_state())
+    state, report = engine.finish_interview(state)
+    assert state.stage == "FINISHED"
+    assert "异常" in str(report.get("summary") or "")

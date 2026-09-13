@@ -154,6 +154,12 @@ class FeishuInterviewRuntime:
             return out
         except HTTPException as exc:
             return {"message": str(exc.detail), "finished": False}
+        except Exception:
+            logger.exception("feishu submit_answer failed session=%s", session_id)
+            return {
+                "message": "这一轮引擎处理失败，本场进度还在。可以说「继续」再试，或到网页查看。",
+                "finished": False,
+            }
         finally:
             db.close()
 

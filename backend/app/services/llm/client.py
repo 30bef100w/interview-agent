@@ -210,15 +210,65 @@ class StreamingLlm:
             self._on_token(text[i : i + step])
 
 
+def _extract_json_object(content: str) -> str | None:
+    start = content.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    in_str = False
+    escape = False
+    for i, ch in enumerate(content[start:], start):
+        if in_str:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return content[start : i + 1]
+    return None
+
+
+def _loads_json_object(blob: str) -> dict:
+    try:
+        out = json.loads(blob)
+        if isinstance(out, dict):
+            return out
+    except json.JSONDecodeError:
+        pass
+    relaxed = re.sub(r",(\s*[}\]])", r"\1", blob)
+    out = json.loads(relaxed)
+    if not isinstance(out, dict):
+        raise ValueError("LLM JSON 根节点不是对象")
+    return out
+
+
 def _parse_json(content: str) -> dict:
     content = content.strip()
     try:
-        return json.loads(content)
+        out = json.loads(content)
+        if isinstance(out, dict):
+            return out
     except json.JSONDecodeError:
         pass
+    blob = _extract_json_object(content)
+    if blob:
+        try:
+            return _loads_json_object(blob)
+        except (json.JSONDecodeError, ValueError):
+            pass
     m = re.search(r"\{.*\}", content, re.DOTALL)
     if m:
-        return json.loads(m.group(0))
+        return _loads_json_object(m.group(0))
     raise ValueError(f"LLM 输出不是有效 JSON: {content[:200]}")
 
 
