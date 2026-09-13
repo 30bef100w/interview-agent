@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import AuthModal from "@/components/AuthModal";
 import { getToken } from "@/lib/api";
 
-/** 独立路由仍可用：浅色底 + 弹窗，与首页一致。 */
-export default function LoginPage() {
+function LoginBody() {
   const router = useRouter();
+  const params = useSearchParams();
   const [open, setOpen] = useState(true);
+  const feishuError = params.get("feishu_error") || "";
 
   useEffect(() => {
     if (getToken()) router.replace("/dashboard");
@@ -24,11 +25,21 @@ export default function LoginPage() {
       <AuthModal
         open={open}
         mode="login"
+        initialError={feishuError}
         onClose={() => {
           setOpen(false);
           router.push("/");
         }}
       />
     </div>
+  );
+}
+
+/** 独立路由仍可用：浅色底 + 弹窗，与首页一致。 */
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginBody />
+    </Suspense>
   );
 }

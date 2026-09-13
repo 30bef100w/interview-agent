@@ -31,6 +31,7 @@ backend/data/test_resume.pdf
 backend/data/test_report_export.docx
 backend/data/test_voice.mp3
 backend/data/tts_cache/
+backend/data/feishu_orchestrator/*.json
 
 # frontend
 frontend/node_modules/

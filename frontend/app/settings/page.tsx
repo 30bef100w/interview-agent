@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { Card, IconSliders, btnCls } from "@/components/ui";
 import { ApiError, api } from "@/lib/api";
@@ -50,7 +51,22 @@ function formatPrice(m: Model) {
   return text;
 }
 
+type Me = {
+  platform_quota: number;
+  feishu_bound?: boolean;
+  feishu_name?: string;
+};
+
 export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsBody />
+    </Suspense>
+  );
+}
+
+function SettingsBody() {
+  const params = useSearchParams();
   const [data, setData] = useState<LlmSetting | null>(null);
   const [provider, setProvider] = useState("deepseek");
   const [model, setModel] = useState("deepseek-v4-flash");
@@ -59,13 +75,25 @@ export default function SettingsPage() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [platformQuota, setPlatformQuota] = useState<number | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [feishuBusy, setFeishuBusy] = useState(false);
+  const [feishuOn, setFeishuOn] = useState(false);
 
   useEffect(() => {
-    api<{ platform_quota: number }>("/api/auth/me")
-      .then((me) => setPlatformQuota(me.platform_quota))
+    api<Me>("/api/auth/me")
+      .then((row) => {
+        setPlatformQuota(row.platform_quota);
+        setMe(row);
+      })
       .catch(() => {});
+    api<{ enabled: boolean }>("/api/auth/feishu/config")
+      .then((d) => setFeishuOn(Boolean(d.enabled)))
+      .catch(() => setFeishuOn(false));
+    if (params.get("feishu") === "1") {
+      setOk("飞书已绑定。请在手机飞书里私聊深问机器人发「开始」，不要在群里发面试内容。");
+    }
     reloadSettings();
-  }, []);
+  }, [params]);
 
   function reloadSettings() {
     api<LlmSetting>("/api/settings/llm")
@@ -103,6 +131,32 @@ export default function SettingsPage() {
       setError(e instanceof Error ? e.message : "保存失败");
     }
     setSaving(false);
+  }
+
+  async function bindFeishu() {
+    setError("");
+    setFeishuBusy(true);
+    try {
+      const res = await api<{ authorize_url: string }>("/api/auth/feishu/start?mode=bind");
+      window.location.href = res.authorize_url;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "无法开始飞书绑定");
+      setFeishuBusy(false);
+    }
+  }
+
+  async function unbindFeishu() {
+    setError("");
+    setOk("");
+    setFeishuBusy(true);
+    try {
+      const row = await api<Me>("/api/auth/feishu/unbind", { method: "POST" });
+      setMe(row);
+      setOk("已解除飞书绑定");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "解绑失败");
+    }
+    setFeishuBusy(false);
   }
 
   return (
@@ -152,6 +206,27 @@ export default function SettingsPage() {
           {ok}
         </div>
       )}
+
+      {feishuOn ? (
+        <Card className="flex flex-col gap-3 p-6">
+          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">飞书面试通道</div>
+          <p className="text-sm leading-6 text-zinc-500">
+            绑定后可在手机飞书里<strong>私聊</strong>深问机器人面试，不要在群里发。
+            {me?.feishu_bound ? ` 当前已绑定${me.feishu_name ? `（${me.feishu_name}）` : ""}。` : ""}
+          </p>
+          <div className="flex justify-end gap-2">
+            {me?.feishu_bound ? (
+              <button type="button" disabled={feishuBusy} onClick={() => void unbindFeishu()} className={btnCls("secondary")}>
+                {feishuBusy ? "处理中…" : "解除绑定"}
+              </button>
+            ) : (
+              <button type="button" disabled={feishuBusy} onClick={() => void bindFeishu()} className={btnCls("primary")}>
+                {feishuBusy ? "跳转中…" : "绑定飞书"}
+              </button>
+            )}
+          </div>
+        </Card>
+      ) : null}
 
       {!data ? (
         <div className="flex flex-1 items-center justify-center text-zinc-500">加载中…</div>

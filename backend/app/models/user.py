@@ -15,6 +15,9 @@ class User(Base):
     is_admin: Mapped[int] = mapped_column(Integer, default=0)  # 1=管理员
     is_disabled: Mapped[int] = mapped_column(Integer, default=0)  # 1=禁用，禁止登录
     platform_quota: Mapped[int] = mapped_column(Integer, default=3)  # 平台 Key 面试剩余次数
+    feishu_open_id: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True, index=True)
+    feishu_union_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    feishu_name: Mapped[str] = mapped_column(String(128), default="")
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)

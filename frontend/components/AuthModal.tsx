@@ -17,11 +17,13 @@ export default function AuthModal({
   mode: initialMode = "login",
   onClose,
   onModeChange,
+  initialError = "",
 }: {
   open: boolean;
   mode?: Mode;
   onClose: () => void;
   onModeChange?: (m: Mode) => void;
+  initialError?: string;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -30,19 +32,23 @@ export default function AuthModal({
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [feishuOn, setFeishuOn] = useState(false);
 
   useEffect(() => {
     if (open) {
       setMode(initialMode);
-      setError("");
+      setError(initialError);
       const saved = loadRememberedLogin();
       if (saved) {
         setUsername(saved.username);
         setPassword(saved.password);
         setRemember(true);
       }
+      api<{ enabled: boolean }>("/api/auth/feishu/config")
+        .then((d) => setFeishuOn(Boolean(d.enabled)))
+        .catch(() => setFeishuOn(false));
     }
-  }, [open, initialMode]);
+  }, [open, initialMode, initialError]);
 
   useEffect(() => {
     if (!open) return;
@@ -97,6 +103,18 @@ export default function AuthModal({
     } catch (err) {
       setError(err instanceof Error ? err.message : mode === "login" ? "登录失败" : "注册失败");
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function startFeishu() {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await api<{ authorize_url: string }>("/api/auth/feishu/start?mode=login");
+      window.location.href = res.authorize_url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "飞书登录暂不可用");
       setLoading(false);
     }
   }
@@ -173,6 +191,26 @@ export default function AuthModal({
             {loading ? (mode === "login" ? "登录中…" : "注册中…") : mode === "login" ? "登录" : "注册"}
           </button>
         </form>
+        {feishuOn ? (
+          <div className="mt-4">
+            <div className="mb-3 flex items-center gap-2 text-xs text-zinc-400">
+              <span className="h-px flex-1 bg-zinc-200" />
+              或
+              <span className="h-px flex-1 bg-zinc-200" />
+            </div>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void startFeishu()}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#3370ff]/30 bg-[#3370ff] text-sm font-medium text-white transition hover:bg-[#2860e0] disabled:opacity-50"
+            >
+              飞书一键登录
+            </button>
+            <p className="mt-2 text-center text-[11px] leading-5 text-zinc-400">
+              登录后可在手机飞书里私聊深问机器人面试，不要在群里发。
+            </p>
+          </div>
+        ) : null}
         <p className="mt-5 text-center text-sm text-zinc-500">
           {mode === "login" ? (
             <>

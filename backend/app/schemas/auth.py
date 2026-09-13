@@ -21,6 +21,8 @@ class UserOut(BaseModel):
     created_at: datetime
     is_admin: bool = False
     platform_quota: int = 0
+    feishu_bound: bool = False
+    feishu_name: str = ""
 
 
 class TokenResponse(BaseModel):

@@ -32,6 +32,14 @@ class Settings(BaseSettings):
     feishu_webhook_url: str = ""
     feishu_webhook_secret: str = ""  # 自定义机器人「签名校验」secret；未开启可留空
     feishu_tag_mismatch_batch: int = 10  # 错标 pending 每满 N 条发一批报告
+    # 飞书私聊面试通道（lark-cli bot）：ou_open_id:深问用户名，逗号分隔（可选兜底）
+    feishu_bind_users: str = ""
+    feishu_skip_coding: bool = True
+    # 网页飞书 OAuth（自建应用 App ID / Secret）
+    feishu_app_id: str = ""
+    feishu_app_secret: str = ""
+    feishu_redirect_uri: str = ""  # 默认 {PUBLIC_ORIGIN}/api/auth/feishu/callback
+    feishu_oauth_scope: str = "contact:user.base:readonly"
 
     # 飞书运维告警（冷却秒数、流量 RPM 阈值；0=关闭流量告警）
     alert_cooldown_seconds: int = 600

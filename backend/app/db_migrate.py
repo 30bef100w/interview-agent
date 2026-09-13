@@ -46,6 +46,18 @@ def ensure_schema() -> None:
         _add_column(conn, "users", "platform_quota", "platform_quota INTEGER DEFAULT 3")
         _add_column(conn, "users", "last_active_at", "last_active_at TIMESTAMP")
         _add_column(conn, "users", "is_disabled", "is_disabled INTEGER DEFAULT 0")
+        _add_column(conn, "users", "feishu_open_id", "feishu_open_id VARCHAR(64)")
+        _add_column(conn, "users", "feishu_union_id", "feishu_union_id VARCHAR(64)")
+        _add_column(conn, "users", "feishu_name", "feishu_name VARCHAR(128) DEFAULT ''")
+        try:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_feishu_open_id "
+                    "ON users (feishu_open_id)"
+                )
+            )
+        except Exception:
+            pass
 
         usage_cols = _table_columns(conn, "llm_usages")
         if usage_cols and "used_platform_key" not in usage_cols:
