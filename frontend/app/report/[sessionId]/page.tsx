@@ -353,10 +353,9 @@ export default function ReportPage() {
     weaknesses: [],
     suggestions: [],
   };
-  const dims = Object.entries(r.dimension_scores ?? {}).map(([k, v]) => [
-    k,
-    Number(v) || 0,
-  ]);
+  const dims: [string, number][] = Object.entries(r.dimension_scores ?? {}).map(
+    ([k, v]) => [String(k), Number(v) || 0],
+  );
   const total = dims.length
     ? dims.reduce((s, [, v]) => s + Number(v), 0) / dims.length
     : 0;
