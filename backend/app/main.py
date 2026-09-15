@@ -25,6 +25,7 @@ from app.api import (
 from app.config import settings
 from app.db import Base, engine
 from app.db_migrate import ensure_schema
+from app.services.feishu_ws import start_feishu_ws
 from app.services.system_log import write_exception
 
 
@@ -80,6 +81,7 @@ async def lifespan(app: FastAPI):
     _validate_settings()
     Base.metadata.create_all(bind=engine)
     ensure_schema()
+    start_feishu_ws()
     yield
 
 

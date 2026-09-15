@@ -13,5 +13,6 @@ pytest
 python-docx
 fpdf2
 cryptography
+lark-oapi>=1.4.0,<2
 psycopg2-binary
 redis>=5.0

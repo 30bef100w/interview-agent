@@ -1,7 +1,7 @@
 """深问飞书面试通道。
 
-生产用 backend 的 HTTP Webhook（/api/feishu/event）。
-本 CLI 仅本地调试：lark-cli 长连接收私聊。不要和线上 Webhook 同时开。
+生产用网页 backend 收飞书私聊（进程内官方长连接，或 HTTP Webhook）。
+本 CLI 仅本地调试：lark-cli 长连接。不要和线上 backend 同时开。
 """
 from __future__ import annotations
 

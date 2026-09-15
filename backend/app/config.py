@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     feishu_app_secret: str = ""
     feishu_redirect_uri: str = ""  # 默认 {PUBLIC_ORIGIN}/api/auth/feishu/callback
     feishu_oauth_scope: str = "contact:user.base:readonly"
+    # 生产默认在网页 backend 内用官方长连接收私聊；改开放平台 Webhook 后可关
+    feishu_ws_enabled: bool = True
 
     # 飞书运维告警（冷却秒数、流量 RPM 阈值；0=关闭流量告警）
     alert_cooldown_seconds: int = 600
