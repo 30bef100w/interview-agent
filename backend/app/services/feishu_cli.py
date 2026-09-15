@@ -44,6 +44,11 @@ def send_markdown(chat_id: str, text: str, *, identity: str = "bot") -> None:
     """对外仍叫 markdown，实际发纯文本。飞书 post/markdown 会吞掉「标题：」后面的列表。"""
     if not chat_id:
         raise ValueError("chat_id required")
+    from app.services.feishu_openapi import openapi_enabled, send_text
+
+    if openapi_enabled():
+        send_text(chat_id, text)
+        return
     bin_path = lark_cli_bin()
     for chunk in split_message(text):
         content = build_text_content(chunk)

@@ -13,6 +13,7 @@ from app.api import (
     auth,
     code,
     feedback,
+    feishu,
     interview,
     interview_ws,
     meta,
@@ -108,6 +109,7 @@ app.include_router(settings_api.router)
 app.include_router(meta.router)
 app.include_router(admin.router)
 app.include_router(observability.router)
+app.include_router(feishu.router)
 
 
 @app.exception_handler(Exception)

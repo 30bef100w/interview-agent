@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # 飞书私聊面试通道（lark-cli bot）：ou_open_id:深问用户名，逗号分隔（可选兜底）
     feishu_bind_users: str = ""
     feishu_skip_coding: bool = True
+    # 事件订阅 Webhook（Verification Token / Encrypt Key，开放平台「事件订阅」里复制）
+    feishu_verification_token: str = ""
+    feishu_encrypt_key: str = ""
     # 网页飞书 OAuth（自建应用 App ID / Secret）
     feishu_app_id: str = ""
     feishu_app_secret: str = ""
