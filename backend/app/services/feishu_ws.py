@@ -55,33 +55,52 @@ def start_feishu_ws() -> bool:
     with _lock:
         if _started:
             return True
-        try:
-            import lark_oapi as lark
-        except ImportError:
-            logger.warning("lark-oapi not installed, skip feishu ws")
-            return False
+        threading.Thread(target=_run_client, daemon=True, name="feishu-ws").start()
+        _started = True
+        return True
 
-        encrypt = (settings.feishu_encrypt_key or "").strip()
-        token = (settings.feishu_verification_token or "").strip()
-        handler = (
-            lark.EventDispatcherHandler.builder(encrypt, token)
-            .register_p2_im_message_receive_v1(_on_message)
-            .build()
-        )
-        client = lark.ws.Client(
-            settings.feishu_app_id.strip(),
-            settings.feishu_app_secret.strip(),
-            event_handler=handler,
-            log_level=lark.LogLevel.INFO,
-        )
 
-        def _run() -> None:
-            logger.info("feishu ws listener starting")
+def _run_client() -> None:
+    """独立线程 + 独立 event loop，避开 uvicorn/uvloop。"""
+    import asyncio
+    import time
+
+    try:
+        import lark_oapi as lark
+        import lark_oapi.ws.client as lark_ws_client
+    except ImportError:
+        logger.warning("lark-oapi not installed, skip feishu ws")
+        return
+
+    ws_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(ws_loop)
+    previous = getattr(lark_ws_client, "loop", None)
+    lark_ws_client.loop = ws_loop
+    encrypt = (settings.feishu_encrypt_key or "").strip()
+    token = (settings.feishu_verification_token or "").strip()
+    handler = (
+        lark.EventDispatcherHandler.builder(encrypt, token)
+        .register_p2_im_message_receive_v1(_on_message)
+        .build()
+    )
+    client = lark.ws.Client(
+        settings.feishu_app_id.strip(),
+        settings.feishu_app_secret.strip(),
+        event_handler=handler,
+        log_level=lark.LogLevel.INFO,
+    )
+    logger.info("feishu ws listener starting")
+    try:
+        while True:
             try:
                 client.start()
             except Exception:
-                logger.exception("feishu ws listener stopped")
-
-        threading.Thread(target=_run, daemon=True, name="feishu-ws").start()
-        _started = True
-        return True
+                logger.exception("feishu ws listener stopped, retry")
+            time.sleep(5)
+    finally:
+        if getattr(lark_ws_client, "loop", None) is ws_loop:
+            lark_ws_client.loop = previous
+        try:
+            ws_loop.close()
+        except Exception:
+            pass
