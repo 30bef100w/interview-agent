@@ -134,6 +134,7 @@ export default function HistoryPage() {
           <option value="finished">已结束</option>
           <option value="active">进行中</option>
           <option value="abandoned">已退出</option>
+          <option value="failed">规划失败</option>
         </select>
         <input
           value={targetRole}
@@ -198,6 +199,8 @@ export default function HistoryPage() {
                     <Badge tone="zinc">已结束</Badge>
                   ) : item.status === "abandoned" ? (
                     <Badge tone="amber">已退出</Badge>
+                  ) : item.status === "failed" ? (
+                    <Badge tone="red">规划失败</Badge>
                   ) : (
                     <Badge tone="emerald">进行中</Badge>
                   )}
@@ -217,7 +220,7 @@ export default function HistoryPage() {
               >
                 查看报告 <IconArrowRight className="h-3 w-3" />
               </Link>
-            ) : item.status === "abandoned" ? (
+            ) : item.status === "abandoned" || item.status === "failed" ? (
               <Link
                 href="/interview/new"
                 className="inline-flex shrink-0 items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-50 dark:text-zinc-400"

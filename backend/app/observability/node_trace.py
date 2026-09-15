@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Iterator
 
 from app.observability.metrics import metrics_registry
+from app.observability.safe_files import append_text_soft
 from app.observability.trace_context import get_trace_id
 
 logger = logging.getLogger("app.trace")
@@ -23,10 +24,8 @@ def _now() -> str:
 def append_session_trace(session_id: int, row: dict) -> None:
     if not session_id:
         return
-    _TRACE_DIR.mkdir(parents=True, exist_ok=True)
     path = _TRACE_DIR / f"{session_id}.jsonl"
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    append_text_soft(path, json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def read_session_trace(session_id: int, limit: int = 200) -> list[dict]:
@@ -72,7 +71,10 @@ def trace_node(
             **{k: v for k, v in extra.items() if v is not None},
         }
         if session_id:
-            append_session_trace(session_id, row)
+            try:
+                append_session_trace(session_id, row)
+            except Exception:  # noqa: BLE001  埋点失败不能打断面试
+                logger.warning("engine_trace write failed session=%s", session_id, exc_info=True)
         logger.info(
             "[TRACE] node=%s session=%s duration=%.0fms outcome=%s",
             node,

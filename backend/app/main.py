@@ -33,20 +33,27 @@ def _configure_logging() -> None:
 
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     log_dir = Path(__file__).resolve().parents[1] / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "interview.log"
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "interview.log"
+    except OSError:
+        log_file = None
 
     app_logger = logging.getLogger("app")
     app_logger.setLevel(logging.INFO)
-    if not any(
+    if log_file is not None and not any(
         isinstance(h, logging.FileHandler) and getattr(h, "baseFilename", "") == str(log_file)
         for h in app_logger.handlers
     ):
-        fh = logging.FileHandler(log_file, encoding="utf-8")
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(fmt)
-        app_logger.addHandler(fh)
-        app_logger.propagate = True
+        try:
+            fh = logging.FileHandler(log_file, encoding="utf-8")
+        except OSError:
+            fh = None
+        if fh is not None:
+            fh.setLevel(logging.INFO)
+            fh.setFormatter(fmt)
+            app_logger.addHandler(fh)
+            app_logger.propagate = True
 
     root = logging.getLogger()
     if root.level > logging.INFO:

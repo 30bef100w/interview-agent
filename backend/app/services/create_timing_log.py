@@ -9,6 +9,8 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from app.observability.safe_files import write_text_soft
+
 _TRACE_DIR = Path(__file__).resolve().parents[2] / "logs" / "create_trace"
 _CLOCKS: dict[int, float] = {}
 
@@ -22,7 +24,6 @@ def _now() -> str:
 
 
 def begin(session_id: int, **meta) -> None:
-    _TRACE_DIR.mkdir(parents=True, exist_ok=True)
     _CLOCKS[session_id] = time.perf_counter()
     payload = {
         "session_id": session_id,
@@ -37,18 +38,22 @@ def begin(session_id: int, **meta) -> None:
             }
         ],
     }
-    _path(session_id).write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    write_text_soft(_path(session_id), json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 def step(session_id: int, name: str, **extra) -> None:
     if session_id not in _CLOCKS:
         begin(session_id)
-    data = json.loads(_path(session_id).read_text(encoding="utf-8"))
+    path = _path(session_id)
+    if not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
     elapsed = round(time.perf_counter() - _CLOCKS[session_id], 2)
-    prev = data["steps"][-1]["elapsed_s"] if data["steps"] else 0.0
-    data["steps"].append(
+    prev = data["steps"][-1]["elapsed_s"] if data.get("steps") else 0.0
+    data.setdefault("steps", []).append(
         {
             "step": name,
             "ts": _now(),
@@ -57,17 +62,20 @@ def step(session_id: int, name: str, **extra) -> None:
             **extra,
         }
     )
-    _path(session_id).write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    write_text_soft(path, json.dumps(data, ensure_ascii=False, indent=2))
 
 
 def finish(session_id: int, **extra) -> None:
     step(session_id, "finish", **extra)
-    if session_id in _CLOCKS:
-        data = json.loads(_path(session_id).read_text(encoding="utf-8"))
-        data["finished_at"] = _now()
-        data["total_s"] = round(time.perf_counter() - _CLOCKS.pop(session_id), 2)
-        _path(session_id).write_text(
-            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+    path = _path(session_id)
+    started = _CLOCKS.pop(session_id, None)
+    if not path.exists():
+        return
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    data["finished_at"] = _now()
+    if started is not None:
+        data["total_s"] = round(time.perf_counter() - started, 2)
+    write_text_soft(path, json.dumps(data, ensure_ascii=False, indent=2))

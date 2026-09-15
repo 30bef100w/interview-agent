@@ -10,6 +10,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from app.observability.safe_files import append_text_soft
+
 _GUARD_DIR = Path(__file__).resolve().parents[2] / "logs" / "session_guard"
 
 
@@ -21,7 +23,6 @@ def log_guard(session_id: int | None, event: str, **detail) -> None:
     """记录一条兜底/门禁事件；session_id 缺失时写入 session_guard/_anonymous.jsonl。"""
     if not event:
         return
-    _GUARD_DIR.mkdir(parents=True, exist_ok=True)
     sid = int(session_id) if session_id else 0
     path = _GUARD_DIR / (f"{sid}.jsonl" if sid else "_anonymous.jsonl")
     row = {
@@ -30,5 +31,4 @@ def log_guard(session_id: int | None, event: str, **detail) -> None:
         "event": event,
         **{k: v for k, v in detail.items() if v is not None},
     }
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    append_text_soft(path, json.dumps(row, ensure_ascii=False) + "\n")

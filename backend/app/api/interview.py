@@ -96,7 +96,20 @@ def _get_owned_session(db: Session, session_id: int, user_id: int) -> InterviewS
 
 def _load_state(session: InterviewSession) -> InterviewState:
     if not session.state_json:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="会话状态缺失")
+        if session.status == "failed":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="本场规划失败，还没有生成题单。请再开一场。",
+            )
+        if session.status == "creating":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="题单还在规划，请稍后再进。",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="本场没有可用进度，请再开一场。",
+        )
     return InterviewState.from_dict(json.loads(session.state_json))
 
 
@@ -637,10 +650,16 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
             session.status = "failed"
             db.add(session)
             db.commit()
-        trace_step(session_id, "failed", error=str(exc)[:400])
-        from app.services.session_guard_log import log_guard
+        try:
+            trace_step(session_id, "failed", error=str(exc)[:400])
+        except Exception:  # noqa: BLE001
+            logger.exception("create_trace failed session=%s", session_id)
+        try:
+            from app.services.session_guard_log import log_guard
 
-        log_guard(session_id, "create_failed", error=str(exc)[:200])
+            log_guard(session_id, "create_failed", error=str(exc)[:200])
+        except Exception:  # noqa: BLE001
+            logger.exception("session_guard log failed session=%s", session_id)
         try:
             from app.services.feishu_notify import send_ops_alert
 

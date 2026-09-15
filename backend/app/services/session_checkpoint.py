@@ -6,7 +6,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.services.redis_client import get_redis
+from app.observability.safe_files import mkdir_soft, write_text_soft
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ _REDIS_TTL_SEC = 7 * 24 * 3600
 
 
 def _file_path(session_id: int) -> Path:
-    _CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    mkdir_soft(_CHECKPOINT_DIR)
     return _CHECKPOINT_DIR / f"{session_id}.json"
 
 
@@ -44,7 +44,8 @@ def save_checkpoint(session_id: int, payload: dict) -> int:
     prev = _load_file(session_id)
     seq = int((prev or {}).get("seq", 0)) + 1
     data = {**data_base, "seq": seq}
-    _file_path(session_id).write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    if not write_text_soft(_file_path(session_id), json.dumps(data, ensure_ascii=False)):
+        logger.warning("file checkpoint save skipped session=%s", session_id)
     return seq
 
 

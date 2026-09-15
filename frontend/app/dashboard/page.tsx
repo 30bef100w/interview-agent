@@ -93,7 +93,7 @@ export default function DashboardPage() {
   }, []);
 
   const finished = history.filter((h) => h.status === "finished");
-  const active = history.filter((h) => h.status !== "finished");
+  const active = history.filter((h) => h.status === "active" || h.status === "creating");
   const recent = history.slice(0, 5);
 
   return (
@@ -197,6 +197,10 @@ export default function DashboardPage() {
                       </span>
                       {item.status === "finished" ? (
                         <Badge tone="zinc">已结束</Badge>
+                      ) : item.status === "abandoned" ? (
+                        <Badge tone="amber">已退出</Badge>
+                      ) : item.status === "failed" ? (
+                        <Badge tone="red">规划失败</Badge>
                       ) : (
                         <Badge tone="emerald">进行中</Badge>
                       )}
@@ -212,6 +216,13 @@ export default function DashboardPage() {
                     className="shrink-0 text-xs font-medium text-sky-600 hover:text-sky-500 dark:text-sky-400"
                   >
                     查看报告 →
+                  </Link>
+                ) : item.status === "abandoned" || item.status === "failed" ? (
+                  <Link
+                    href="/interview/new"
+                    className="shrink-0 text-xs font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
+                  >
+                    再开一场 →
                   </Link>
                 ) : (
                   <Link

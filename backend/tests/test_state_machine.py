@@ -695,3 +695,58 @@ def test_finish_interview_falls_back_when_llm_json_fails():
     assert state.stage == "FINISHED"
     assert isinstance(report.get("dimension_scores"), dict)
     assert report.get("per_question") is not None
+
+
+def test_load_state_missing_json_is_client_error():
+    from types import SimpleNamespace
+
+    from fastapi import HTTPException
+
+    from app.api.interview import _load_state
+
+    failed = SimpleNamespace(state_json=None, status="failed")
+    try:
+        _load_state(failed)
+        raise AssertionError("expected HTTPException")
+    except HTTPException as exc:
+        assert exc.status_code == 400
+        assert "规划失败" in str(exc.detail)
+
+    creating = SimpleNamespace(state_json=None, status="creating")
+    try:
+        _load_state(creating)
+        raise AssertionError("expected HTTPException")
+    except HTTPException as exc:
+        assert exc.status_code == 409
+
+
+def test_create_trace_survives_unwritable_dir(monkeypatch):
+    from app.services import create_timing_log as ctl
+
+    monkeypatch.setattr(ctl, "write_text_soft", lambda *_a, **_k: False)
+    ctl.begin(999001, user_id=1)
+    ctl.step(999001, "opening_llm")
+    ctl.finish(999001)
+
+
+def test_trace_node_survives_unwritable_dir(monkeypatch):
+    from app.observability import node_trace as nt
+
+    def boom(*_a, **_k):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(nt, "append_session_trace", boom)
+    with nt.trace_node("follow_up_and_score", session_id=21):
+        pass
+
+
+def test_write_text_soft_swallows_oserror(monkeypatch, tmp_path):
+    from pathlib import Path
+
+    from app.observability import safe_files as sf
+
+    def boom(self, *_a, **_k):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(Path, "mkdir", boom)
+    assert sf.write_text_soft(tmp_path / "x" / "a.json", "{}") is False
