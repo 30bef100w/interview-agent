@@ -13,7 +13,7 @@ function FeishuAuthBody() {
     const token = params.get("token");
     const username = params.get("username") || "";
     if (!token) {
-      router.replace("/login?feishu_error=" + encodeURIComponent("飞书登录没有拿到凭证"));
+      router.replace("/?feishu_error=" + encodeURIComponent("飞书绑定没有完成，请先登录后再绑定"));
       return;
     }
     setToken(token);
@@ -23,7 +23,7 @@ function FeishuAuthBody() {
 
   return (
     <div className="flex min-h-[100svh] items-center justify-center bg-gradient-to-br from-sky-50 via-white to-sky-50 text-sm text-zinc-500">
-      正在完成飞书登录…
+      正在完成飞书绑定…
     </div>
   );
 }

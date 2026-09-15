@@ -1,16 +1,14 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import AuthModal from "@/components/AuthModal";
 import { getToken } from "@/lib/api";
 
 function LoginBody() {
   const router = useRouter();
-  const params = useSearchParams();
   const [open, setOpen] = useState(true);
-  const feishuError = params.get("feishu_error") || "";
 
   useEffect(() => {
     if (getToken()) router.replace("/dashboard");
@@ -25,7 +23,6 @@ function LoginBody() {
       <AuthModal
         open={open}
         mode="login"
-        initialError={feishuError}
         onClose={() => {
           setOpen(false);
           router.push("/");

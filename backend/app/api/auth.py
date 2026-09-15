@@ -78,16 +78,18 @@ def feishu_config() -> dict:
 
 @router.get("/feishu/start")
 def feishu_start(
-    mode: str = Query(default="login"),
+    mode: str = Query(default="bind"),
     current_user: User | None = Depends(get_optional_user),
 ) -> dict:
-    mode = (mode or "login").strip().lower()
-    if mode not in {"login", "bind"}:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="mode 只能是 login 或 bind")
-    if mode == "bind" and current_user is None:
+    mode = (mode or "bind").strip().lower()
+    if mode != "bind":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="请先登录深问账号，再绑定飞书",
+        )
+    if current_user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录再绑定飞书")
-    uid = current_user.id if current_user is not None and mode == "bind" else None
-    return {"authorize_url": feishu_oauth.authorize_url(mode, uid)}
+    return {"authorize_url": feishu_oauth.authorize_url("bind", current_user.id)}
 
 
 @router.get("/feishu/callback")
@@ -100,20 +102,20 @@ def feishu_callback(
 
     def _fail(msg: str) -> RedirectResponse:
         q = urllib.parse.urlencode({"feishu_error": msg})
-        return RedirectResponse(f"{origin}/login?{q}", status_code=302)
+        return RedirectResponse(f"{origin}/?{q}", status_code=302)
 
     if not code or not state:
         return _fail("飞书未返回授权码")
     try:
         payload = feishu_oauth.decode_oauth_state(state)
+        if payload.get("m") != "bind" or not payload.get("uid"):
+            return _fail("请先登录深问账号，再绑定飞书")
         token_data = feishu_oauth.exchange_code(code)
         info = feishu_oauth.fetch_userinfo(str(token_data.get("access_token") or ""))
-        bind_user = None
-        if payload.get("m") == "bind" and payload.get("uid"):
-            bind_user = db.get(User, int(payload["uid"]))
-            if bind_user is None:
-                return _fail("绑定账号不存在")
-        user = feishu_oauth.apply_feishu_identity(
+        bind_user = db.get(User, int(payload["uid"]))
+        if bind_user is None:
+            return _fail("绑定账号不存在")
+        feishu_oauth.apply_feishu_identity(
             db,
             open_id=info["open_id"],
             union_id=info.get("union_id") or "",
@@ -121,16 +123,12 @@ def feishu_callback(
             bind_user=bind_user,
         )
     except HTTPException as exc:
-        detail = exc.detail if isinstance(exc.detail, str) else "飞书登录失败"
+        detail = exc.detail if isinstance(exc.detail, str) else "飞书绑定失败"
         return _fail(detail)
     except Exception:
-        return _fail("飞书登录失败，请重试")
-    jwt_token = create_token(user.id)
-    if payload.get("m") == "bind":
-        q = urllib.parse.urlencode({"feishu": "1"})
-        return RedirectResponse(f"{origin}/settings?{q}", status_code=302)
-    q = urllib.parse.urlencode({"token": jwt_token, "username": user.username})
-    return RedirectResponse(f"{origin}/auth/feishu?{q}", status_code=302)
+        return _fail("飞书绑定失败，请重试")
+    q = urllib.parse.urlencode({"feishu": "1"})
+    return RedirectResponse(f"{origin}/?{q}", status_code=302)
 
 
 @router.post("/feishu/unbind")

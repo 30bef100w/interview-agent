@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "re
 
 import AuthModal from "@/components/AuthModal";
 import { IconCode, IconMic, IconReport, IconTarget, Logo } from "@/components/ui";
-import { getToken } from "@/lib/api";
+import { api, getToken } from "@/lib/api";
 
 const NAV_LINKS = [
   { id: "product", label: "产品能力" },
@@ -168,12 +168,47 @@ export default function Home() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [feishuOn, setFeishuOn] = useState(false);
+  const [feishuBound, setFeishuBound] = useState(false);
+  const [feishuName, setFeishuName] = useState("");
+  const [feishuBusy, setFeishuBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [noticeError, setNoticeError] = useState("");
   const [spot, setSpot] = useState({ x: 0, y: 0, on: false });
   const [scrolled, setScrolled] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
+  const pendingFeishuBind = useRef(false);
+
+  function loadFeishuProfile() {
+    if (!getToken()) {
+      setFeishuBound(false);
+      setFeishuName("");
+      return;
+    }
+    api<{ feishu_bound?: boolean; feishu_name?: string }>("/api/auth/me")
+      .then((row) => {
+        setFeishuBound(Boolean(row.feishu_bound));
+        setFeishuName((row.feishu_name || "").trim());
+      })
+      .catch(() => {});
+  }
 
   useEffect(() => {
     setLoggedIn(!!getToken());
+    api<{ enabled: boolean }>("/api/auth/feishu/config")
+      .then((d) => setFeishuOn(Boolean(d.enabled)))
+      .catch(() => setFeishuOn(false));
+    loadFeishuProfile();
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("feishu") === "1") {
+      setNotice("飞书已绑定。请在手机飞书里私聊深问机器人发「开始」，不要在群里发。");
+      loadFeishuProfile();
+    }
+    const err = (q.get("feishu_error") || "").trim();
+    if (err) setNoticeError(err);
+    if (q.get("feishu") === "1" || err) {
+      window.history.replaceState({}, "", "/");
+    }
   }, []);
 
   useEffect(() => {
@@ -195,6 +230,37 @@ export default function Home() {
   function onAuthClose() {
     setAuthOpen(false);
     setLoggedIn(!!getToken());
+    loadFeishuProfile();
+  }
+
+  async function bindFeishu() {
+    setNotice("");
+    setNoticeError("");
+    setFeishuBusy(true);
+    try {
+      const res = await api<{ authorize_url: string }>("/api/auth/feishu/start?mode=bind");
+      window.location.href = res.authorize_url;
+    } catch (e) {
+      setNoticeError(e instanceof Error ? e.message : "无法开始飞书绑定");
+      setFeishuBusy(false);
+    }
+  }
+
+  function onFeishuClick() {
+    if (!loggedIn) {
+      pendingFeishuBind.current = true;
+      openAuth("login");
+      return;
+    }
+    if (feishuBound) {
+      setNotice(
+        feishuName
+          ? `已绑定飞书（${feishuName}）。在手机飞书里私聊深问机器人即可。`
+          : "已绑定飞书。在手机飞书里私聊深问机器人即可。",
+      );
+      return;
+    }
+    void bindFeishu();
   }
 
   function scrollToId(id: string) {
@@ -245,9 +311,20 @@ export default function Home() {
 
           <div className="flex shrink-0 items-center gap-2">
             {loggedIn ? (
-              <MagneticButton variant="dark" className="!px-5 !py-2" onClick={() => router.push("/dashboard")}>
-                进入工作台
-              </MagneticButton>
+              <>
+                {feishuOn ? (
+                  <MagneticButton
+                    variant="ghost"
+                    className="!px-4 !py-2"
+                    onClick={() => onFeishuClick()}
+                  >
+                    {feishuBusy ? "跳转中…" : feishuBound ? "飞书已绑定" : "绑定飞书"}
+                  </MagneticButton>
+                ) : null}
+                <MagneticButton variant="dark" className="!px-5 !py-2" onClick={() => router.push("/dashboard")}>
+                  进入工作台
+                </MagneticButton>
+              </>
             ) : (
               <>
                 <MagneticButton variant="ghost" className="!px-4 !py-2" onClick={() => openAuth("login")}>
@@ -273,6 +350,21 @@ export default function Home() {
           ))}
         </nav>
       </header>
+
+      {notice || noticeError ? (
+        <div className="relative z-30 mx-auto w-full max-w-6xl px-6 pt-3">
+          {notice ? (
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+              {notice}
+            </p>
+          ) : null}
+          {noticeError ? (
+            <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
+              {noticeError}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <section
         ref={heroRef}
@@ -328,17 +420,43 @@ export default function Home() {
               <MagneticButton
                 variant="primary"
                 className="!bg-gradient-to-r !from-indigo-600 !to-sky-600 !px-7 !py-3.5 !shadow-indigo-600/25 hover:!from-indigo-500 hover:!to-sky-500"
-                onClick={() => openAuth("register")}
+                onClick={() => (loggedIn ? router.push("/interview/new") : openAuth("register"))}
               >
                 开始深问一场
                 <span aria-hidden className="btn-arrow">
                   →
                 </span>
               </MagneticButton>
-              <MagneticButton variant="ghost" onClick={() => openAuth("login")}>
-                已有账号
-              </MagneticButton>
+              {loggedIn ? (
+                <MagneticButton variant="ghost" onClick={() => router.push("/dashboard")}>
+                  进入工作台
+                </MagneticButton>
+              ) : (
+                <MagneticButton variant="ghost" onClick={() => openAuth("login")}>
+                  已有账号
+                </MagneticButton>
+              )}
+              {feishuOn ? (
+                <MagneticButton variant="ghost" onClick={() => onFeishuClick()}>
+                  {feishuBusy
+                    ? "跳转中…"
+                    : loggedIn
+                      ? feishuBound
+                        ? "飞书已绑定"
+                        : "绑定飞书"
+                      : "绑定飞书面试"}
+                </MagneticButton>
+              ) : null}
             </div>
+            {feishuOn ? (
+              <p className="hero-fade mt-3 text-sm text-slate-500" style={{ animationDelay: "0.2s" }}>
+                {loggedIn
+                  ? feishuBound
+                    ? "已绑定飞书。在手机里私聊深问机器人即可继续面试。"
+                    : "点「绑定飞书」授权后，可用同一个账号在手机里私聊面试。"
+                  : "想用飞书面试：先登录深问账号，再点「绑定飞书面试」。"}
+              </p>
+            ) : null}
             <div
               className="hero-fade mt-8 grid max-w-md grid-cols-2 gap-x-6 gap-y-4"
               style={{ animationDelay: "0.22s" }}
@@ -507,6 +625,14 @@ export default function Home() {
         mode={authMode}
         onClose={onAuthClose}
         onModeChange={setAuthMode}
+        onLoggedIn={() => {
+          setLoggedIn(true);
+          loadFeishuProfile();
+          if (pendingFeishuBind.current) {
+            pendingFeishuBind.current = false;
+            void bindFeishu();
+          }
+        }}
       />
     </div>
   );

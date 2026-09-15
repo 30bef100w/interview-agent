@@ -86,3 +86,15 @@ def test_unbound_sender_replies(monkeypatch):
         }
     )
     assert got and "绑定" in got[0][1]
+
+
+def test_feishu_oauth_start_is_bind_only():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    client = TestClient(app)
+    login_mode = client.get("/api/auth/feishu/start?mode=login")
+    assert login_mode.status_code == 400
+    unbound = client.get("/api/auth/feishu/start")
+    assert unbound.status_code == 401
