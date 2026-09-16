@@ -13,7 +13,7 @@ function FeishuAuthBody() {
     const token = params.get("token");
     const username = params.get("username") || "";
     if (!token) {
-      router.replace("/?feishu_error=" + encodeURIComponent("飞书绑定没有完成，请先登录后再绑定"));
+      router.replace("/dashboard?feishu_error=" + encodeURIComponent("飞书绑定没有完成，请先登录后再绑定"));
       return;
     }
     setToken(token);

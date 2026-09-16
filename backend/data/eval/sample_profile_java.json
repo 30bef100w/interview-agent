@@ -1,0 +1,7 @@
+{
+  "target_role": "Java 后端",
+  "target_company": "",
+  "skills": ["Java", "Spring Boot", "MySQL"],
+  "scenes": ["电商/交易", "高并发", "缓存"],
+  "query_text": "做活动的时候同一秒涌进来几十万下单请求，怎么保证不超卖？库存放在 Redis 里先扣，扣完了再落库，中间 Redis 挂了怎么兜底？数据库也扛不住，慢查询怎么排查？"
+}

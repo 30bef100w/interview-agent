@@ -1,0 +1,266 @@
+{
+  "version": 1,
+  "purpose": "对照「标签召回」与「题面语义召回」。不依赖人工给 4.5 万题逐条打标，用属性约束（该命中什么、不该漏什么）当金标。",
+  "metrics": {
+    "role_precision": "TopK 中 roles 与 want.roles 有交集的比例",
+    "role_leak": "TopK 中 roles 命中 forbid.roles 的比例",
+    "want_keyword_hit": "TopK 题干/答案命中 want.keywords 任一的比例",
+    "forbid_keyword_hit": "TopK 命中 forbid.keywords 的比例（越低越好）",
+    "scene_precision": "TopK 场景标签与 want.scenes 有交集的比例"
+  },
+  "cases": [
+    {
+      "id": "agent_deepask",
+      "title": "Agent 岗 + 深问（标签应能打中）",
+      "expect": "tag_strong",
+      "note": "简历场景标签与题库 AI/RAG/Agent 对齐，标签路应高相关、低串岗。",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": ["Python", "FastAPI", "Redis"],
+        "scenes": ["AI 应用/对话机器人", "AI/RAG/Agent"],
+        "query_text": "独立开发 AI 模拟面试平台。规划官根据简历规划题单，出题/追问/评分多 Agent 分工，题库按岗位和企业标签召回，项目生成拷打链。"
+      },
+      "want": {
+        "roles": ["agent_dev", "llm"],
+        "scenes": ["AI/RAG/Agent", "AI 应用/对话机器人"],
+        "keywords": ["agent", "tool", "function call", "rag", "多智能体", "规划", "prompt", "mcp"]
+      },
+      "forbid": {
+        "roles": ["java_backend", "web_frontend", "recsys"],
+        "keywords": ["缓存击穿", "秒杀超卖", "JVM 垃圾回收", "垃圾回收器"]
+      }
+    },
+    {
+      "id": "agent_adli_eval",
+      "title": "条款级评分引擎（语义更可能补上漏标）",
+      "expect": "semantic_helps",
+      "note": "口语是「档位拟合/条款 MAE」，不一定写成场景标签「评估/对齐」。语义应能从题面抓住评测，标签可能偏空。",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": ["Python"],
+        "scenes": ["AI/RAG/Agent"],
+        "query_text": "多 Agent 对企业自评材料按条款并行打分。LLM 只判断 ADLI 档位，外置引擎用最小二乘把档位映射成分数，用 MAE 和可接受率做消融。"
+      },
+      "want": {
+        "roles": ["agent_dev", "llm", "ml_dm"],
+        "scenes": ["评估/对齐", "AI/RAG/Agent"],
+        "keywords": ["评测", "评估", "mae", "打分", "档位", "benchmark", "judge"]
+      },
+      "forbid": {
+        "roles": ["web_frontend"],
+        "keywords": ["秒杀超卖", "购物车"]
+      }
+    },
+    {
+      "id": "agent_electron_ipc",
+      "title": "桌面端工具 IPC（标签词表偏粗，语义应更好）",
+      "expect": "semantic_helps",
+      "note": "Electron/IPC/schema 动态加载很少作为独立场景标签。标签路容易漂到泛 Agent 或后台管理。",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": ["Go", "Electron", "Redis"],
+        "scenes": ["AI/RAG/Agent"],
+        "query_text": "Electron 桌面客户端：Go 主进程注册工具 schema，经 IPC 发给渲染进程；按场景按需加载工具，减少模型选错 tool。"
+      },
+      "want": {
+        "roles": ["agent_dev", "go_backend"],
+        "keywords": ["tool", "schema", "ipc", "electron", "按需加载", "function call", "工具调用"]
+      },
+      "forbid": {
+        "roles": ["web_frontend", "recsys"],
+        "keywords": ["购物车", "CTR", "点击率"]
+      }
+    },
+    {
+      "id": "paraphrase_no_tag_words",
+      "title": "同义改写、故意不用标签词",
+      "expect": "semantic_wins",
+      "note": "查询不出现 RAG/Agent/向量 等标签关键词，只描述行为。标签路几乎只能靠岗位硬过滤；语义应仍能命中检索类题。",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": [],
+        "scenes": [],
+        "query_text": "把简历项目描述和真实面经做成可检索的知识片段，按意思相近找出同类项目会被怎么往下追问。"
+      },
+      "want": {
+        "roles": ["agent_dev", "llm"],
+        "keywords": ["检索", "召回", "相似", "向量", "embedding", "rag", "面经"]
+      },
+      "forbid": {
+        "roles": ["java_backend", "web_frontend"],
+        "keywords": ["缓存击穿", "JVM"]
+      }
+    },
+    {
+      "id": "recsys_no_redis_leak",
+      "title": "搜广推不得串到 Redis 缓存八股",
+      "expect": "tag_wins",
+      "note": "「召回」一词在推荐和缓存里都会出现。纯语义容易把缓存击穿当相关；岗位硬过滤是标签路的护栏。",
+      "query": {
+        "target_role": "搜广推",
+        "target_company": "字节跳动",
+        "skills": ["Python", "PyTorch"],
+        "scenes": ["搜索/推荐"],
+        "query_text": "推荐系统双塔召回和精排，特征工程与 CTR 预估，不是做业务缓存。"
+      },
+      "want": {
+        "roles": ["recsys", "ml_dm"],
+        "scenes": ["搜索/推荐"],
+        "keywords": ["推荐", "双塔", "ctr", "精排", "召回", "点击率", "embedding"]
+      },
+      "forbid": {
+        "roles": ["java_backend", "agent_dev"],
+        "keywords": ["缓存击穿", "缓存穿透", "秒杀超卖", "JVM"]
+      }
+    },
+    {
+      "id": "java_seckill",
+      "title": "Java 后端 + 本地生活秒杀（标签应稳）",
+      "expect": "tag_strong",
+      "query": {
+        "target_role": "Java 后端",
+        "target_company": "",
+        "skills": ["Java", "Spring Boot", "Redis", "RocketMQ"],
+        "scenes": ["外卖/本地生活", "高并发", "缓存"],
+        "query_text": "O2O 特价券抢购：Lua 预扣库存、RocketMQ 事务消息落库、Redisson 与唯一索引保证一人一单。"
+      },
+      "want": {
+        "roles": ["java_backend"],
+        "scenes": ["外卖/本地生活", "高并发", "缓存", "消息队列"],
+        "keywords": ["秒杀", "库存", "redis", "超卖", "限流", "rocketmq", "一人一单"]
+      },
+      "forbid": {
+        "roles": ["agent_dev", "web_frontend", "recsys"],
+        "keywords": ["function calling", "langchain", "CTR 预估"]
+      }
+    },
+    {
+      "id": "wrong_scene_tag",
+      "title": "简历场景标错（后台管理），正文其实是 Agent",
+      "expect": "semantic_wins",
+      "note": "B 路会被脏 scene_tags 带偏。语义只看项目描述，应仍偏向 Agent。",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": ["Python"],
+        "scenes": ["后台管理/企业系统"],
+        "query_text": "给内部员工做的智能助手：模型按需调用检索、写文件、跑脚本等工具，失败则降级成只读问答。"
+      },
+      "want": {
+        "roles": ["agent_dev"],
+        "keywords": ["工具", "tool", "降级", "agent", "function"]
+      },
+      "forbid": {
+        "roles": ["web_frontend"],
+        "keywords": ["Vue 组件", "购物车"]
+      }
+    },
+    {
+      "id": "go_tencent",
+      "title": "Go 后端 + 腾讯（企业 boost）",
+      "expect": "tag_strong",
+      "query": {
+        "target_role": "Go 后端",
+        "target_company": "腾讯",
+        "skills": ["Go", "gRPC", "Redis"],
+        "scenes": ["即时通讯"],
+        "query_text": "用 Go 和 gRPC 做即时通讯接入层，网关限流，会话状态放 Redis。"
+      },
+      "want": {
+        "roles": ["go_backend"],
+        "scenes": ["即时通讯", "高并发"],
+        "keywords": ["go", "grpc", "im", "网关", "限流"]
+      },
+      "forbid": {
+        "roles": ["java_backend", "web_frontend"],
+        "keywords": ["Spring Bean", "JVM"]
+      }
+    },
+    {
+      "id": "frontend_no_backend",
+      "title": "前端管理后台，不得串 Java 八股",
+      "expect": "tag_wins",
+      "query": {
+        "target_role": "Web 前端",
+        "target_company": "",
+        "skills": ["React", "TypeScript"],
+        "scenes": ["后台管理/企业系统"],
+        "query_text": "React 管理后台：权限路由、表格虚拟列表、与 BFF 对接。"
+      },
+      "want": {
+        "roles": ["web_frontend"],
+        "keywords": ["react", "组件", "hooks", "虚拟列表", "路由", "typescript"]
+      },
+      "forbid": {
+        "roles": ["java_backend", "agent_dev"],
+        "keywords": ["JVM", "垃圾回收", "MyBatis"]
+      }
+    },
+    {
+      "id": "vector_db_synonym",
+      "title": "向量库近邻查找（同义，不说 Milvus 标签名）",
+      "expect": "semantic_helps",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": ["Python", "Go"],
+        "scenes": ["向量数据库"],
+        "query_text": "保密场景下知识片段只存在本机，用近似最近邻从本地库里找出和当前问题最像的几段再交给模型。"
+      },
+      "want": {
+        "roles": ["agent_dev", "llm"],
+        "scenes": ["向量数据库", "AI/RAG/Agent"],
+        "keywords": ["向量", "milvus", "faiss", "ann", "相似度", "embedding", "召回"]
+      },
+      "forbid": {
+        "roles": ["web_frontend"],
+        "keywords": ["购物车", "秒杀超卖"]
+      }
+    },
+    {
+      "id": "java_bagu_jvm",
+      "title": "Java 八股 JVM（标签硬过滤应干净）",
+      "expect": "tag_strong",
+      "query": {
+        "target_role": "Java 后端",
+        "target_company": "字节跳动",
+        "skills": ["Java", "JVM"],
+        "scenes": [],
+        "query_text": "Java 后端校招八股，重点是内存模型和垃圾回收，不是推荐系统。"
+      },
+      "want": {
+        "roles": ["java_backend"],
+        "keywords": ["jvm", "垃圾回收", "gc", "内存模型", "类加载"]
+      },
+      "forbid": {
+        "roles": ["recsys", "agent_dev", "web_frontend"],
+        "keywords": ["双塔", "langchain"]
+      }
+    },
+    {
+      "id": "agent_no_seckill",
+      "title": "Agent 岗不得被秒杀题占满",
+      "expect": "tag_wins",
+      "note": "简历技能里有 Redis 时，语义可能把秒杀库存题排到前面。",
+      "query": {
+        "target_role": "AI Agent 开发",
+        "target_company": "",
+        "skills": ["Python", "Redis", "FastAPI"],
+        "scenes": ["AI/RAG/Agent"],
+        "query_text": "Agent 会话状态用 Redis 暂存工具参数，做增量修改，不是做电商秒杀。"
+      },
+      "want": {
+        "roles": ["agent_dev"],
+        "keywords": ["agent", "tool", "会话", "增量", "schema"]
+      },
+      "forbid": {
+        "roles": ["java_backend"],
+        "keywords": ["秒杀超卖", "一人一单", "优惠券抢购"]
+      }
+    }
+  ]
+}

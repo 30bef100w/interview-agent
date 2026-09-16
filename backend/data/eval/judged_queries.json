@@ -1,0 +1,30 @@
+{
+  "protocol": {
+    "name": "deepask-judged-v1",
+    "note": "金标按题干逐题判定：这条题是否在考该查询的主题。不用 roles[]、不用关键词规则自动打标。Pooling = 标签Top48 ∪ 语义Top48。未进入 pool 的题视为未标注（不算进 Rel，召回率按 pool 内相关题计）。",
+    "k": [8, 48],
+    "n_queries": 20
+  },
+  "queries": [
+    {"id": "a01", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "用 LangGraph 做有状态多步 Agent，节点之间怎么传状态、怎么避免死循环。", "intent": "LangGraph 图/State/节点/边/循环/checkpoint，不是泛泛的 Agent 框架名单。"},
+    {"id": "a02", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "Function Calling 选错 tool 怎么缩小工具集、校验参数并重试。", "intent": "Function/Tool Calling 选工具、参数校验、重试，不是普通 HTTP API。"},
+    {"id": "a03", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "接入 MCP 把外部工具暴露给模型，schema 和鉴权怎么设计。", "intent": "Model Context Protocol / MCP 工具暴露与鉴权。"},
+    {"id": "a04", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "RAG 中文切块、向量召回和 BM25 混合，幻觉怎么压。", "intent": "RAG 切块/混合检索/幻觉治理，不是缓存击穿。"},
+    {"id": "a05", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "多 Agent 规划、执行、校验怎么分工，什么时候不如单 Agent。", "intent": "多 Agent / 多智能体分工与何时用单 Agent。"},
+    {"id": "a07", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "ReAct 推理循环里 thought-action-observation 失败怎么停。", "intent": "ReAct（Reason+Act）循环与停止条件，不是 React 前端。"},
+    {"id": "a08", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "Prompt 注入和工具越权，Agent 怎么做权限隔离。", "intent": "Prompt 注入 / jailbreak / 工具越权，不是 SQL 注入。"},
+    {"id": "a10", "target_role": "AI Agent 开发", "skills": ["Python"], "scenes": ["AI/RAG/Agent"], "query_text": "Plan-and-Execute 把规划和执行拆开，比 ReAct 好在哪、坑在哪。", "intent": "Plan-and-Execute / Planner-Executor 对照 ReAct。"},
+    {"id": "a13", "target_role": "大模型 / LLM", "skills": ["Python", "PyTorch"], "scenes": ["训练/微调"], "query_text": "SFT 和 LoRA 微调区别，灾难遗忘怎么缓解。", "intent": "SFT / LoRA / 微调 / 灾难遗忘。"},
+    {"id": "a14", "target_role": "大模型 / LLM", "skills": ["Python"], "scenes": ["推理/部署"], "query_text": "vLLM 连续批处理、KV cache、吞吐和延迟怎么折中。", "intent": "vLLM / PagedAttention / KV Cache / 推理吞吐。"},
+    {"id": "a20", "target_role": "AI Agent 开发", "skills": ["Python", "LangChain"], "scenes": ["AI/RAG/Agent"], "query_text": "LangChain Agent 落地时 Function Calling 和工具权限怎么一起管。", "intent": "LangChain Agent 与工具/权限，不是只提一句 LangChain 名字。"},
+    {"id": "j01", "target_role": "Java 后端", "skills": ["Java", "Redis"], "scenes": ["高并发", "缓存"], "query_text": "秒杀 Lua 预扣库存，如何保证不超卖。", "intent": "秒杀 / 库存预扣 / 超卖 / Lua 扣减。"},
+    {"id": "j02", "target_role": "Java 后端", "skills": ["Java", "Redis"], "scenes": ["缓存"], "query_text": "缓存击穿、穿透、雪崩分别怎么防。", "intent": "缓存击穿/穿透/雪崩，不是推荐多样性。"},
+    {"id": "j03", "target_role": "Java 后端", "skills": ["Java", "RocketMQ"], "scenes": ["消息队列"], "query_text": "RocketMQ 事务消息，半消息回查怎么做。", "intent": "RocketMQ 事务消息 / 半消息 / 回查。"},
+    {"id": "j05", "target_role": "Java 后端", "skills": ["Java"], "scenes": [], "query_text": "HashMap 1.8 和并发 ConcurrentHashMap。", "intent": "HashMap / ConcurrentHashMap 结构与并发。"},
+    {"id": "j06", "target_role": "Java 后端", "skills": ["Java", "MySQL"], "scenes": ["存储/数据库"], "query_text": "MySQL 最左前缀、覆盖索引、回表。", "intent": "最左前缀 / 覆盖索引 / 回表。"},
+    {"id": "j08", "target_role": "Java 后端", "skills": ["Spring Boot"], "scenes": [], "query_text": "Spring 循环依赖和三级缓存。", "intent": "Spring 循环依赖 / 三级缓存。"},
+    {"id": "g01", "target_role": "Go 后端", "skills": ["Go"], "scenes": [], "query_text": "Goroutine 调度、GMP、泄漏怎么查。", "intent": "Goroutine / GMP / 协程泄漏。"},
+    {"id": "f01", "target_role": "Web 前端", "skills": ["React"], "scenes": ["后台管理/企业系统"], "query_text": "React hooks 闭包陷阱、useEffect 依赖。", "intent": "React Hooks / useEffect / 闭包陷阱，不是 ReAct Agent。"},
+    {"id": "n01", "target_role": "NLP", "skills": ["Python"], "scenes": [], "query_text": "Transformer 自注意力、位置编码。", "intent": "Transformer / Self-Attention / 位置编码。"}
+  ]
+}

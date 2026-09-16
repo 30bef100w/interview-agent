@@ -208,7 +208,7 @@ function SettingsBody() {
       )}
 
       {feishuOn ? (
-        <Card className="flex flex-col gap-3 p-6">
+        <Card id="feishu" className="flex flex-col gap-3 p-6">
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">飞书面试通道</div>
           <p className="text-sm leading-6 text-zinc-500">
             绑定后可在手机飞书里<strong>私聊</strong>深问机器人面试，不要在群里发。

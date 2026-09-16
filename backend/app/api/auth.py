@@ -102,7 +102,7 @@ def feishu_callback(
 
     def _fail(msg: str) -> RedirectResponse:
         q = urllib.parse.urlencode({"feishu_error": msg})
-        return RedirectResponse(f"{origin}/?{q}", status_code=302)
+        return RedirectResponse(f"{origin}/dashboard?{q}", status_code=302)
 
     if not code or not state:
         return _fail("飞书未返回授权码")
@@ -128,7 +128,7 @@ def feishu_callback(
     except Exception:
         return _fail("飞书绑定失败，请重试")
     q = urllib.parse.urlencode({"feishu": "1"})
-    return RedirectResponse(f"{origin}/?{q}", status_code=302)
+    return RedirectResponse(f"{origin}/dashboard?{q}", status_code=302)
 
 
 @router.post("/feishu/unbind")

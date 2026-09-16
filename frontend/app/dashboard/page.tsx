@@ -9,12 +9,14 @@ import {
   Card,
   IconArrowRight,
   IconChart,
+  IconChat,
   IconCode,
   IconHistory,
   IconMic,
   IconReport,
   IconTarget,
   IconUpload,
+  btnCls,
 } from "@/components/ui";
 import { api } from "@/lib/api";
 
@@ -82,15 +84,50 @@ export default function DashboardPage() {
   const [username, setUsername] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [feishuOn, setFeishuOn] = useState(false);
+  const [feishuBound, setFeishuBound] = useState(false);
+  const [feishuName, setFeishuName] = useState("");
+  const [feishuBusy, setFeishuBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [noticeError, setNoticeError] = useState("");
 
   useEffect(() => {
-    api<{ username: string }>("/api/auth/me")
-      .then((me) => setUsername(me.username))
+    api<{ username: string; feishu_bound?: boolean; feishu_name?: string }>("/api/auth/me")
+      .then((me) => {
+        setUsername(me.username);
+        setFeishuBound(Boolean(me.feishu_bound));
+        setFeishuName((me.feishu_name || "").trim());
+      })
       .catch(() => {});
+    api<{ enabled: boolean }>("/api/auth/feishu/config")
+      .then((d) => setFeishuOn(Boolean(d.enabled)))
+      .catch(() => setFeishuOn(false));
     api<{ items: HistoryItem[] }>("/api/interview/history?page_size=50")
       .then((res) => setHistory(res.items ?? []))
       .catch(() => setLoadFailed(true));
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("feishu") === "1") {
+      setNotice("飞书已绑定。请在手机飞书里私聊深问机器人发「开始」，不要在群里发。");
+    }
+    const err = (q.get("feishu_error") || "").trim();
+    if (err) setNoticeError(err);
+    if (q.get("feishu") === "1" || err) {
+      window.history.replaceState({}, "", "/dashboard");
+    }
   }, []);
+
+  async function bindFeishu() {
+    setNotice("");
+    setNoticeError("");
+    setFeishuBusy(true);
+    try {
+      const res = await api<{ authorize_url: string }>("/api/auth/feishu/start?mode=bind");
+      window.location.href = res.authorize_url;
+    } catch (e) {
+      setNoticeError(e instanceof Error ? e.message : "无法开始飞书绑定");
+      setFeishuBusy(false);
+    }
+  }
 
   const finished = history.filter((h) => h.status === "finished");
   const active = history.filter((h) => h.status === "active" || h.status === "creating");
@@ -106,6 +143,54 @@ export default function DashboardPage() {
           多练一场，面试多一分把握。今天想练点什么？
         </p>
       </section>
+
+      {notice ? (
+        <div className="animate-fade-in rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
+          {notice}
+        </div>
+      ) : null}
+      {noticeError ? (
+        <div className="animate-fade-in rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          {noticeError}
+        </div>
+      ) : null}
+
+      {feishuOn ? (
+        <Card
+          id="feishu-bind"
+          className="animate-fade-up flex scroll-mt-8 flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400">
+              <IconChat className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                {feishuBound ? "飞书面试已绑定" : "绑定飞书面试"}
+              </div>
+              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                {feishuBound
+                  ? `当前已绑定${feishuName ? `（${feishuName}）` : ""}。在手机飞书里私聊深问机器人即可，记录会同步到这个账号。`
+                  : "绑定后可在手机飞书里私聊深问机器人面试，记录会同步到这个账号。"}
+              </p>
+            </div>
+          </div>
+          {feishuBound ? (
+            <Link href="/settings#feishu" className={btnCls("secondary", "sm", "shrink-0")}>
+              管理绑定
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={feishuBusy}
+              onClick={() => void bindFeishu()}
+              className={btnCls("primary", "sm", "shrink-0")}
+            >
+              {feishuBusy ? "跳转中…" : "绑定飞书"}
+            </button>
+          )}
+        </Card>
+      ) : null}
 
       <section className="grid grid-cols-3 gap-3">
         {[

@@ -1,0 +1,7 @@
+{
+  "target_role": "AI Agent 开发",
+  "target_company": "",
+  "skills": ["Python", "FastAPI", "Redis", "LangGraph"],
+  "scenes": ["AI/RAG/Agent"],
+  "query_text": "用 LangGraph 做多 Agent 的面试官系统，规划官先出题单，考官追问，评分官打分。踩过的坑：节点之间状态传乱了、工具选错导致答非所问、prompt 注入被用户绕过去。"
+}
