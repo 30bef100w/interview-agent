@@ -10,7 +10,9 @@ import DisconnectOverlay from "@/components/interview/DisconnectOverlay";
 import InterviewStatusBar from "@/components/interview/InterviewStatusBar";
 import MessageTimeline, { type ChatMsg } from "@/components/interview/MessageTimeline";
 import { Badge, ErrorBanner, IconSparkles } from "@/components/ui";
+import { useToast } from "@/components/Toast";
 import { ApiError, api, getToken } from "@/lib/api";
+import { friendlyInterviewError } from "@/lib/interviewError";
 import { streamPost } from "@/lib/sse";
 import { useInterviewWebSocket } from "@/hooks/useInterviewWebSocket";
 
@@ -81,6 +83,7 @@ export default function ChatPage() {
   const params = useParams();
   const sessionId = params.sessionId as string;
   const router = useRouter();
+  const toast = useToast();
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
@@ -197,13 +200,26 @@ export default function ChatPage() {
 
   const handleStreamError = useCallback(
     (msg: string) => {
+      if (typeTimer.current) {
+        clearInterval(typeTimer.current);
+        typeTimer.current = null;
+      }
+      typeBuf.current = "";
+      pendingDone.current = null;
+      const gotReply = sawToken.current;
+      sawToken.current = false;
       setSending(false);
       setStreaming(false);
-      setDisconnected(true);
-      alert(msg || "发送失败，请重试");
       void refreshSession();
+      if (gotReply) {
+        setDisconnected(false);
+        return;
+      }
+      const text = friendlyInterviewError(msg);
+      toast.err(text);
+      setDisconnected(text === "发送失败，请再试一次");
     },
-    [refreshSession]
+    [refreshSession, toast]
   );
 
   const wsEnabled =
@@ -358,8 +374,9 @@ export default function ChatPage() {
       pendingDone.current = null;
       setStreaming(false);
       setSending(false);
-      setDisconnected(true);
-      alert(e instanceof Error ? e.message : "发送失败，请重试");
+      const text = friendlyInterviewError(e instanceof Error ? e.message : "");
+      toast.err(text);
+      setDisconnected(text === "发送失败，请再试一次");
       void refreshSession();
     }
   }

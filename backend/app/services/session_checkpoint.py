@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from app.observability.safe_files import mkdir_soft, write_text_soft
+from app.services.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 

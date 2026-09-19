@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from app.db import SessionLocal
 from app.models import InterviewSession, User
 from app.services.auth_service import decode_token
+from app.services.client_errors import public_error_message
 from app.services.interviewer_engine import InterviewEngine
 from app.services.llm.client import StreamingLlm
 from app.services.session_checkpoint import load_checkpoint, save_checkpoint
@@ -65,15 +66,20 @@ async def _stream_answer(ws: WebSocket, session_id: int, user_id: int, text: str
             out = _advance(sess, thread_db, text, stream_engine)
             state = _load_state(sess)
             view = _build_session_view(sess, state)
-            seq = save_checkpoint(session_id, view)
-            out["_checkpoint_seq"] = seq
+            try:
+                seq = save_checkpoint(session_id, view)
+                out["_checkpoint_seq"] = seq
+            except Exception:  # noqa: BLE001  checkpoint 失败不影响已完成的答题
+                logger.exception("checkpoint save failed session_id=%s", session_id)
+                out["_checkpoint_seq"] = 0
             loop.call_soon_threadsafe(q.put_nowait, ("done", out))
         except Exception as e:  # noqa: BLE001
             try:
                 thread_db.rollback()
             except Exception:  # noqa: BLE001
                 pass
-            loop.call_soon_threadsafe(q.put_nowait, ("error", str(e)))
+            logger.exception("interview ws answer failed session_id=%s", session_id)
+            loop.call_soon_threadsafe(q.put_nowait, ("error", public_error_message(e)))
         finally:
             thread_db.close()
 
@@ -114,7 +120,11 @@ async def interview_websocket(
 
         state = _load_state(sess)
         view = _build_session_view(sess, state)
-        cp = load_checkpoint(session_id)
+        try:
+            cp = load_checkpoint(session_id)
+        except Exception:  # noqa: BLE001
+            logger.exception("checkpoint load failed session_id=%s", session_id)
+            cp = None
         await _send_json(
             websocket,
             {
@@ -139,7 +149,11 @@ async def interview_websocket(
                 db.refresh(sess)
                 state = _load_state(sess)
                 view = _build_session_view(sess, state)
-                cp = load_checkpoint(session_id)
+                try:
+                    cp = load_checkpoint(session_id)
+                except Exception:  # noqa: BLE001
+                    logger.exception("checkpoint load failed session_id=%s", session_id)
+                    cp = None
                 await _send_json(
                     websocket,
                     {
@@ -161,7 +175,7 @@ async def interview_websocket(
     except Exception as e:  # noqa: BLE001
         logger.exception("interview ws error session_id=%s", session_id)
         try:
-            await _send_json(websocket, {"type": "error", "message": str(e)})
+            await _send_json(websocket, {"type": "error", "message": public_error_message(e)})
         except Exception:  # noqa: BLE001
             pass
     finally:

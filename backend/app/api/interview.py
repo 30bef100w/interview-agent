@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.services.create_timing_log import begin as trace_begin, finish as trace_finish
+from app.services.client_errors import public_error_message
 
 logger = logging.getLogger(__name__)
 
@@ -963,7 +964,8 @@ def submit_answer_stream(
                     thread_db.rollback()
                 except Exception:  # noqa: BLE001
                     pass
-                q.put(("error", str(e)))
+                logger.exception("interview sse answer failed session_id=%s", session_id)
+                q.put(("error", public_error_message(e)))
             finally:
                 thread_db.close()
 
