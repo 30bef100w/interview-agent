@@ -8,7 +8,7 @@ from app.models.interview import (
     ScoreReport,
 )
 from app.models.llm_usage import LLMUsage, UserLlmSetting
-from app.models.resume import Resume
+from app.models.resume import Resume, ResumeBulletNote
 from app.models.tag_mismatch import TagMismatchReview
 from app.models.user import User
 
@@ -20,6 +20,7 @@ __all__ = [
     "Question",
     "QuotaGrant",
     "Resume",
+    "ResumeBulletNote",
     "ScoreReport",
     "SystemLog",
     "TagMismatchReview",

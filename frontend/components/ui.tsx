@@ -356,3 +356,12 @@ export function IconSliders({ className = "h-4 w-4" }: IconProps) {
     </svg>
   );
 }
+
+export function IconNotebook({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M7 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" strokeLinejoin="round" />
+      <path d="M9 7h7M9 11h7M9 15h4" strokeLinecap="round" />
+    </svg>
+  );
+}

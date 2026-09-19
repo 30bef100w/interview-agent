@@ -2,15 +2,26 @@ import json
 import uuid
 from pathlib import Path
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db import get_db
-from app.models import Resume, User
-from app.schemas.resume import ParseResult, ProfileUpdate, ResumeOut
+from app.models import Resume, ResumeBulletNote, User
+from app.schemas.resume import (
+    BulletNoteCreate,
+    BulletNoteOut,
+    BulletNoteUpdate,
+    ParseResult,
+    ProfileUpdate,
+    ResumeOut,
+    ResumeReviewOut,
+)
 from app.services.billing import assert_platform_allowed
+from app.services.resume_review import assemble_review_tree, validate_note_payload
 from app.services.resume_service import build_profile, extract_text
 
 router = APIRouter(prefix="/api/resume", tags=["resume"])
@@ -161,6 +172,7 @@ def delete_resume(
     stored = (getattr(resume, "stored_path", None) or "").strip()
     if stored:
         (UPLOAD_DIR / Path(stored).name).unlink(missing_ok=True)
+    db.execute(delete(ResumeBulletNote).where(ResumeBulletNote.resume_id == resume_id))
     db.delete(resume)
     db.commit()
 
@@ -268,3 +280,138 @@ def export_resume_analysis(
             "Content-Disposition": f'attachment; filename="resume_analysis_{resume_id}.docx"'
         },
     )
+
+
+def _note_row_dict(row: ResumeBulletNote) -> dict:
+    return {
+        "id": row.id,
+        "kind": row.kind,
+        "question": row.question or "",
+        "answer": row.answer or "",
+        "body": row.body or "",
+        "section_type": row.section_type,
+        "item_key": row.item_key,
+        "bullet_key": row.bullet_key,
+        "item_label": row.item_label or "",
+        "bullet_text": row.bullet_text or "",
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _get_owned_note(
+    db: Session, resume_id: int, note_id: int, user_id: int
+) -> tuple[Resume, ResumeBulletNote]:
+    resume = _get_owned_resume(db, resume_id, user_id)
+    note = db.get(ResumeBulletNote, note_id)
+    if note is None or note.resume_id != resume.id or note.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="笔记不存在")
+    return resume, note
+
+
+@router.get("/{resume_id}/review", response_model=ResumeReviewOut)
+def get_resume_review(
+    resume_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = db.scalars(
+        select(ResumeBulletNote)
+        .where(
+            ResumeBulletNote.resume_id == resume.id,
+            ResumeBulletNote.user_id == current_user.id,
+        )
+        .order_by(ResumeBulletNote.created_at.asc(), ResumeBulletNote.id.asc())
+    ).all()
+    tree = assemble_review_tree(
+        profile, [_note_row_dict(n) for n in notes], raw_text=resume.raw_text
+    )
+    return ResumeReviewOut(
+        resume_id=resume.id,
+        filename=resume.filename,
+        has_profile=bool(profile),
+        **tree,
+    )
+
+
+@router.post(
+    "/{resume_id}/review/notes",
+    response_model=BulletNoteOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_resume_review_note(
+    resume_id: int,
+    payload: BulletNoteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeBulletNote:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    item_key = (payload.item_key or "").strip()
+    bullet_key = (payload.bullet_key or "").strip()
+    if not item_key or not bullet_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="缺少挂载位置")
+    try:
+        question, answer, body = validate_note_payload(
+            payload.kind, payload.question, payload.answer, payload.body
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    now = datetime.now(timezone.utc)
+    row = ResumeBulletNote(
+        resume_id=resume.id,
+        user_id=current_user.id,
+        section_type=payload.section_type,
+        item_key=item_key,
+        bullet_key=bullet_key,
+        item_label=(payload.item_label or "").strip()[:256],
+        bullet_text=(payload.bullet_text or "").strip()[:2000],
+        kind=payload.kind,
+        question=question,
+        answer=answer,
+        body=body,
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.put("/{resume_id}/review/notes/{note_id}", response_model=BulletNoteOut)
+def update_resume_review_note(
+    resume_id: int,
+    note_id: int,
+    payload: BulletNoteUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeBulletNote:
+    _resume, row = _get_owned_note(db, resume_id, note_id, current_user.id)
+    question = payload.question if payload.question is not None else row.question
+    answer = payload.answer if payload.answer is not None else row.answer
+    body = payload.body if payload.body is not None else row.body
+    try:
+        question, answer, body = validate_note_payload(row.kind, question, answer, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    row.question = question
+    row.answer = answer
+    row.body = body
+    row.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.delete("/{resume_id}/review/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_resume_review_note(
+    resume_id: int,
+    note_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    _resume, row = _get_owned_note(db, resume_id, note_id, current_user.id)
+    db.delete(row)
+    db.commit()

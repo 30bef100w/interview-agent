@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import OnboardingModal from "@/components/OnboardingModal";
 import { FeedbackProvider, useFeedback } from "@/components/FeedbackProvider";
 import { ToastProvider } from "@/components/Toast";
-import { IconChart, IconChat, IconHistory, IconMic, IconReport, IconSliders, IconTarget, IconUpload, Logo } from "@/components/ui";
+import { IconChart, IconChat, IconHistory, IconMic, IconNotebook, IconReport, IconSliders, IconTarget, IconUpload, Logo } from "@/components/ui";
 import { api, clearToken, getToken } from "@/lib/api";
 import { unreadCount } from "@/lib/notifications";
 
@@ -18,6 +18,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard", label: "工作台", icon: <IconTarget className="h-4.5 w-4.5" /> },
   { href: "/interview/new", label: "开始面试", icon: <IconMic className="h-4.5 w-4.5" /> },
   { href: "/resume/upload", label: "我的简历", icon: <IconUpload className="h-4.5 w-4.5" /> },
+  { href: "/resume/review", label: "简历复盘", icon: <IconNotebook className="h-4.5 w-4.5" /> },
   { href: "/history", label: "面试记录", icon: <IconHistory className="h-4.5 w-4.5" /> },
   { href: "/growth", label: "成长档案", icon: <IconChart className="h-4.5 w-4.5" /> },
   { href: "/dashboard#feishu-bind", label: "飞书面试", icon: <IconChat className="h-4.5 w-4.5" /> },
