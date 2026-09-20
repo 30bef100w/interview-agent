@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/Toast";
 import { Badge, Card, btnCls } from "@/components/ui";
@@ -37,12 +37,14 @@ export type ReviewItem = {
   scene_tags?: string[];
   bullets: ReviewBullet[];
   orphan_notes: BulletNote[];
+  children?: ReviewItem[];
 };
 
 export type ResumeReview = {
   resume_id: number;
   filename: string;
   has_profile: boolean;
+  layout_customized?: boolean;
   name: string;
   experience_years: string;
   education: { school: string; degree: string; major: string; year: string }[];
@@ -62,9 +64,15 @@ type Composer = {
   editingId: number | null;
 };
 
+type Draft =
+  | { kind: "rename"; itemKey: string; title: string; subtitle: string }
+  | { kind: "edit-bullet"; itemKey: string; bulletKey: string; text: string };
+
 function noteCount(item: ReviewItem): number {
   return (
-    item.bullets.reduce((n, b) => n + b.notes.length, 0) + item.orphan_notes.length
+    item.bullets.reduce((n, b) => n + b.notes.length, 0) +
+    item.orphan_notes.length +
+    (item.children ?? []).reduce((n, child) => n + noteCount(child), 0)
   );
 }
 
@@ -89,6 +97,7 @@ export default function ResumeReviewBoard({
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
   const [composer, setComposer] = useState<Composer | null>(null);
   const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   const experience = useMemo(
     () => (onlyWithNotes ? review.experience.filter(itemHasNotes) : review.experience),
@@ -145,7 +154,7 @@ export default function ResumeReviewBoard({
         await api(`/api/resume/${review.resume_id}/review/notes`, {
           method: "POST",
           body: JSON.stringify({
-            section_type: item.section_type,
+            section_type: item.section_type === "experience" ? "experience" : "project",
             item_key: item.item_key,
             bullet_key: bullet.bullet_key,
             item_label: item.title,
@@ -156,7 +165,7 @@ export default function ResumeReviewBoard({
             body: composer.body,
           }),
         });
-        toast.ok(composer.kind === "qa" ? "问答已保存" : "注释已保存");
+        toast.ok("已保存");
       }
       setComposer(null);
       await onChanged();
@@ -180,6 +189,117 @@ export default function ResumeReviewBoard({
       toast.err(err instanceof Error ? err.message : "删除失败");
     }
   }
+
+  async function mutate(path: string, options: RequestInit, okText: string) {
+    setSaving(true);
+    try {
+      await api(path, options);
+      setDraft(null);
+      toast.ok(okText);
+      await onChanged();
+    } catch (err) {
+      toast.err(err instanceof Error ? err.message : "操作失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addItem(section: "experience" | "projects", parentKey: string | null) {
+    const title = window.prompt(
+      parentKey || section === "projects" ? "项目名称" : "实习 / 公司名称"
+    );
+    if (title == null) return;
+    if (!title.trim()) {
+      toast.err("名称不能为空");
+      return;
+    }
+    await mutate(
+      `/api/resume/${review.resume_id}/review/items`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title: title.trim(),
+          section,
+          parent_item_key: parentKey,
+        }),
+      },
+      "已添加"
+    );
+  }
+
+  async function addBullet(itemKey: string) {
+    const text = window.prompt("Bullet");
+    if (text == null) return;
+    if (!text.trim()) {
+      toast.err("bullet 不能为空");
+      return;
+    }
+    await mutate(
+      `/api/resume/${review.resume_id}/review/items/${itemKey}/bullets`,
+      { method: "POST", body: JSON.stringify({ text: text.trim() }) },
+      "已添加 bullet"
+    );
+  }
+
+  async function submitDraft() {
+    if (!draft) return;
+    if (draft.kind === "rename") {
+      await mutate(
+        `/api/resume/${review.resume_id}/review/items/${draft.itemKey}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ title: draft.title, subtitle: draft.subtitle }),
+        },
+        "已保存"
+      );
+    }
+    if (draft.kind === "edit-bullet") {
+      await mutate(
+        `/api/resume/${review.resume_id}/review/items/${draft.itemKey}/bullets/${draft.bulletKey}`,
+        { method: "PATCH", body: JSON.stringify({ text: draft.text }) },
+        "已保存"
+      );
+    }
+  }
+
+  async function deleteItem(item: ReviewItem) {
+    const label = item.section_type === "experience" ? "该实习及其项目" : "该项目";
+    if (!window.confirm(`确认删除${label}？关联笔记将移至未匹配。`)) return;
+    await mutate(
+      `/api/resume/${review.resume_id}/review/items/${item.item_key}`,
+      { method: "DELETE" },
+      "已删除"
+    );
+  }
+
+  async function deleteBullet(item: ReviewItem, bullet: ReviewBullet) {
+    if (!window.confirm("确认删除该 bullet？关联笔记将保留在本项目下。")) return;
+    await mutate(
+      `/api/resume/${review.resume_id}/review/items/${item.item_key}/bullets/${bullet.bullet_key}`,
+      { method: "DELETE" },
+      "已删除 bullet"
+    );
+  }
+
+  const itemProps = {
+    openKeys,
+    composer,
+    saving,
+    draft,
+    onlyWithNotes,
+    editable: !onlyWithNotes,
+    onToggle: toggle,
+    onComposer: openComposer,
+    onComposerChange: setComposer,
+    onSave: saveComposer,
+    onDeleteNote: removeNote,
+    onDraft: setDraft,
+    onSubmitDraft: submitDraft,
+    onAddItem: addItem,
+    onAddBullet: addBullet,
+    onDeleteItem: deleteItem,
+    onDeleteBullet: deleteBullet,
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -219,25 +339,25 @@ export default function ResumeReviewBoard({
         <ResumeSection title="实习 / 工作经历">
           {experience.length === 0 ? (
             <p className="text-sm text-zinc-400">
-              {onlyWithNotes ? "还没有挂过问答或注释的条目" : "简历里还没有实习或工作经历"}
+              {onlyWithNotes ? "暂无笔记" : "暂无实习经历"}
             </p>
           ) : (
-            <div className="space-y-7">
+            <div className="space-y-8">
               {experience.map((item) => (
-                <ItemBlock
-                  key={item.item_key}
-                  item={item}
-                  openKeys={openKeys}
-                  composer={composer}
-                  saving={saving}
-                  onToggle={toggle}
-                  onComposer={openComposer}
-                  onComposerChange={setComposer}
-                  onSave={saveComposer}
-                  onDelete={removeNote}
-                  onlyWithNotes={onlyWithNotes}
-                />
+                <ItemBlock key={item.item_key} item={item} nested={false} {...itemProps} />
               ))}
+            </div>
+          )}
+          {!onlyWithNotes && (
+            <div className="mt-3">
+              <button
+                type="button"
+                className={btnCls("ghost", "sm")}
+                disabled={saving}
+                onClick={() => addItem("experience", null)}
+              >
+                + 添加实习
+              </button>
             </div>
           )}
         </ResumeSection>
@@ -245,25 +365,25 @@ export default function ResumeReviewBoard({
         <ResumeSection title="项目经历">
           {projects.length === 0 ? (
             <p className="text-sm text-zinc-400">
-              {onlyWithNotes ? "还没有挂过问答或注释的条目" : "简历里还没有项目经历"}
+              {onlyWithNotes ? "暂无笔记" : "暂无项目经历"}
             </p>
           ) : (
-            <div className="space-y-7">
+            <div className="space-y-8">
               {projects.map((item) => (
-                <ItemBlock
-                  key={item.item_key}
-                  item={item}
-                  openKeys={openKeys}
-                  composer={composer}
-                  saving={saving}
-                  onToggle={toggle}
-                  onComposer={openComposer}
-                  onComposerChange={setComposer}
-                  onSave={saveComposer}
-                  onDelete={removeNote}
-                  onlyWithNotes={onlyWithNotes}
-                />
+                <ItemBlock key={item.item_key} item={item} nested={false} {...itemProps} />
               ))}
+            </div>
+          )}
+          {!onlyWithNotes && (
+            <div className="mt-3">
+              <button
+                type="button"
+                className={btnCls("ghost", "sm")}
+                disabled={saving}
+                onClick={() => addItem("projects", null)}
+              >
+                + 添加项目
+              </button>
             </div>
           )}
         </ResumeSection>
@@ -272,15 +392,13 @@ export default function ResumeReviewBoard({
       {review.unmatched_notes.length > 0 && (
         <Card className="px-5 py-4">
           <h3 className="text-sm font-medium text-zinc-800 dark:text-zinc-100">未匹配的旧笔记</h3>
-          <p className="mt-1 text-xs text-zinc-400">
-            对应经历已从画像中消失，内容仍保留。可删除或等画像对上后再看。
-          </p>
+          <p className="mt-1 text-xs text-zinc-400">对应经历已删除或变更，笔记仍保留。</p>
           <div className="mt-3 space-y-2">
             {review.unmatched_notes.map((note) => (
               <NoteCard
                 key={note.id}
                 note={note}
-                onEdit={() => toast.info("原经历已不在画像中，只能删除后重新添加")}
+                onEdit={() => toast.info("原经历已不在列表中，只能删除后重新添加")}
                 onDelete={() => removeNote(note.id)}
               />
             ))}
@@ -304,50 +422,133 @@ function ResumeSection({ title, children }: { title: string; children: React.Rea
 
 function ItemBlock({
   item,
+  nested,
   openKeys,
   composer,
   saving,
+  draft,
+  onlyWithNotes,
+  editable,
   onToggle,
   onComposer,
   onComposerChange,
   onSave,
-  onDelete,
-  onlyWithNotes,
+  onDeleteNote,
+  onDraft,
+  onSubmitDraft,
+  onAddItem,
+  onAddBullet,
+  onDeleteItem,
+  onDeleteBullet,
 }: {
   item: ReviewItem;
+  nested: boolean;
   openKeys: Set<string>;
   composer: Composer | null;
   saving: boolean;
+  draft: Draft | null;
+  onlyWithNotes: boolean;
+  editable: boolean;
   onToggle: (itemKey: string, bulletKey: string) => void;
   onComposer: (item: ReviewItem, bullet: ReviewBullet, kind: "qa" | "note", note?: BulletNote) => void;
   onComposerChange: (next: Composer | null) => void;
   onSave: (item: ReviewItem, bullet: ReviewBullet) => void;
-  onDelete: (noteId: number) => void;
-  onlyWithNotes: boolean;
+  onDeleteNote: (noteId: number) => void;
+  onDraft: (next: Draft | null) => void;
+  onSubmitDraft: () => void;
+  onAddItem: (section: "experience" | "projects", parentKey: string | null) => void;
+  onAddBullet: (itemKey: string) => void;
+  onDeleteItem: (item: ReviewItem) => void;
+  onDeleteBullet: (item: ReviewItem, bullet: ReviewBullet) => void;
 }) {
+  const children = onlyWithNotes
+    ? (item.children ?? []).filter(itemHasNotes)
+    : (item.children ?? []);
   const bullets = item.bullets.filter((b) => {
     if (onlyWithNotes) return b.notes.length > 0;
     if (b.is_whole) return b.notes.length > 0;
     return true;
   });
   const count = noteCount(item);
+  const renaming = draft?.kind === "rename" && draft.itemKey === item.item_key;
+
   return (
     <div>
       <div className="mb-2 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{item.title}</h3>
-            {count > 0 && <Badge tone="emerald">{count} 条复习</Badge>}
-          </div>
-          {item.subtitle ? (
-            <p className="mt-0.5 text-sm text-zinc-500">{item.subtitle}</p>
-          ) : null}
+        <div className="min-w-0 flex-1">
+          {renaming && draft?.kind === "rename" ? (
+            <div className="space-y-2">
+              <input
+                value={draft.title}
+                onChange={(e) => onDraft({ ...draft, title: e.target.value })}
+                className="w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-sky-400 dark:border-zinc-700 dark:bg-zinc-950"
+                placeholder="名称"
+              />
+              {item.section_type === "experience" && (
+                <input
+                  value={draft.subtitle}
+                  onChange={(e) => onDraft({ ...draft, subtitle: e.target.value })}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-sm outline-none focus:border-sky-400 dark:border-zinc-700 dark:bg-zinc-950"
+                  placeholder="岗位 · 时间"
+                />
+              )}
+              <div className="flex gap-2">
+                <button type="button" className={btnCls("primary", "sm")} disabled={saving} onClick={onSubmitDraft}>
+                  保存
+                </button>
+                <button type="button" className={btnCls("ghost", "sm")} onClick={() => onDraft(null)}>
+                  取消
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3
+                  className={`${
+                    nested ? "text-[15px]" : "text-base"
+                  } font-semibold text-zinc-900 dark:text-zinc-50`}
+                >
+                  {item.title}
+                </h3>
+                {count > 0 && <Badge tone="emerald">{count} 条复习</Badge>}
+              </div>
+              {item.subtitle ? (
+                <p className="mt-0.5 text-sm text-zinc-500">{item.subtitle}</p>
+              ) : null}
+            </>
+          )}
         </div>
+        {editable && !renaming && (
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              className={btnCls("ghost", "sm")}
+              onClick={() =>
+                onDraft({
+                  kind: "rename",
+                  itemKey: item.item_key,
+                  title: item.title,
+                  subtitle: item.subtitle,
+                })
+              }
+            >
+              编辑
+            </button>
+            <button type="button" className={btnCls("ghost", "sm")} onClick={() => onDeleteItem(item)}>
+              删除
+            </button>
+          </div>
+        )}
       </div>
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {bullets.map((bullet) => {
           const key = composerKey(item.item_key, bullet.bullet_key);
           const open = openKeys.has(key);
+          const editing =
+            draft?.kind === "edit-bullet" &&
+            draft.itemKey === item.item_key &&
+            draft.bulletKey === bullet.bullet_key;
           const activeComposer =
             composer &&
             composer.itemKey === item.item_key &&
@@ -356,41 +557,82 @@ function ItemBlock({
               : null;
           return (
             <li key={bullet.bullet_key}>
-              <button
-                type="button"
-                onClick={() => onToggle(item.item_key, bullet.bullet_key)}
-                className="flex w-full items-start gap-3 py-3 text-left transition hover:bg-sky-50/50 dark:hover:bg-zinc-800/60"
-              >
-                <span
-                  className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] text-zinc-400 transition ${
-                    open ? "rotate-90 border-sky-300 text-sky-600" : "border-zinc-200"
-                  }`}
-                >
-                  ▸
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="text-sm leading-6 text-zinc-800 dark:text-zinc-100">
-                    {bullet.text}
-                  </span>
-                  {bullet.notes.length > 0 && (
-                    <span className="ml-2 text-xs text-zinc-400">
-                      {bullet.notes.length} 条
+              {editing && draft?.kind === "edit-bullet" ? (
+                <div className="space-y-2 py-3">
+                  <textarea
+                    value={draft.text}
+                    onChange={(e) => onDraft({ ...draft, text: e.target.value })}
+                    rows={4}
+                    className="w-full resize-y rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-sky-400 dark:border-zinc-700 dark:bg-zinc-950"
+                  />
+                  <div className="flex gap-2">
+                    <button type="button" className={btnCls("primary", "sm")} disabled={saving} onClick={onSubmitDraft}>
+                      保存
+                    </button>
+                    <button type="button" className={btnCls("ghost", "sm")} onClick={() => onDraft(null)}>
+                      取消
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onToggle(item.item_key, bullet.bullet_key)}
+                    className="flex min-w-0 flex-1 items-start gap-3 py-3 text-left transition hover:bg-sky-50/50 dark:hover:bg-zinc-800/60"
+                  >
+                    <span
+                      className={`mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[10px] text-zinc-400 transition ${
+                        open ? "rotate-90 border-sky-300 text-sky-600" : "border-zinc-200"
+                      }`}
+                    >
+                      ▸
                     </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="text-sm leading-6 text-zinc-800 dark:text-zinc-100">
+                        {bullet.text}
+                      </span>
+                      {bullet.notes.length > 0 && (
+                        <span className="ml-2 text-xs text-zinc-400">{bullet.notes.length} 条</span>
+                      )}
+                    </span>
+                  </button>
+                  {editable && !bullet.is_whole && (
+                    <div className="mt-2 flex shrink-0 gap-1">
+                      <button
+                        type="button"
+                        className={btnCls("ghost", "sm")}
+                        onClick={() =>
+                          onDraft({
+                            kind: "edit-bullet",
+                            itemKey: item.item_key,
+                            bulletKey: bullet.bullet_key,
+                            text: bullet.text,
+                          })
+                        }
+                      >
+                        编辑
+                      </button>
+                      <button
+                        type="button"
+                        className={btnCls("ghost", "sm")}
+                        onClick={() => onDeleteBullet(item, bullet)}
+                      >
+                        删除
+                      </button>
+                    </div>
                   )}
-                </span>
-              </button>
+                </div>
+              )}
               {open && (
                 <div className="space-y-3 bg-slate-50/80 px-5 pb-4 pt-1 dark:bg-zinc-950/40">
-                  {bullet.notes.length === 0 && !activeComposer ? (
-                    <p className="text-xs text-zinc-400">还没有复习内容。可以记下被问过的题，或自己的讲法。</p>
-                  ) : null}
                   {bullet.notes.map((note) =>
                     activeComposer?.editingId === note.id ? null : (
                       <NoteCard
                         key={note.id}
                         note={note}
                         onEdit={() => onComposer(item, bullet, note.kind === "note" ? "note" : "qa", note)}
-                        onDelete={() => onDelete(note.id)}
+                        onDelete={() => onDeleteNote(note.id)}
                       />
                     )
                   )}
@@ -409,7 +651,7 @@ function ItemBlock({
                         className={btnCls("secondary", "sm")}
                         onClick={() => onComposer(item, bullet, "qa")}
                       >
-                        + 问答对
+                        + QA
                       </button>
                       <button
                         type="button"
@@ -426,10 +668,20 @@ function ItemBlock({
           );
         })}
       </ul>
+      {editable && (
+        <button
+          type="button"
+          className={`${btnCls("ghost", "sm")} mt-1`}
+          disabled={saving}
+          onClick={() => onAddBullet(item.item_key)}
+        >
+          + 添加 bullet
+        </button>
+      )}
       {item.orphan_notes.length > 0 && (
-        <div className="border-t border-amber-100 bg-amber-50/70 px-5 py-3 dark:border-amber-900/40 dark:bg-amber-950/20">
+        <div className="mt-3 border-t border-amber-100 bg-amber-50/70 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/20">
           <p className="text-xs text-amber-800 dark:text-amber-300">
-            以下笔记对应的原句已改，仍挂在本段经历下
+            原句已变更，笔记仍归属本段经历
           </p>
           <div className="mt-2 space-y-2">
             {item.orphan_notes.map((note) =>
@@ -447,19 +699,52 @@ function ItemBlock({
                   key={note.id}
                   note={note}
                   onEdit={() =>
-                    onComposer(
-                      item,
-                      item.bullets[0],
-                      note.kind === "note" ? "note" : "qa",
-                      note
-                    )
+                    onComposer(item, item.bullets[0], note.kind === "note" ? "note" : "qa", note)
                   }
-                  onDelete={() => onDelete(note.id)}
+                  onDelete={() => onDeleteNote(note.id)}
                 />
               )
             )}
           </div>
         </div>
+      )}
+      {children.length > 0 && (
+        <div className="mt-5 space-y-6 border-l border-zinc-200 pl-4 dark:border-zinc-700">
+          {children.map((child) => (
+            <ItemBlock
+              key={child.item_key}
+              item={child}
+              nested
+              openKeys={openKeys}
+              composer={composer}
+              saving={saving}
+              draft={draft}
+              onlyWithNotes={onlyWithNotes}
+              editable={editable}
+              onToggle={onToggle}
+              onComposer={onComposer}
+              onComposerChange={onComposerChange}
+              onSave={onSave}
+              onDeleteNote={onDeleteNote}
+              onDraft={onDraft}
+              onSubmitDraft={onSubmitDraft}
+              onAddItem={onAddItem}
+              onAddBullet={onAddBullet}
+              onDeleteItem={onDeleteItem}
+              onDeleteBullet={onDeleteBullet}
+            />
+          ))}
+        </div>
+      )}
+      {editable && item.section_type === "experience" && (
+        <button
+          type="button"
+          className={`${btnCls("ghost", "sm")} mt-3`}
+          disabled={saving}
+          onClick={() => onAddItem("experience", item.item_key)}
+        >
+          + 在此实习下添加项目
+        </button>
       )}
     </div>
   );
@@ -484,7 +769,7 @@ function NoteCard({
       }`}
     >
       <div className="flex items-start justify-between gap-2">
-        <Badge tone={isQa ? "sky" : "amber"}>{isQa ? "问答对" : "注释"}</Badge>
+        <Badge tone={isQa ? "sky" : "amber"}>{isQa ? "QA" : "注释"}</Badge>
         <div className="flex gap-1">
           <button type="button" className={btnCls("ghost", "sm")} onClick={onEdit}>
             编辑
@@ -500,7 +785,7 @@ function NoteCard({
           {note.answer ? (
             <p className="whitespace-pre-wrap text-zinc-600 dark:text-zinc-300">A. {note.answer}</p>
           ) : (
-            <p className="text-xs text-zinc-400">还没写回答</p>
+            <p className="text-xs text-zinc-400">暂无回答</p>
           )}
         </div>
       ) : (
@@ -529,21 +814,21 @@ function ComposerForm({
     <div className="rounded-xl border border-sky-200 bg-white p-3.5 dark:border-sky-900/50 dark:bg-zinc-900">
       <p className="text-xs font-medium text-sky-700">
         {composer.editingId ? "编辑" : "新增"}
-        {isQa ? "问答对" : "注释"}
+        {isQa ? "QA" : "注释"}
       </p>
       {isQa ? (
         <div className="mt-2 space-y-2">
           <textarea
             value={composer.question}
             onChange={(e) => onChange({ ...composer, question: e.target.value })}
-            placeholder="面试里问到的问题，或你想练的问题"
+            placeholder="问题"
             rows={2}
             className="w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-950"
           />
           <textarea
             value={composer.answer}
             onChange={(e) => onChange({ ...composer, answer: e.target.value })}
-            placeholder="你的讲法 / 参考回答（可先空着）"
+            placeholder="回答"
             rows={3}
             className="w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-950"
           />
@@ -552,7 +837,7 @@ function ComposerForm({
         <textarea
           value={composer.body}
           onChange={(e) => onChange({ ...composer, body: e.target.value })}
-          placeholder="注释：易漏点、数据、面试官反应、下次怎么讲…"
+          placeholder="注释"
           rows={3}
           className="mt-2 w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-950"
         />

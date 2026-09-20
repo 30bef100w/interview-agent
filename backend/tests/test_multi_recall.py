@@ -11,6 +11,16 @@ class _RecordingRetrieval:
         self.calls.append(("search_questions", kwargs))
         scenes = kwargs.get("scenes") or []
         roles = kwargs.get("roles") or []
+        if scenes:
+            return [
+                {
+                    "question": "秒杀场景下 Redis 库存如何保证不超卖？",
+                    "answer": "lua/扣减原子性",
+                    "business_scene": list(scenes),
+                    "category": "project",
+                    "roles": list(roles) if roles else [],
+                }
+            ]
         if roles:
             return [
                 {
@@ -20,16 +30,10 @@ class _RecordingRetrieval:
                     "category": "project",
                 }
             ]
-        if scenes:
-            return [
-                {
-                    "question": "秒杀场景下 Redis 库存如何保证不超卖？",
-                    "answer": "lua/扣减原子性",
-                    "business_scene": list(scenes),
-                    "category": "project",
-                }
-            ]
         return []
+
+    def sanitize_hits(self, hits, **_kwargs):
+        return list(hits or [])
 
     def search_projects(self, name, skills, scenes, top_n=4, asked_norms=None):
         self.calls.append(
@@ -122,9 +126,7 @@ def test_build_project_chains_recalls_role_and_scene():
     assert out and out[0]["project"] == "知秦"
     assert any(c[0] == "search_questions" and c[1].get("roles") for c in retrieval.calls)
     assert any(
-        c[0] == "search_questions"
-        and not c[1].get("roles")
-        and c[1].get("scenes") == ["外卖/本地生活"]
+        c[0] == "search_questions" and c[1].get("scenes") == ["外卖/本地生活"]
         for c in retrieval.calls
     )
     assert any(c[0] == "search_projects" for c in retrieval.calls)

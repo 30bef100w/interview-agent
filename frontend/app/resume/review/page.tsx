@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import ResumeReviewBoard, { type ResumeReview } from "@/components/ResumeReviewBoard";
 import { useToast } from "@/components/Toast";
 import {
-  Badge,
   ButtonLink,
   EmptyState,
   IconFile,
@@ -76,9 +75,6 @@ export default function ResumeReviewPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             简历复盘
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            按实习 / 项目的 bullet 记下问答对和注释，方便针对性复习。与「我的简历」分开，互不影响。
-          </p>
         </div>
         <ButtonLink href="/resume/upload" variant="ghost" size="sm">
           管理简历
@@ -118,31 +114,25 @@ export default function ResumeReviewPage() {
       ) : resumes.length === 0 ? (
         <EmptyState
           icon={<IconNotebook className="h-10 w-10" />}
-          title="还没有简历"
-          desc="先在「我的简历」上传并解析画像，再回来按 bullet 记问答和注释"
-          action={<ButtonLink href="/resume/upload">去上传简历</ButtonLink>}
+          title="暂无简历"
+          desc="请先上传简历"
+          action={<ButtonLink href="/resume/upload">上传简历</ButtonLink>}
         />
       ) : !review ? (
-        <p className="py-16 text-center text-sm text-zinc-400">加载复盘失败，请重选一份简历</p>
+        <p className="py-16 text-center text-sm text-zinc-400">加载失败</p>
       ) : !review.has_profile ? (
         <EmptyState
           icon={<IconFile className="h-10 w-10" />}
-          title="这份简历还没有结构化画像"
-          desc="到「我的简历」里完成解析后，实习和项目才会按 bullet 展开"
-          action={<ButtonLink href="/resume/upload">去解析画像</ButtonLink>}
+          title="尚未解析"
+          desc="请先完成简历解析"
+          action={<ButtonLink href="/resume/upload">去解析</ButtonLink>}
         />
       ) : (
-        <>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
-            {review.has_profile && <Badge tone="emerald">已解析</Badge>}
-            <span>点击一条经历下的 bullet 展开，可添加问答对或注释</span>
-          </div>
-          <ResumeReviewBoard
-            review={review}
-            onlyWithNotes={onlyWithNotes}
-            onChanged={() => (selectedId ? loadReview(selectedId) : Promise.resolve())}
-          />
-        </>
+        <ResumeReviewBoard
+          review={review}
+          onlyWithNotes={onlyWithNotes}
+          onChanged={() => (selectedId ? loadReview(selectedId) : Promise.resolve())}
+        />
       )}
     </div>
   );

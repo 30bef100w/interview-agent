@@ -7,14 +7,31 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from fastapi.responses import StreamingResponse
 
 from app.api.deps import get_current_user
+from app.config import settings
 from app.models import User
 from app.services.stt import transcribe
 from app.services.tts import synthesize
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
+_VOICE_OFF = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail="当前环境未开放语音，请使用文字作答",
+)
+
+
+def _require_voice() -> None:
+    if not settings.voice_on:
+        raise _VOICE_OFF
+
+
 ALLOWED_AUDIO = {".webm", ".mp3", ".wav", ".m4a", ".ogg"}
 MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10MB 上限（约 1 分钟录音）
+
+
+@router.get("/status")
+def voice_status() -> dict:
+    return {"enabled": settings.voice_on}
 
 
 @router.post("/transcribe")
@@ -23,6 +40,7 @@ def transcribe_audio(
     prompt: str = Query(default=""),
     current_user: User = Depends(get_current_user),
 ) -> dict:
+    _require_voice()
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in ALLOWED_AUDIO:
         raise HTTPException(
@@ -55,6 +73,7 @@ def text_to_speech(
     text: str,
     current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
+    _require_voice()
     text = text.strip()
     if not text or len(text) > 500:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="文本长度不合法")

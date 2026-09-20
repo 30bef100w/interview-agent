@@ -16,6 +16,7 @@ class Resume(Base):
     raw_text: Mapped[str] = mapped_column(Text, default="")
     profile_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     analysis_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_tree_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

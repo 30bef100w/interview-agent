@@ -17,6 +17,7 @@ type Props = {
   onSend: () => void;
   disabled?: boolean;
   sending?: boolean;
+  voiceEnabled?: boolean;
 };
 
 const SPEECH_HINT: Record<string, string> = {
@@ -27,7 +28,7 @@ const SPEECH_HINT: Record<string, string> = {
 };
 
 const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerComposer(
-  { value, onChange, onSend, disabled = false, sending = false },
+  { value, onChange, onSend, disabled = false, sending = false, voiceEnabled = false },
   ref
 ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -173,53 +174,57 @@ const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerCo
         }}
         rows={3}
         disabled={disabled || sending}
-        placeholder="输入回答，或点麦克风实时转写 / Whisper 录音识别…"
+        placeholder={voiceEnabled ? "输入回答，或点麦克风实时转写 / Whisper 录音识别…" : "输入回答，Enter 发送"}
         className="relative z-10 w-full resize-none bg-white text-sm text-zinc-900 caret-zinc-900 outline-none placeholder:text-zinc-400 [transform:translateZ(0)] dark:bg-zinc-900 dark:text-zinc-50 dark:caret-zinc-50"
       />
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          {canUseMicrophone() ? (
-            <button
-              type="button"
-              onClick={toggleVoice}
-              disabled={disabled || sending || whisperBusy}
-              className={`flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors disabled:opacity-40 ${
-                listening ? "animate-pulse bg-red-500" : "bg-sky-600 hover:bg-sky-500"
-              }`}
-              title={listening ? "停止实时转写" : "浏览器实时语音（Web Speech）"}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
-              </svg>
-            </button>
+          {voiceEnabled ? (
+            <>
+              {canUseMicrophone() ? (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  disabled={disabled || sending || whisperBusy}
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors disabled:opacity-40 ${
+                    listening ? "animate-pulse bg-red-500" : "bg-sky-600 hover:bg-sky-500"
+                  }`}
+                  title={listening ? "停止实时转写" : "浏览器实时语音（Web Speech）"}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                  </svg>
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  if (whisperHint === "录音中… 再点一次结束并识别") stopWhisperRecord();
+                  else startWhisperRecord();
+                }}
+                disabled={disabled || sending || listening || !canUseMicrophone()}
+                className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-40 dark:border-zinc-600 dark:text-zinc-300"
+                title={
+                  canUseMicrophone()
+                    ? "服务端 Whisper 识别（对标 Gua 上传转写兜底）"
+                    : micBlockedMessage()
+                }
+              >
+                {whisperBusy ? "识别中…" : "Whisper"}
+              </button>
+              {listening ? (
+                <span className="animate-pulse text-xs text-red-500">实时转写中…</span>
+              ) : canUseMicrophone() ? (
+                <span className="text-xs text-zinc-400">Web Speech / Whisper 双路径</span>
+              ) : (
+                <span className="text-xs text-amber-600">语音需 HTTPS，当前请用文字输入</span>
+              )}
+              {error ? (
+                <span className="text-xs text-red-500">{SPEECH_HINT[error] || error}</span>
+              ) : null}
+              {whisperHint ? <span className="text-xs text-sky-600">{whisperHint}</span> : null}
+            </>
           ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              if (whisperHint === "录音中… 再点一次结束并识别") stopWhisperRecord();
-              else startWhisperRecord();
-            }}
-            disabled={disabled || sending || listening || !canUseMicrophone()}
-            className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-40 dark:border-zinc-600 dark:text-zinc-300"
-            title={
-              canUseMicrophone()
-                ? "服务端 Whisper 识别（对标 Gua 上传转写兜底）"
-                : micBlockedMessage()
-            }
-          >
-            {whisperBusy ? "识别中…" : "Whisper"}
-          </button>
-          {listening ? (
-            <span className="animate-pulse text-xs text-red-500">实时转写中…</span>
-          ) : canUseMicrophone() ? (
-            <span className="text-xs text-zinc-400">Web Speech / Whisper 双路径</span>
-          ) : (
-            <span className="text-xs text-amber-600">语音需 HTTPS，当前请用文字输入</span>
-          )}
-          {error ? (
-            <span className="text-xs text-red-500">{SPEECH_HINT[error] || error}</span>
-          ) : null}
-          {whisperHint ? <span className="text-xs text-sky-600">{whisperHint}</span> : null}
         </div>
         <button
           type="button"

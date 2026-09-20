@@ -15,6 +15,7 @@ from app.services.interviewer_engine import (
     looks_like_rubric,
     sanitize_score_fields,
 )
+from tests.conftest import requires_question_bank
 
 RESUME_RAW = "张三，XX大学计算机专业，项目：校园二手交易平台（Spring Boot+Redis），实习：XX科技后端实习生"
 PROFILE = {"name": "张三", "skills": ["Spring Boot", "Redis"], "projects": [{"name": "校园二手交易平台"}], "experience_years": "应届"}
@@ -188,6 +189,7 @@ def run_to_asking(engine: InterviewEngine, state: InterviewState, mode: str = "f
     return engine.handle_intro(state, "我叫张三，做过二手交易平台。")
 
 
+@requires_question_bank
 def test_create_opens_with_intro_request():
     llm = FakeLlm()
     engine = InterviewEngine(llm)
@@ -203,6 +205,7 @@ def test_create_opens_with_intro_request():
     assert llm.planner_called or any(q["type"] == "project" for q in state.plan)
 
 
+@requires_question_bank
 def test_create_plans_and_intro_advances():
     llm = FakeLlm()
     engine = InterviewEngine(llm)
@@ -289,6 +292,7 @@ def test_answer_without_followup_advances():
     assert "Redis" in q1["summary"]  # 摘要已生成
 
 
+@requires_question_bank
 def test_next_question_sees_performance_and_asked_topics():
     llm = FakeLlm(follow_up=False)
     engine = InterviewEngine(llm)

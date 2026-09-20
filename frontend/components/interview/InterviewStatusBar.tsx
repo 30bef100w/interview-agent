@@ -10,6 +10,7 @@ type Props = {
   disconnected?: boolean;
   ttsAutoPlay: boolean;
   onToggleTts: () => void;
+  voiceEnabled?: boolean;
 };
 
 function stageLabel(stage: string) {
@@ -30,6 +31,7 @@ export default function InterviewStatusBar({
   disconnected,
   ttsAutoPlay,
   onToggleTts,
+  voiceEnabled = false,
 }: Props) {
   const s = stageLabel(stage);
   const pct = totalRounds > 0 ? Math.min(100, Math.round((roundsUsed / totalRounds) * 100)) : 0;
@@ -46,17 +48,19 @@ export default function InterviewStatusBar({
             </span>
             {disconnected ? <Badge tone="amber">连接异常</Badge> : null}
           </div>
-          <button
-            type="button"
-            onClick={onToggleTts}
-            className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-              ttsAutoPlay
-                ? "border-sky-200 bg-sky-50 text-sky-700"
-                : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
-            }`}
-          >
-            题目播报 {ttsAutoPlay ? "开" : "关"}
-          </button>
+          {voiceEnabled ? (
+            <button
+              type="button"
+              onClick={onToggleTts}
+              className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                ttsAutoPlay
+                  ? "border-sky-200 bg-sky-50 text-sky-700"
+                  : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
+              }`}
+            >
+              题目播报 {ttsAutoPlay ? "开" : "关"}
+            </button>
+          ) : null}
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
           <div

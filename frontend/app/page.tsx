@@ -62,7 +62,7 @@ const HIGHLIGHTS = [
 const STEPS = [
   { n: "01", t: "上传简历", d: "解析技术栈与项目画像" },
   { n: "02", t: "选择环节", d: "全流程或专项突击" },
-  { n: "03", t: "模拟面试", d: "文字 / 语音作答，智能追问" },
+  { n: "03", t: "模拟面试", d: "文字作答，智能追问" },
   { n: "04", t: "查看报告", d: "维度评分与逐题复盘" },
 ];
 
@@ -201,7 +201,7 @@ export default function Home() {
     loadFeishuProfile();
     const q = new URLSearchParams(window.location.search);
     if (q.get("feishu") === "1") {
-      setNotice("飞书已绑定。请在手机飞书里私聊深问机器人发「开始」，不要在群里发。");
+      setNotice("绑定成功");
       loadFeishuProfile();
     }
     const err = (q.get("feishu_error") || "").trim();
@@ -254,9 +254,7 @@ export default function Home() {
     }
     if (feishuBound) {
       setNotice(
-        feishuName
-          ? `已绑定飞书（${feishuName}）。在手机飞书里私聊深问机器人即可。`
-          : "已绑定飞书。在手机飞书里私聊深问机器人即可。",
+        feishuName ? `已绑定飞书（${feishuName}）` : "已绑定飞书",
       );
       return;
     }
@@ -452,9 +450,9 @@ export default function Home() {
               <p className="hero-fade mt-3 text-sm text-slate-500" style={{ animationDelay: "0.2s" }}>
                 {loggedIn
                   ? feishuBound
-                    ? "已绑定飞书。在手机里私聊深问机器人即可继续面试。"
-                    : "点「绑定飞书」授权后，可用同一个账号在手机里私聊面试。"
-                  : "想用飞书面试：先登录深问账号，再点「绑定飞书面试」。"}
+                    ? "已绑定飞书，可在飞书中继续面试。"
+                    : "绑定飞书后，可在飞书中进行模拟面试。"
+                  : "登录并绑定飞书后，可在飞书中进行模拟面试。"}
               </p>
             ) : null}
             <div

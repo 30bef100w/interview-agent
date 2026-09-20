@@ -75,6 +75,7 @@ class ReviewItem(BaseModel):
     scene_tags: list[str] = Field(default_factory=list)
     bullets: list[ReviewBullet] = Field(default_factory=list)
     orphan_notes: list[BulletNoteOut] = Field(default_factory=list)
+    children: list["ReviewItem"] = Field(default_factory=list)
 
 
 class ReviewEducation(BaseModel):
@@ -88,6 +89,7 @@ class ResumeReviewOut(BaseModel):
     resume_id: int
     filename: str
     has_profile: bool
+    layout_customized: bool = False
     name: str = ""
     experience_years: str = ""
     education: list[ReviewEducation] = Field(default_factory=list)
@@ -95,3 +97,23 @@ class ResumeReviewOut(BaseModel):
     experience: list[ReviewItem] = Field(default_factory=list)
     projects: list[ReviewItem] = Field(default_factory=list)
     unmatched_notes: list[BulletNoteOut] = Field(default_factory=list)
+
+
+class ReviewItemCreate(BaseModel):
+    title: str
+    subtitle: str = ""
+    section: Literal["experience", "projects"] = "projects"
+    parent_item_key: str | None = None
+
+
+class ReviewItemUpdate(BaseModel):
+    title: str | None = None
+    subtitle: str | None = None
+
+
+class ReviewBulletCreate(BaseModel):
+    text: str
+
+
+class ReviewBulletUpdate(BaseModel):
+    text: str

@@ -10,6 +10,38 @@ export type GrowthSeries = {
 
 const COLORS = ["#0284c7", "#059669", "#7c3aed", "#ea580c", "#0f172a"];
 
+function pickLabelIndexes(n: number, maxTicks: number): number[] {
+  if (n <= 0) return [];
+  if (n <= maxTicks) return Array.from({ length: n }, (_, i) => i);
+  const idxs: number[] = [];
+  for (let t = 0; t < maxTicks; t++) {
+    idxs.push(Math.round((t * (n - 1)) / (maxTicks - 1)));
+  }
+  return [...new Set(idxs)];
+}
+
+function pickDateTickIndexes(labels: string[], maxTicks: number): number[] {
+  const n = labels.length;
+  if (n <= maxTicks) return Array.from({ length: n }, (_, i) => i);
+  const out: number[] = [];
+  const used = new Set<string>();
+  for (const i of pickLabelIndexes(n, maxTicks)) {
+    const day = labels[i] || "";
+    if (used.has(day)) continue;
+    used.add(day);
+    out.push(i);
+  }
+  if (n > 0 && !out.includes(0)) {
+    out.unshift(0);
+    used.add(labels[0] || "");
+  }
+  if (n > 0 && !out.includes(n - 1)) {
+    const last = labels[n - 1] || "";
+    if (!used.has(last)) out.push(n - 1);
+  }
+  return [...new Set(out)].sort((a, b) => a - b);
+}
+
 export default function GrowthLineChart({
   labels,
   series,
@@ -20,10 +52,13 @@ export default function GrowthLineChart({
   height?: number;
 }) {
   const width = 640;
-  const pad = { t: 16, r: 16, b: 36, l: 36 };
+  const n = Math.max(labels.length, 1);
+  const crowded = n > 10;
+  const pad = { t: 16, r: 16, b: crowded ? 44 : 36, l: 36 };
   const innerW = width - pad.l - pad.r;
   const innerH = height - pad.t - pad.b;
-  const n = Math.max(labels.length, 1);
+  const maxTicks = Math.max(4, Math.min(8, Math.floor(innerW / 56)));
+  const labelIdx = new Set(pickDateTickIndexes(labels, maxTicks));
   const maxY = 10;
   const minY = 0;
 
@@ -88,24 +123,28 @@ export default function GrowthLineChart({
                   cy={yAt(v)}
                   r={3.2}
                   fill={s.color || COLORS[idx % COLORS.length]}
-                />
+                >
+                  <title>{`第 ${i + 1} 场${labels[i] ? ` · ${labels[i]}` : ""} · ${s.label} ${v}`}</title>
+                </circle>
               )
             )}
           </g>
         ))}
 
-        {labels.map((lb, i) => (
-          <text
-            key={i}
-            x={xAt(i)}
-            y={height - 10}
-            textAnchor="middle"
-            className="fill-slate-400"
-            fontSize={10}
-          >
-            {lb}
-          </text>
-        ))}
+        {labels.map((lb, i) =>
+          labelIdx.has(i) ? (
+            <text
+              key={i}
+              x={xAt(i)}
+              y={height - 12}
+              textAnchor={crowded && i === 0 ? "start" : crowded && i === n - 1 ? "end" : "middle"}
+              className="fill-slate-400"
+              fontSize={10}
+            >
+              {lb}
+            </text>
+          ) : null
+        )}
       </svg>
       <div className="mt-2 flex flex-wrap gap-3 px-1">
         {series.map((s, idx) => (

@@ -6,14 +6,18 @@ import { useEffect, useState } from "react";
 import { Badge, Card, IconReport } from "@/components/ui";
 import { ApiError, api } from "@/lib/api";
 
-type UsageItem = {
-  session_id: number | null;
+type UsageSession = {
+  session_id: number;
   provider: string;
   model: string;
+  call_count: number;
   input_tokens: number;
   output_tokens: number;
   cost_yuan: number;
   created_at: string;
+  target_role?: string;
+  target_company?: string;
+  status?: string;
 };
 
 type UsageData = {
@@ -21,7 +25,7 @@ type UsageData = {
   total_output_tokens: number;
   total_cost_yuan: number;
   session_count: number;
-  recent: UsageItem[];
+  recent: UsageSession[];
 };
 
 function fmtTime(iso: string): string {
@@ -34,6 +38,12 @@ function fmtTime(iso: string): string {
 function fmtCost(v: number): string {
   if (v < 0.01) return `${(v * 100).toFixed(2)} 分`;
   return `¥${v.toFixed(4)}`;
+}
+
+function fmtTokens(n: number): string {
+  if (n >= 10000) return `${(n / 10000).toFixed(1)}万`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 }
 
 export default function UsagePage() {
@@ -78,9 +88,6 @@ export default function UsagePage() {
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           用量查询
         </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          你的每次 AI 调用都实时统计，费用按模型单价换算
-        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -93,13 +100,13 @@ export default function UsagePage() {
         <Card className="flex flex-col items-center p-4 text-center">
           <div className="text-xs text-zinc-500 dark:text-zinc-400">输入 Token</div>
           <div className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            {(data.total_input_tokens / 10000).toFixed(1)}万
+            {fmtTokens(data.total_input_tokens)}
           </div>
         </Card>
         <Card className="flex flex-col items-center p-4 text-center">
           <div className="text-xs text-zinc-500 dark:text-zinc-400">输出 Token</div>
           <div className="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
-            {(data.total_output_tokens / 10000).toFixed(1)}万
+            {fmtTokens(data.total_output_tokens)}
           </div>
         </Card>
         <Card className="flex flex-col items-center p-4 text-center">
@@ -113,35 +120,30 @@ export default function UsagePage() {
       <Card className="p-5">
         <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           <IconReport className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-          最近调用
+          最近面试
         </h2>
         {data.recent.length === 0 ? (
-          <div className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">
-            还没有 AI 调用记录，开始一场面试就有了
-          </div>
+          <div className="py-8 text-center text-sm text-zinc-400 dark:text-zinc-500">暂无面试用量</div>
         ) : (
           <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800">
-            {data.recent.map((r, i) => (
-              <div key={i} className="flex items-center justify-between py-2.5 text-sm">
+            {data.recent.map((r) => (
+              <div key={r.session_id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                 <div className="flex min-w-0 items-center gap-2.5">
-                  <Badge tone="teal">{r.provider}</Badge>
-                  <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-300">{r.model}</span>
+                  <Link
+                    href={`/report/${r.session_id}`}
+                    className="shrink-0 font-medium text-teal-600 hover:underline dark:text-teal-400"
+                  >
+                    面试 #{r.session_id}
+                  </Link>
+                  {r.provider ? <Badge tone="teal">{r.provider}</Badge> : null}
+                  <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-300">
+                    {[r.target_company, r.target_role, r.model].filter(Boolean).join(" · ")}
+                  </span>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-xs text-zinc-400 dark:text-zinc-500">
+                  <span>{r.call_count} 次</span>
                   <span>
-                    {r.session_id ? (
-                      <Link
-                        href={`/report/${r.session_id}`}
-                        className="text-teal-600 hover:underline dark:text-teal-400"
-                      >
-                        面试 #{r.session_id}
-                      </Link>
-                    ) : (
-                      "其他"
-                    )}
-                  </span>
-                  <span>
-                    {(r.input_tokens / 1000).toFixed(1)}k / {(r.output_tokens / 1000).toFixed(1)}k
+                    {fmtTokens(r.input_tokens)} / {fmtTokens(r.output_tokens)}
                   </span>
                   <span className="w-16 text-right font-medium text-zinc-600 dark:text-zinc-300">
                     {fmtCost(r.cost_yuan)}

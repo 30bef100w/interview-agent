@@ -13,12 +13,12 @@ function FeishuAuthBody() {
     const token = params.get("token");
     const username = params.get("username") || "";
     if (!token) {
-      router.replace("/dashboard?feishu_error=" + encodeURIComponent("飞书绑定没有完成，请先登录后再绑定"));
+      router.replace("/feishu?feishu_error=" + encodeURIComponent("飞书绑定没有完成，请先登录后再绑定"));
       return;
     }
     setToken(token);
     if (username) localStorage.setItem("username", username);
-    router.replace("/dashboard");
+    router.replace("/feishu?feishu=1");
   }, [params, router]);
 
   return (

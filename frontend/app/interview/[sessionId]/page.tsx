@@ -15,6 +15,7 @@ import { ApiError, api, getToken } from "@/lib/api";
 import { friendlyInterviewError } from "@/lib/interviewError";
 import { streamPost } from "@/lib/sse";
 import { useInterviewWebSocket } from "@/hooks/useInterviewWebSocket";
+import { useVoiceEnabled } from "@/lib/voice";
 
 type SessionInfo = {
   session_id: number;
@@ -95,6 +96,7 @@ export default function ChatPage() {
   const [disconnected, setDisconnected] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [ttsAutoPlay, setTtsAutoPlay] = useState(false);
+  const voiceEnabled = useVoiceEnabled();
   const bottomRef = useRef<HTMLDivElement>(null);
   const composerRef = useRef<AnswerComposerHandle>(null);
 
@@ -113,12 +115,16 @@ export default function ChatPage() {
   }, [streaming]);
 
   useEffect(() => {
+    if (!voiceEnabled) {
+      setTtsAutoPlay(false);
+      return;
+    }
     try {
       setTtsAutoPlay(localStorage.getItem(TTS_KEY) === "1");
     } catch {
       setTtsAutoPlay(false);
     }
-  }, []);
+  }, [voiceEnabled]);
 
   const refreshSession = useCallback(async () => {
     try {
@@ -448,13 +454,14 @@ export default function ChatPage() {
           disconnected={disconnected}
           ttsAutoPlay={ttsAutoPlay}
           onToggleTts={toggleTts}
+          voiceEnabled={voiceEnabled}
         />
       ) : null}
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto w-full max-w-2xl">
           {loadError ? <ErrorBanner message={loadError} onRetry={load} /> : null}
-          <MessageTimeline messages={msgs} ttsAutoPlay={ttsAutoPlay} />
+          <MessageTimeline messages={msgs} ttsAutoPlay={ttsAutoPlay} voiceEnabled={voiceEnabled} />
           {sending && !streaming ? (
             <div className="mt-3 flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 text-xs text-zinc-500 shadow-sm">
               <span className="typing-dot" />
@@ -520,6 +527,7 @@ export default function ChatPage() {
               onSend={send}
               disabled={!isActive}
               sending={sending || streaming}
+              voiceEnabled={voiceEnabled}
             />
           </div>
         )}

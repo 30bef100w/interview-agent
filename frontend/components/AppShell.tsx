@@ -21,7 +21,7 @@ const NAV: NavItem[] = [
   { href: "/resume/review", label: "简历复盘", icon: <IconNotebook className="h-4.5 w-4.5" /> },
   { href: "/history", label: "面试记录", icon: <IconHistory className="h-4.5 w-4.5" /> },
   { href: "/growth", label: "成长档案", icon: <IconChart className="h-4.5 w-4.5" /> },
-  { href: "/dashboard#feishu-bind", label: "飞书面试", icon: <IconChat className="h-4.5 w-4.5" /> },
+  { href: "/feishu", label: "飞书面试", icon: <IconChat className="h-4.5 w-4.5" /> },
   { href: "/settings", label: "模型设置", icon: <IconSliders className="h-4.5 w-4.5" /> },
   { href: "/usage", label: "用量查询", icon: <IconReport className="h-4.5 w-4.5" /> },
 ];
@@ -90,8 +90,8 @@ function AppShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { openContact } = useFeedback();
-  const [username, setUsername] = useState<string | null>(() => usernameOf());
-  const [isAdmin, setIsAdmin] = useState(() => isAdminOf());
+  const [username, setUsername] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {

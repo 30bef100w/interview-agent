@@ -2,7 +2,10 @@
 from app.services import knowledge_retrieval as kr
 from app.services.interviewer_engine import InterviewEngine
 from app.services.job_roles import resolve_company_id, resolve_target_roles
+from tests.conftest import requires_question_bank
 from tests.test_state_machine import PROFILE, RESUME_RAW, FakeLlm
+
+pytestmark = requires_question_bank
 
 
 def test_pick_bagu_prefers_company_originals():

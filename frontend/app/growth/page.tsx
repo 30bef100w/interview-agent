@@ -163,7 +163,7 @@ export default function GrowthPage() {
 
   const chart = useMemo(() => {
     if (!data?.points?.length) return null;
-    const labels = data.points.map((p, i) => `#${i + 1} ${shortDate(p.started_at)}`);
+    const labels = data.points.map((p) => shortDate(p.started_at));
     const dimKeys = Array.from(
       new Set(data.points.flatMap((p) => Object.keys(p.dimensions || {})))
     );

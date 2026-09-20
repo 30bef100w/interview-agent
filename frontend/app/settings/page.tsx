@@ -90,7 +90,7 @@ function SettingsBody() {
       .then((d) => setFeishuOn(Boolean(d.enabled)))
       .catch(() => setFeishuOn(false));
     if (params.get("feishu") === "1") {
-      setOk("飞书已绑定。请在手机飞书里私聊深问机器人发「开始」，不要在群里发面试内容。");
+      setOk("绑定成功");
     }
     reloadSettings();
   }, [params]);
@@ -211,9 +211,8 @@ function SettingsBody() {
         <Card id="feishu" className="flex flex-col gap-3 p-6">
           <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">飞书面试通道</div>
           <p className="text-sm leading-6 text-zinc-500">
-            绑定后可在手机飞书里<strong>私聊</strong>深问机器人面试，不要在群里发。
-            请先在网页登录深问账号，再点绑定。
-            {me?.feishu_bound ? ` 当前已绑定${me.feishu_name ? `（${me.feishu_name}）` : ""}。` : ""}
+            绑定后可在飞书中进行模拟面试。
+            {me?.feishu_bound ? ` 已绑定${me.feishu_name ? `（${me.feishu_name}）` : ""}。` : ""}
           </p>
           <div className="flex justify-end gap-2">
             {me?.feishu_bound ? (

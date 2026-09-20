@@ -13,6 +13,7 @@ export type ChatMsg = {
 type Props = {
   messages: ChatMsg[];
   ttsAutoPlay?: boolean;
+  voiceEnabled?: boolean;
 };
 
 function kindLabel(kind?: ChatMsg["kind"]) {
@@ -22,7 +23,7 @@ function kindLabel(kind?: ChatMsg["kind"]) {
   return null;
 }
 
-export default function MessageTimeline({ messages, ttsAutoPlay }: Props) {
+export default function MessageTimeline({ messages, ttsAutoPlay, voiceEnabled = false }: Props) {
   if (messages.length === 0) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-sm text-zinc-400">
@@ -80,7 +81,7 @@ export default function MessageTimeline({ messages, ttsAutoPlay }: Props) {
                   <div className="whitespace-pre-wrap">{m.text}</div>
                 )}
               </div>
-              {m.role === "interviewer" && !m.streaming && m.text ? (
+              {voiceEnabled && m.role === "interviewer" && !m.streaming && m.text ? (
                 <InterviewAudioPlayer
                   text={m.text}
                   autoPlay={ttsAutoPlay}

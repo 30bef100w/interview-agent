@@ -107,7 +107,7 @@ export default function DashboardPage() {
       .catch(() => setLoadFailed(true));
     const q = new URLSearchParams(window.location.search);
     if (q.get("feishu") === "1") {
-      setNotice("飞书已绑定。请在手机飞书里私聊深问机器人发「开始」，不要在群里发。");
+      setNotice("绑定成功");
     }
     const err = (q.get("feishu_error") || "").trim();
     if (err) setNoticeError(err);
@@ -115,6 +115,12 @@ export default function DashboardPage() {
       window.history.replaceState({}, "", "/dashboard");
     }
   }, []);
+
+  useEffect(() => {
+    if (!feishuOn) return;
+    if (window.location.hash !== "#feishu-bind") return;
+    document.getElementById("feishu-bind")?.scrollIntoView({ block: "start" });
+  }, [feishuOn]);
 
   async function bindFeishu() {
     setNotice("");
@@ -170,8 +176,8 @@ export default function DashboardPage() {
               </div>
               <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
                 {feishuBound
-                  ? `当前已绑定${feishuName ? `（${feishuName}）` : ""}。在手机飞书里私聊深问机器人即可，记录会同步到这个账号。`
-                  : "绑定后可在手机飞书里私聊深问机器人面试，记录会同步到这个账号。"}
+                  ? `已绑定${feishuName ? `（${feishuName}）` : ""}。可在飞书中进行模拟面试，记录将同步至本账号。`
+                  : "绑定后可在飞书中进行模拟面试。"}
               </p>
             </div>
           </div>

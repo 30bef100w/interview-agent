@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -16,6 +16,7 @@ from app.services.llm.manager import (
     list_providers,
     normalize_model_id,
 )
+from app.services.llm_usage_stats import summarize_user_usage
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -126,32 +127,7 @@ def get_usage(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    rows = db.scalars(
-        select(LLMUsage).where(LLMUsage.user_id == current_user.id)
-    ).all()
-    total_in = sum(r.input_tokens for r in rows)
-    total_out = sum(r.output_tokens for r in rows)
-    total_cost = sum(r.cost_yuan for r in rows)
-    recent = [
-        {
-            "session_id": r.session_id,
-            "provider": r.provider,
-            "model": r.model,
-            "input_tokens": r.input_tokens,
-            "output_tokens": r.output_tokens,
-            "cost_yuan": r.cost_yuan,
-            "created_at": r.created_at.isoformat(),
-        }
-        for r in rows[-50:]
-    ]
-    recent.reverse()
-    return {
-        "total_input_tokens": total_in,
-        "total_output_tokens": total_out,
-        "total_cost_yuan": round(total_cost, 4),
-        "session_count": len({r.session_id for r in rows if r.session_id}),
-        "recent": recent,
-    }
+    return summarize_user_usage(db, current_user.id)
 
 
 @router.get("/usage/session/{session_id}")

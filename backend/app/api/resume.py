@@ -19,9 +19,25 @@ from app.schemas.resume import (
     ProfileUpdate,
     ResumeOut,
     ResumeReviewOut,
+    ReviewBulletCreate,
+    ReviewBulletUpdate,
+    ReviewItemCreate,
+    ReviewItemUpdate,
 )
 from app.services.billing import assert_platform_allowed
-from app.services.resume_review import assemble_review_tree, validate_note_payload
+from app.services.resume_review import (
+    add_review_bullet,
+    add_review_item,
+    assemble_review_tree,
+    delete_review_bullet,
+    delete_review_item,
+    dump_layout,
+    hydrate_layout,
+    parse_layout,
+    rename_review_item,
+    update_review_bullet,
+    validate_note_payload,
+)
 from app.services.resume_service import build_profile, extract_text
 
 router = APIRouter(prefix="/api/resume", tags=["resume"])
@@ -309,6 +325,49 @@ def _get_owned_note(
     return resume, note
 
 
+def _review_notes(db: Session, resume_id: int, user_id: int) -> list[dict]:
+    notes = db.scalars(
+        select(ResumeBulletNote)
+        .where(
+            ResumeBulletNote.resume_id == resume_id,
+            ResumeBulletNote.user_id == user_id,
+        )
+        .order_by(ResumeBulletNote.created_at.asc(), ResumeBulletNote.id.asc())
+    ).all()
+    return [_note_row_dict(n) for n in notes]
+
+
+def _review_out(resume: Resume, profile: dict | None, notes: list[dict]) -> ResumeReviewOut:
+    customized = bool((resume.review_tree_json or "").strip())
+    if customized:
+        tree = hydrate_layout(json.loads(resume.review_tree_json or "{}"), notes, profile)
+    else:
+        tree = assemble_review_tree(profile, notes, raw_text=resume.raw_text)
+    return ResumeReviewOut(
+        resume_id=resume.id,
+        filename=resume.filename,
+        has_profile=bool(profile),
+        layout_customized=customized,
+        **tree,
+    )
+
+
+def _load_mutable_layout(resume: Resume, profile: dict | None, notes: list[dict]) -> dict:
+    if (resume.review_tree_json or "").strip():
+        return parse_layout(json.loads(resume.review_tree_json or "{}"))
+    tree = assemble_review_tree(profile, notes, raw_text=resume.raw_text)
+    return parse_layout(dump_layout(tree))
+
+
+def _save_layout_and_out(
+    db: Session, resume: Resume, profile: dict | None, notes: list[dict], layout: dict
+) -> ResumeReviewOut:
+    resume.review_tree_json = json.dumps(parse_layout(layout), ensure_ascii=False)
+    db.commit()
+    db.refresh(resume)
+    return _review_out(resume, profile, notes)
+
+
 @router.get("/{resume_id}/review", response_model=ResumeReviewOut)
 def get_resume_review(
     resume_id: int,
@@ -317,23 +376,142 @@ def get_resume_review(
 ) -> ResumeReviewOut:
     resume = _get_owned_resume(db, resume_id, current_user.id)
     profile = json.loads(resume.profile_json) if resume.profile_json else None
-    notes = db.scalars(
-        select(ResumeBulletNote)
-        .where(
-            ResumeBulletNote.resume_id == resume.id,
-            ResumeBulletNote.user_id == current_user.id,
+    return _review_out(resume, profile, _review_notes(db, resume.id, current_user.id))
+
+
+@router.post("/{resume_id}/review/items", response_model=ResumeReviewOut)
+def create_review_item(
+    resume_id: int,
+    payload: ReviewItemCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = _review_notes(db, resume.id, current_user.id)
+    layout = _load_mutable_layout(resume, profile, notes)
+    try:
+        add_review_item(
+            layout,
+            title=payload.title,
+            section=payload.section,
+            parent_item_key=(payload.parent_item_key or "").strip() or None,
+            subtitle=payload.subtitle,
         )
-        .order_by(ResumeBulletNote.created_at.asc(), ResumeBulletNote.id.asc())
-    ).all()
-    tree = assemble_review_tree(
-        profile, [_note_row_dict(n) for n in notes], raw_text=resume.raw_text
-    )
-    return ResumeReviewOut(
-        resume_id=resume.id,
-        filename=resume.filename,
-        has_profile=bool(profile),
-        **tree,
-    )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="目标经历不存在") from exc
+    return _save_layout_and_out(db, resume, profile, notes, layout)
+
+
+@router.patch("/{resume_id}/review/items/{item_key}", response_model=ResumeReviewOut)
+def update_review_item(
+    resume_id: int,
+    item_key: str,
+    payload: ReviewItemUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = _review_notes(db, resume.id, current_user.id)
+    layout = _load_mutable_layout(resume, profile, notes)
+    try:
+        rename_review_item(layout, item_key, title=payload.title, subtitle=payload.subtitle)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在") from exc
+    return _save_layout_and_out(db, resume, profile, notes, layout)
+
+
+@router.delete("/{resume_id}/review/items/{item_key}", response_model=ResumeReviewOut)
+def remove_review_item(
+    resume_id: int,
+    item_key: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = _review_notes(db, resume.id, current_user.id)
+    layout = _load_mutable_layout(resume, profile, notes)
+    try:
+        delete_review_item(layout, item_key)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在") from exc
+    return _save_layout_and_out(db, resume, profile, notes, layout)
+
+
+@router.post("/{resume_id}/review/items/{item_key}/bullets", response_model=ResumeReviewOut)
+def create_review_bullet(
+    resume_id: int,
+    item_key: str,
+    payload: ReviewBulletCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = _review_notes(db, resume.id, current_user.id)
+    layout = _load_mutable_layout(resume, profile, notes)
+    try:
+        add_review_bullet(layout, item_key, payload.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="项目不存在") from exc
+    return _save_layout_and_out(db, resume, profile, notes, layout)
+
+
+@router.patch(
+    "/{resume_id}/review/items/{item_key}/bullets/{bullet_key}",
+    response_model=ResumeReviewOut,
+)
+def edit_review_bullet(
+    resume_id: int,
+    item_key: str,
+    bullet_key: str,
+    payload: ReviewBulletUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = _review_notes(db, resume.id, current_user.id)
+    layout = _load_mutable_layout(resume, profile, notes)
+    try:
+        update_review_bullet(layout, item_key, bullet_key, payload.text)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="bullet 不存在") from exc
+    return _save_layout_and_out(db, resume, profile, notes, layout)
+
+
+@router.delete(
+    "/{resume_id}/review/items/{item_key}/bullets/{bullet_key}",
+    response_model=ResumeReviewOut,
+)
+def remove_review_bullet(
+    resume_id: int,
+    item_key: str,
+    bullet_key: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ResumeReviewOut:
+    resume = _get_owned_resume(db, resume_id, current_user.id)
+    profile = json.loads(resume.profile_json) if resume.profile_json else None
+    notes = _review_notes(db, resume.id, current_user.id)
+    layout = _load_mutable_layout(resume, profile, notes)
+    try:
+        delete_review_bullet(layout, item_key, bullet_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="bullet 不存在") from exc
+    return _save_layout_and_out(db, resume, profile, notes, layout)
 
 
 @router.post(

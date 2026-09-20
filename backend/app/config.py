@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-v4-flash"
     whisper_model: str = "small"  # tiny | base | small（越大越准越慢；上传兜底用）
+    # 空=开发开、生产关；true/false 强制覆盖（云端先下掉语音）
+    voice_enabled: str = ""
     admin_usernames: str = ""  # 逗号分隔，登录时同步 is_admin=1
     default_platform_quota: int = 3  # 新用户平台 Key 试用面试次数
     # 逗号分隔；生产经 Nginx 同源时可留空
@@ -72,6 +74,15 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def voice_on(self) -> bool:
+        raw = (self.voice_enabled or "").strip().lower()
+        if raw in {"1", "true", "yes", "on"}:
+            return True
+        if raw in {"0", "false", "no", "off"}:
+            return False
+        return not self.is_production
 
 
 settings = Settings()

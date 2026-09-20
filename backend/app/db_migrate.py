@@ -36,6 +36,7 @@ def ensure_schema() -> None:
             "target_company VARCHAR(128) DEFAULT ''",
         )
         _add_column(conn, "resumes", "analysis_json", "analysis_json TEXT")
+        _add_column(conn, "resumes", "review_tree_json", "review_tree_json TEXT")
         _add_column(
             conn,
             "resumes",

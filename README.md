@@ -96,6 +96,20 @@ npm run dev
 
 打开 http://localhost:3000 。前端默认请求 `http://localhost:8001`，可用 `NEXT_PUBLIC_API_BASE` 覆盖。
 
+## 自动检查（CI）
+
+把代码推到 GitHub 的 `main`，或开 Pull Request，仓库会自动跑：
+
+- 后端：`pytest`（公开仓库没有 4.5 万题库，依赖题库的用例会自动跳过）
+- 前端：`next build`
+
+结果在 GitHub 仓库页的 **Actions**。本地可先跑：
+
+```bash
+cd backend && python -m pytest tests -q
+cd frontend && npm run build
+```
+
 ## 生产部署（Docker）
 
 ```bash

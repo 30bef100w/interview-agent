@@ -1,7 +1,15 @@
 from app.services.resume_review import (
+    add_review_bullet,
+    add_review_item,
     assemble_review_tree,
+    delete_review_bullet,
+    delete_review_item,
+    dump_layout,
+    hydrate_layout,
     make_bullet_key,
     make_item_key,
+    parse_layout,
+    split_intern_projects,
     validate_note_payload,
 )
 
@@ -148,10 +156,14 @@ Java
         ],
     }
     tree = assemble_review_tree(profile, [], raw_text=raw)
-    intern_texts = [b["text"] for b in tree["experience"][0]["bullets"] if not b["is_whole"]]
-    assert any("Go schema注册→IPC通信→Renderer分发" in t for t in intern_texts)
-    assert any("正确率提高约32%" in t for t in intern_texts)
-    assert "负责订单 Redis 预扣" not in intern_texts
+    intern = tree["experience"][0]
+    intern_texts = [b["text"] for b in intern["bullets"] if not b["is_whole"]]
+    assert intern_texts == []
+    assert [c["title"] for c in intern["children"]] == ["校园二手"]
+    child_texts = [b["text"] for b in intern["children"][0]["bullets"] if not b["is_whole"]]
+    assert any("Go schema注册→IPC通信→Renderer分发" in t for t in child_texts)
+    assert any("正确率提高约32%" in t for t in child_texts)
+    assert "负责订单 Redis 预扣" not in child_texts
     proj_names = [p["title"] for p in tree["projects"]]
     assert "校园二手交易平台" in proj_names
     assert "校园二手" not in proj_names
@@ -159,6 +171,75 @@ Java
     shop_texts = [b["text"] for b in shop["bullets"] if not b["is_whole"]]
     assert any("7.1%→0%" in t and "一人一单" in t for t in shop_texts)
     assert "用 Redis 预扣解决超卖" not in shop_texts
+
+
+def test_intern_splits_two_projects():
+    raw = """
+实习经历
+中核装备技术研究（上海）有限公司
+Agent开发实习生
+2026.07-2026.08
+负责项目：“龙吟万界”是面向集团内部的AI科研智造辅助平台。
+我的职责：开发12个客户端工具。
+• 设计并实现工具schema动态加载，正确率提高约32%。
+负责项目：“ADLI卓越绩效诊断智能体”依据卓越绩效评价准则开展测评。
+我的职责：从0到1完成POC。
+• 设计多Agent协作架构并行处理。
+项目经历
+“知秦”西安文旅本地生活平台
+项目背景：O2O平台。
+• 高并发读链路：多级缓存。
+"""
+    profile = {
+        "name": "许永琪",
+        "experience": [
+            {
+                "company": "中核装备技术研究（上海）有限公司",
+                "role": "Agent开发实习生",
+                "duration": "2026.07-2026.08",
+                "responsibilities": ["开发12个客户端工具"],
+            }
+        ],
+        "projects": [
+            {"name": "龙吟万界", "highlights": ["这是实习子项目，不该出现在项目经历"]},
+            {"name": "知秦西安文旅本地生活平台", "highlights": ["摘要"]},
+        ],
+    }
+    tree = assemble_review_tree(profile, [], raw_text=raw)
+    intern = tree["experience"][0]
+    assert [c["title"] for c in intern["children"]] == ["龙吟万界", "ADLI卓越绩效诊断智能体"]
+    longyin = intern["children"][0]
+    adli = intern["children"][1]
+    assert any("正确率提高约32%" in b["text"] for b in longyin["bullets"])
+    assert any("多Agent协作架构" in b["text"] for b in adli["bullets"])
+    assert [p["title"] for p in tree["projects"]] == ["知秦西安文旅本地生活平台"]
+
+
+def test_manual_add_remove_project_and_bullet():
+    tree = assemble_review_tree(PROFILE, [])
+    layout = parse_layout(dump_layout(tree))
+    intern_key = layout["experience"][0]["item_key"]
+    child = add_review_item(layout, title="龙吟万界", section="projects", parent_item_key=intern_key)
+    assert child["title"] == "龙吟万界"
+    assert layout["experience"][0]["children"][0]["title"] == "龙吟万界"
+    bullet = add_review_bullet(layout, child["item_key"], "  完整原文 bullet  ")
+    assert bullet["text"] == "完整原文 bullet"
+    extra = add_review_item(layout, title="误识别项目", section="projects")
+    assert extra["title"] == "误识别项目"
+    delete_review_item(layout, extra["item_key"])
+    assert [p["title"] for p in layout["projects"]] == ["校园二手交易平台"]
+    delete_review_bullet(layout, child["item_key"], bullet["bullet_key"])
+    remaining = [b["text"] for b in layout["experience"][0]["children"][0]["bullets"] if not b["is_whole"]]
+    assert remaining == []
+    hydrated = hydrate_layout(layout, [], PROFILE)
+    assert hydrated["experience"][0]["children"][0]["title"] == "龙吟万界"
+
+
+def test_split_intern_projects_helper():
+    leading, groups = split_intern_projects(
+        "前言一句不够短\n负责项目：“甲”是平台。\n• 第一条足够长的要点内容\n负责项目：“乙”是系统。\n• 第二条足够长的要点内容"
+    )
+    assert [title for title, _ in groups] == ["甲", "乙"]
 
 
 def test_validate_note_payload():
