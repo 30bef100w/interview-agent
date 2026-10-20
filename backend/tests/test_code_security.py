@@ -158,6 +158,8 @@ class TestDockerIsolation:
         assert result.get("cases") == [True] * 9, result
 
     def test_container_can_run_scratch(self):
+        cfg = {"method": "solve", "params": ["x"],
+               "examples": [{"args": [2], "expected": 3}]}
         out = run_code("import sys\nprint(int(sys.stdin.read()) + 1)",
-                       [{"args": [2]}], coding_mode="scratch")
+                       cfg["examples"], coding_mode="scratch", problem_cfg=cfg)
         assert out["results"] == [{"ok": True, "result": 3}], out
