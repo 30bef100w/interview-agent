@@ -55,7 +55,8 @@ def run_examples(code: str, problem: dict, language: str = "python", coding_mode
         coding_mode=coding_mode,
     )
     if out["error"]:
-        return {"verdict": "runtime_error", "message": out["error"], "results": [], "passed": 0, "total": 0}
+        verdict = "unavailable" if out.get("unavailable") else "runtime_error"
+        return {"verdict": verdict, "message": out["error"], "results": [], "passed": 0, "total": 0}
     passed = 0
     results = []
     total = len(problem["examples"])
@@ -93,7 +94,8 @@ def run_hidden(code: str, problem: dict, language: str = "python", coding_mode: 
     )
     gen_dir = _run_gen(gen_runner)
     if gen_dir.get("error"):
-        return {"verdict": "internal_error", "message": f"用例生成失败: {gen_dir['error']}", "passed": 0, "total": 0}
+        verdict = "unavailable" if gen_dir.get("unavailable") else "internal_error"
+        return {"verdict": verdict, "message": f"用例生成失败: {gen_dir['error']}", "passed": 0, "total": 0}
 
     cases = gen_dir["cases"]
     if not cases:
@@ -106,6 +108,8 @@ def run_hidden(code: str, problem: dict, language: str = "python", coding_mode: 
     user = run_code(
         code, cases, method=cfg["method"], language=language, problem_cfg=cfg, coding_mode=coding_mode
     )
+    if user.get("unavailable"):
+        return {"verdict": "unavailable", "message": user["error"], "passed": 0, "total": len(cases)}
     ref = run_code(
         ref_code, cases, method=cfg["method"], language="python", problem_cfg=cfg, coding_mode="function"
     )
@@ -114,7 +118,8 @@ def run_hidden(code: str, problem: dict, language: str = "python", coding_mode: 
     if user["error"]:
         return {"verdict": "runtime_error", "message": user["error"], "passed": 0, "total": len(cases)}
     if ref["error"] or ref["timed_out"]:
-        return {"verdict": "internal_error", "message": f"参考解执行失败: {ref['error'] or ref['timed_out']}",
+        verdict = "unavailable" if ref.get("unavailable") else "internal_error"
+        return {"verdict": verdict, "message": f"参考解执行失败: {ref['error'] or ref['timed_out']}",
                 "passed": 0, "total": len(cases)}
 
     passed = 0
@@ -159,7 +164,8 @@ def run_performance(code: str, problem: dict, language: str = "python", coding_m
     if out["timed_out"]:
         return {"verdict": "timeout", "message": f"性能用例超时（>{limit}s），注意时间复杂度", "elapsed_ms": int(limit * 1000)}
     if out["error"]:
-        return {"verdict": "runtime_error", "message": out["error"], "elapsed_ms": out.get("elapsed_ms", 0)}
+        verdict = "unavailable" if out.get("unavailable") else "runtime_error"
+        return {"verdict": verdict, "message": out["error"], "elapsed_ms": out.get("elapsed_ms", 0)}
     return {"verdict": "passed", "message": f"性能用例通过，耗时 {out['elapsed_ms']}ms",
             "elapsed_ms": out["elapsed_ms"]}
 
@@ -171,15 +177,19 @@ def judge(code: str, slug: str, language: str = "python", coding_mode: str = "fu
         return {"verdict": "unavailable", "message": "本题暂未配置判题器，仅支持示例运行", "passed": 0, "total": 0}
 
     examples = run_examples(code, problem, language=language, coding_mode=coding_mode)
-    if examples["verdict"] in ("runtime_error", "wrong_answer"):
+    if examples["verdict"] in ("runtime_error", "wrong_answer", "unavailable"):
         examples["hidden"] = {"verdict": "skipped", "message": "示例未全过，跳过对拍"}
         examples["performance"] = {"verdict": "skipped", "message": "示例未全过，跳过性能测试"}
         examples["final"] = examples["verdict"]
         return examples
 
     hidden = run_hidden(code, problem, language=language, coding_mode=coding_mode)
+    if hidden["verdict"] == "unavailable":
+        return {**examples, "hidden": hidden, "final": "unavailable"}
     perf = run_performance(code, problem, language=language, coding_mode=coding_mode)
-    if hidden["verdict"] != "passed":
+    if perf["verdict"] == "unavailable":
+        final = "unavailable"
+    elif hidden["verdict"] != "passed":
         final = hidden["verdict"]
     elif perf["verdict"] in ("timeout", "runtime_error"):
         final = "timeout" if perf["verdict"] == "timeout" else "wrong_answer"
@@ -198,6 +208,14 @@ def judge(code: str, slug: str, language: str = "python", coding_mode: str = "fu
 
 def _run_gen(source: str) -> dict:
     """在子进程跑用例生成器，返回 {"cases": [...]} 或 {"error": ...}。"""
+    from app.services.code_sandbox import runner_backend, run_isolated
+    from app.services.code_process import run_process
+
+    backend = runner_backend()
+    if backend == "disabled":
+        return {"error": "代码执行未启用安全隔离，已禁用", "unavailable": True}
+    if backend == "docker":
+        return run_isolated({"operation": "generator", "source": source}, 10)
     import subprocess
     import sys
     import tempfile
@@ -206,8 +224,9 @@ def _run_gen(source: str) -> dict:
         gen_path = Path(tmp) / "gen.py"
         gen_path.write_text(source, encoding="utf-8")
         try:
-            proc = subprocess.run(
+            proc = run_process(
                 [sys.executable, "-I", str(gen_path)],
+                cwd=tmp,
                 capture_output=True,
                 timeout=10,
             )

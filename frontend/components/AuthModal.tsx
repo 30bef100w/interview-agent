@@ -36,13 +36,13 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    setPassword("");
     if (open) {
       setMode(initialMode);
       setError(initialError);
       const saved = loadRememberedLogin();
       if (saved) {
         setUsername(saved.username);
-        setPassword(saved.password);
         setRemember(true);
       }
     }
@@ -63,6 +63,7 @@ export default function AuthModal({
 
   function switchMode(m: Mode) {
     setMode(m);
+    setPassword("");
     setError("");
     onModeChange?.(m);
   }
@@ -94,8 +95,9 @@ export default function AuthModal({
       localStorage.setItem("username", res.user?.username || username);
       localStorage.setItem("is_admin", res.user?.is_admin ? "1" : "0");
       if (mode === "login") {
-        saveRememberedLogin(username, password, remember);
+        saveRememberedLogin(username, remember);
       }
+      setPassword("");
       onClose();
       if (onLoggedIn) onLoggedIn();
       else router.push("/dashboard");
@@ -141,6 +143,8 @@ export default function AuthModal({
         <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-3.5">
           <input
             type="text"
+            name="username"
+            autoComplete="username"
             placeholder="用户名"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -150,6 +154,8 @@ export default function AuthModal({
           />
           <input
             type="password"
+            name="password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
             placeholder="密码"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -164,7 +170,7 @@ export default function AuthModal({
                 onChange={(e) => setRemember(e.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 text-sky-600 focus:ring-sky-500"
               />
-              记住密码
+              记住用户名
             </label>
           ) : null}
           {error && (

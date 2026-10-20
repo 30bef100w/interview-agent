@@ -1,7 +1,7 @@
-"""沙箱执行器：在 subprocess 里跑用户提交的代码（Python / Java / C++ / Go）。
+"""代码执行器（Python / Java / C++ / Go）。生产环境通过隔离容器执行。
 
 - 用例 + 用户代码 → 逐个用例调用并返回结果（异常也作为结果返回）
-- 资源限制：超时（调用方控制）；Python 另有模块白名单
+- 本地模式仅供开发运行受信任代码，Python 模块检查不是安全边界
 - 对错判断不在本模块：只负责执行，对比由判题器做
 - 参考解 / 生成器始终走 Python；仅用户代码支持多语言
 """
@@ -15,6 +15,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+from app.services.code_process import run_process
 
 from app.services.code_lang import (
     SUPPORTED_LANGS,
@@ -132,6 +134,13 @@ def _java_tools() -> tuple[str, str] | None:
 
 def available_languages() -> list[str]:
     """当前机器可实际编译/运行的语言（python 始终可用）。"""
+    from app.services.code_sandbox import runner_backend
+
+    backend = runner_backend()
+    if backend == "disabled":
+        return []
+    if backend == "docker":
+        return list(SUPPORTED_LANGS) if shutil.which("docker") else []
     langs = ["python"]
     if _java_tools():
         langs.append("java")
@@ -151,7 +160,29 @@ def run_code(
     problem_cfg: dict | None = None,
     coding_mode: str = "function",
 ) -> dict:
-    """在沙箱里跑用户代码，返回 {results: [...], timed_out: bool, error: str}。
+    from app.services.code_sandbox import runner_backend, run_isolated
+
+    backend = runner_backend()
+    if backend == "disabled":
+        return {"results": [], "timed_out": False, "error": "代码执行未启用安全隔离，已禁用", "unavailable": True}
+    if backend == "docker":
+        return run_isolated({
+            "code": code, "cases": cases, "method": method, "language": language,
+            "problem_cfg": problem_cfg, "coding_mode": coding_mode,
+        }, timeout_seconds)
+    return _run_code_local(code, cases, method, timeout_seconds, language, problem_cfg, coding_mode)
+
+
+def _run_code_local(
+    code: str,
+    cases: list[dict],
+    method: str = "solve",
+    timeout_seconds: float = 5.0,
+    language: str = "python",
+    problem_cfg: dict | None = None,
+    coding_mode: str = "function",
+) -> dict:
+    """本地执行，仅供容器内部或开发时运行受信任代码。
 
     coding_mode:
       - function：调用 Solution.method / 等价 harness（力扣函数模式）
@@ -239,7 +270,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                 path.write_text(code, encoding="utf-8")
                 (tmp / "guard.py").write_text(GUARD_SOURCE.replace("solution.py", "main.py"), encoding="utf-8")
                 env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
-                proc = subprocess.run(
+                proc = run_process(
                     [
                         sys.executable,
                         "-I",
@@ -259,7 +290,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                     return {"stdout": "", "error": "服务器未安装可用 JDK", "timed_out": False}
                 java_bin, javac_bin = tools
                 (tmp / "Main.java").write_text(code, encoding="utf-8")
-                compile_proc = subprocess.run(
+                compile_proc = run_process(
                     _javac_cmd(javac_bin, "Main.java"),
                     cwd=tmp,
                     capture_output=True,
@@ -268,7 +299,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                 if compile_proc.returncode != 0:
                     err = (_decode_bytes(compile_proc.stderr) or _decode_bytes(compile_proc.stdout)).strip()
                     return {"stdout": "", "error": f"编译错误:\n{err}", "timed_out": False}
-                proc = subprocess.run(
+                proc = run_process(
                     _java_cmd(java_bin, "Main"),
                     cwd=tmp,
                     input=stdin_text.encode("utf-8"),
@@ -286,7 +317,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                 src = tmp / "main.cpp"
                 src.write_text(code, encoding="utf-8")
                 exe = tmp / ("main.exe" if os.name == "nt" else "main")
-                compile_proc = subprocess.run(
+                compile_proc = run_process(
                     [cxx, "-O2", "-std=c++17", "-o", str(exe), str(src)],
                     capture_output=True,
                     timeout=30,
@@ -294,7 +325,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                 if compile_proc.returncode != 0:
                     err = _decode_bytes(compile_proc.stderr or compile_proc.stdout).strip()
                     return {"stdout": "", "error": f"编译错误:\n{err}", "timed_out": False}
-                proc = subprocess.run(
+                proc = run_process(
                     [str(exe)],
                     input=stdin_text.encode("utf-8"),
                     capture_output=True,
@@ -305,7 +336,7 @@ def _exec_program(code: str, language: str, stdin_text: str, timeout_seconds: fl
                     return {"stdout": "", "error": "服务器未安装 Go", "timed_out": False}
                 (tmp / "main.go").write_text(code, encoding="utf-8")
                 env = dict(os.environ, GO111MODULE="off")
-                proc = subprocess.run(
+                proc = run_process(
                     ["go", "run", "main.go"],
                     cwd=tmp,
                     input=stdin_text.encode("utf-8"),
@@ -341,7 +372,7 @@ def _run_python(code: str, cases: list[dict], method: str, timeout_seconds: floa
 
         try:
             env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1")
-            proc = subprocess.run(
+            proc = run_process(
                 [
                     sys.executable,
                     "-I",
@@ -371,7 +402,7 @@ def _run_java(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) -
         (tmp / "Solution.java").write_text(code, encoding="utf-8")
         (tmp / "Harness.java").write_text(build_java_harness(cfg, cases), encoding="utf-8")
         try:
-            compile_proc = subprocess.run(
+            compile_proc = run_process(
                 _javac_cmd(javac_bin, "Solution.java", "Harness.java"),
                 cwd=tmp,
                 capture_output=True,
@@ -383,7 +414,7 @@ def _run_java(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) -
             err = (_decode_bytes(compile_proc.stderr) or _decode_bytes(compile_proc.stdout)).strip()
             return {"results": [], "timed_out": False, "error": f"编译错误:\n{err or f'javac exit {compile_proc.returncode}'}"}
         try:
-            proc = subprocess.run(
+            proc = run_process(
                 _java_cmd(java_bin, "Harness"),
                 cwd=tmp,
                 capture_output=True,
@@ -413,7 +444,7 @@ def _run_cpp(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) ->
         src.write_text(build_cpp_harness(cfg, cases, code), encoding="utf-8")
         exe = tmp / ("main.exe" if os.name == "nt" else "main")
         try:
-            compile_proc = subprocess.run(
+            compile_proc = run_process(
                 [cxx, "-O2", "-std=c++17", "-o", str(exe), str(src)],
                 capture_output=True,
                 timeout=30,
@@ -424,7 +455,7 @@ def _run_cpp(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) ->
             err = _decode_bytes(compile_proc.stderr or compile_proc.stdout).strip()
             return {"results": [], "timed_out": False, "error": f"编译错误:\n{err}"}
         try:
-            proc = subprocess.run([str(exe)], capture_output=True, timeout=timeout_seconds)
+            proc = run_process([str(exe)], cwd=tmp, capture_output=True, timeout=timeout_seconds)
         except subprocess.TimeoutExpired:
             return {"results": [], "timed_out": True, "error": f"运行超时（>{timeout_seconds:.1f}s）"}
     return _parse_proc(proc, start)
@@ -439,7 +470,7 @@ def _run_go(code: str, cases: list[dict], cfg: dict, timeout_seconds: float) -> 
         (tmp / "main.go").write_text(build_go_harness(cfg, cases, code), encoding="utf-8")
         env = dict(os.environ, GO111MODULE="off")
         try:
-            proc = subprocess.run(
+            proc = run_process(
                 ["go", "run", "main.go"],
                 cwd=tmp,
                 capture_output=True,

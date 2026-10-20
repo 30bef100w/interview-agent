@@ -5,8 +5,6 @@ import pymupdf
 from app.prompts.resume import PROFILE_SYSTEM
 from app.services.llm.client import OpenAiLlm
 
-_llm = OpenAiLlm()
-
 
 def extract_text(pdf_path: Path) -> str:
     doc = pymupdf.open(pdf_path)
@@ -17,4 +15,7 @@ def extract_text(pdf_path: Path) -> str:
 
 
 def build_profile(raw_text: str) -> dict:
-    return _llm.chat_json(PROFILE_SYSTEM, f"以下是候选人简历原文，请提取画像：\n\n{raw_text[:12000]}")
+    # Importing API routes must not require an LLM key. Initialize only when
+    # profile extraction is requested; the underlying client is still cached.
+    llm = OpenAiLlm()
+    return llm.chat_json(PROFILE_SYSTEM, f"以下是候选人简历原文，请提取画像：\n\n{raw_text[:12000]}")

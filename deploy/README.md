@@ -91,3 +91,30 @@ docker compose down -v   # 同时删除数据库卷（慎用）
 ## 8. 运维与排障
 
 可观测性（trace / guard / 飞书告警）与引擎兜底机制见：[`docs/开发与运维-可观测性与兜底.md`](../docs/开发与运维-可观测性与兜底.md)。
+
+## 9. 隔离判题
+
+`CODE_RUNNER_BACKEND=auto` 在生产环境选择 Docker 隔离执行；开发环境选择本地执行，本地模式只用于受信任代码。生产环境即使设置 `local` 也会禁用执行。Docker、镜像或资源不可用时返回错误，不回退到后端进程。其他面试功能可以继续使用。
+
+在后端实际使用的 Docker 引擎上构建判题镜像（项目根目录执行）：
+
+```bash
+docker build -f backend/sandbox/Dockerfile -t deepask-code-runner:local backend
+```
+
+执行后端的系统账号需要可用的 Docker CLI，以及专用 rootless Docker 引擎的访问权限。执行主机应使用 cgroup v2，并为 rootless 引擎配置资源控制委派；启用前运行下述集成测试确认内存和进程限制实际生效。可以通过 `DOCKER_HOST` 指向已配置好的引擎；TLS 连接支持 `DOCKER_TLS_VERIFY` 和 `DOCKER_CERT_PATH`。后端与引擎使用同一个镜像标签，判题期间不自动拉取镜像。
+
+默认 Compose 不把宿主机 Docker socket 挂进 Web 后端，也不默认安装 Docker CLI，因此直接使用默认 Compose 时算法执行会返回“隔离判题环境不可用”。启用公网判题前，需先为后端配置上述执行环境；勿为了快速启用而把宿主机 root Docker socket 挂入 Web 容器。建议使用专用执行主机或虚拟机上的 rootless 引擎，并限制后端到引擎的访问。
+
+每次请求创建临时容器，使用非 root 用户、只读根目录、独立临时目录、断网、去除 capabilities 和禁止权限提升。单容器限制 512 MiB 内存、1 CPU、64 个进程，限制文件大小、文件描述符、CPU 时间和输出；后端每个进程最多同时处理两次隔离执行。超时后强制删除容器，正常结束也删除。生成测试用例和参考解也通过同一执行边界。环境不可用或繁忙时接口返回 503，不评分、不推进面试题目。
+
+执行容器不挂载题库、数据库、上传文件或源码工作区，不继承 API Key、JWT Secret 或数据库连接。容器仍共享执行主机内核；对于公开接受恶意提交的服务，应在专用虚拟机上运行并保持引擎与内核更新。
+
+构建镜像后可运行隔离回归（会真实启动临时容器）：
+
+```bash
+cd backend
+RUN_SANDBOX_TESTS=1 python -m pytest tests/test_code_security.py -q
+```
+
+CI 的 `sandbox` 任务执行相同检查，验证四种语言、完整程序模式，以及文件、网络和环境变量隔离。不具备 Docker 的本地环境会跳过这些集成用例，其余回归仍执行。

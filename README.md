@@ -101,7 +101,8 @@ npm run dev
 把代码推到 GitHub 的 `main`，或开 Pull Request，仓库会自动跑：
 
 - 后端：`pytest`（公开仓库没有 4.5 万题库，依赖题库的用例会自动跳过）
-- 前端：`next build`
+- 判题隔离：构建独立执行镜像，验证四种语言及隔离边界
+- 前端：登录缓存安全回归与 `next build`
 
 结果在 GitHub 仓库页的 **Actions**。本地可先跑：
 
@@ -125,6 +126,7 @@ docker compose --profile bundled-db up -d --build
 - **PostgreSQL**：compose 内置数据库；若本机已有 Postgres，改 `DATABASE_URL` 指向 `host.docker.internal`
 - **CORS**：Nginx 同源反代时 `CORS_ORIGINS` 可留空；直连前后端分离部署时填域名
 - **安全**：`APP_ENV=production` 且 `JWT_SECRET` 为默认值时后端拒绝启动
+- **判题**：生产只通过隔离容器执行；需额外配置专用执行环境，缺失时拒绝执行，配置见 [`deploy/README.md`](deploy/README.md#9-隔离判题)
 
 ## 开源范围
 

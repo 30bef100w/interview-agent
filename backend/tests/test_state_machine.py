@@ -1,4 +1,6 @@
 """状态机引擎单测：用 FakeLlm 模拟 LLM，验证状态迁移与引擎决策规则（不花钱）。"""
+import pytest
+
 from app.prompts.interview import (
     ASK_QUESTION_SYSTEM,
     FINAL_REPORT_SYSTEM,
@@ -181,6 +183,39 @@ def make_state(session_id: int = 1, total_rounds: int = 8) -> InterviewState:
     return InterviewState(session_id=session_id, resume_raw=RESUME_RAW, profile=PROFILE, total_rounds=total_rounds)
 
 
+@pytest.fixture
+def coding_question(monkeypatch):
+    """State transitions need a coding slot, not private production problems."""
+    question = {"slug": "test-increment", "title": "整数加一", "difficulty": "Easy",
+                "description": "返回给定整数加一的结果。"}
+    monkeypatch.setattr(
+        "app.services.interviewer_engine.planning.pick_coding_question",
+        lambda **kwargs: question.copy(),
+    )
+
+
+@pytest.fixture
+def planning_material(monkeypatch):
+    """Deterministic, distinct topics for the question-count contract."""
+    topics = [
+        "解释数据库事务隔离级别与脏读和幻读之间的关系",
+        "说明TCP连接建立和关闭过程以及半关闭的含义",
+        "介绍操作系统进程调度策略以及上下文切换的代价",
+        "比较垃圾回收标记清除与复制算法的适用场景",
+        "说明二叉搜索树与哈希表查询复杂度及冲突处理方式",
+        "描述消息队列生产者确认与消费者重复消费的处理",
+        "解释HTTP缓存协商及ETag与LastModified的区别",
+        "说明分布式系统中时钟漂移对租约一致性的影响",
+    ]
+
+    def bagu(self, n, **kwargs):
+        return [{"qid": "", "type": "ba_gu", "topic": text, "text": text,
+                 "bank_question": text, "from_bank": True, "rubric": ""}
+                for text in topics[:n]]
+
+    monkeypatch.setattr(InterviewEngine, "_bagu_from_bank", bagu)
+
+
 def run_to_asking(engine: InterviewEngine, state: InterviewState, mode: str = "full", type_: str = "full"):
     """完整创建流程：create（含规划前置）→ intro 回答 → 返回 (state, 第一题消息)。"""
     state, opening = engine.create(
@@ -259,7 +294,7 @@ def test_target_role_and_company_injected():
     assert "Java 后端" in llm.last_user
 
 
-def test_eleven_rounds_builds_enough_questions():
+def test_eleven_rounds_builds_enough_questions(coding_question, planning_material):
     """用户选 11 轮时，题单不应被 0.7 系数砍成四五题。"""
     llm = FakeLlm()
     engine = InterviewEngine(llm)
@@ -453,7 +488,7 @@ def test_rounds_cap_stops_followup():
         assert message == "面试官的问题文本"  # 直接下一题，不追问
 
 
-def test_last_question_leads_to_summarizing():
+def test_last_question_leads_to_summarizing(coding_question):
     llm = FakeLlm(follow_up=False)
     engine = InterviewEngine(llm)
     state, _ = run_to_asking(engine, make_state())
@@ -475,7 +510,7 @@ def test_last_question_leads_to_summarizing():
     assert state.per_question[coding_qid]["score"] == 8
 
 
-def test_handle_coding_records_verdict_and_advances():
+def test_handle_coding_records_verdict_and_advances(coding_question):
     llm = FakeLlm(follow_up=False)
     engine = InterviewEngine(llm)
     state, _ = run_to_asking(engine, make_state())
