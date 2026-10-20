@@ -10,6 +10,7 @@ import { FeedbackProvider, useFeedback } from "@/components/FeedbackProvider";
 import { ToastProvider } from "@/components/Toast";
 import { IconChart, IconChat, IconHistory, IconMic, IconNotebook, IconReport, IconSliders, IconTarget, IconUpload, Logo } from "@/components/ui";
 import { api, clearToken, getToken } from "@/lib/api";
+import { loadRememberedLogin } from "@/lib/auth-storage";
 import { unreadCount } from "@/lib/notifications";
 
 type NavItem = { href: string; label: string; icon: ReactNode };
@@ -272,6 +273,10 @@ function AppShellInner({ children }: { children: ReactNode }) {
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  useEffect(() => {
+    // Remove credentials saved by older versions even for already signed-in users.
+    loadRememberedLogin();
+  }, []);
   const bare =
     pathname === "/" ||
     pathname === "/login" ||

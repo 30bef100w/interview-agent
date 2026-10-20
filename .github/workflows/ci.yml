@@ -28,6 +28,24 @@ jobs:
           APP_ENV: development
         run: python -m pytest tests -q --tb=short
 
+  sandbox:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pytest pydantic-settings
+      - name: Build isolated code runner
+        run: docker build -f sandbox/Dockerfile -t deepask-code-runner:local .
+      - name: Verify isolation and language execution
+        env:
+          RUN_SANDBOX_TESTS: "1"
+        run: python -m pytest tests/test_code_security.py::TestDockerIsolation -q --tb=short
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -41,4 +59,5 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build

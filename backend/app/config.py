@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     # Redis（会话 checkpoint；未配置则回落文件）
     redis_url: str = ""
 
+    # auto：生产使用隔离容器，开发仅运行本地受信任代码。
+    code_runner_backend: str = "auto"  # auto | docker | local | disabled
+    code_runner_image: str = "deepask-code-runner:local"
+
     # 飞书运维告警（群机器人 Webhook）
     feishu_webhook_url: str = ""
     feishu_webhook_secret: str = ""  # 自定义机器人「签名校验」secret；未开启可留空

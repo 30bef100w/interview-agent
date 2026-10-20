@@ -2,7 +2,6 @@ const REMEMBER_KEY = "fa_remember_login";
 
 type Remembered = {
   username: string;
-  password: string;
 };
 
 export function loadRememberedLogin(): Remembered | null {
@@ -10,21 +9,25 @@ export function loadRememberedLogin(): Remembered | null {
   try {
     const raw = localStorage.getItem(REMEMBER_KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw) as Remembered;
-    if (!data.username || !data.password) return null;
-    return data;
+    const data = JSON.parse(raw);
+    // Delete legacy plaintext credentials before attempting any new write.
+    localStorage.removeItem(REMEMBER_KEY);
+    if (!data || typeof data.username !== "string" || !data.username) return null;
+    const saved: Remembered = { username: data.username };
+    localStorage.setItem(REMEMBER_KEY, JSON.stringify(saved));
+    return saved;
   } catch {
+    try { localStorage.removeItem(REMEMBER_KEY); } catch {}
     return null;
   }
 }
 
-export function saveRememberedLogin(username: string, password: string, remember: boolean) {
+export function saveRememberedLogin(username: string, remember: boolean) {
   if (typeof window === "undefined") return;
   try {
+    localStorage.removeItem(REMEMBER_KEY);
     if (remember) {
-      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username, password }));
-    } else {
-      localStorage.removeItem(REMEMBER_KEY);
+      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ username }));
     }
   } catch {
     /* ignore */

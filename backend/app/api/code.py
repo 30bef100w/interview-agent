@@ -74,6 +74,8 @@ def run_code_examples(
     result = run_examples(
         payload.code, cfg, language=payload.language, coding_mode=payload.coding_mode
     )
+    if result["verdict"] == "unavailable":
+        raise HTTPException(status_code=503, detail=result.get("message") or "判题服务暂不可用")
     return CodeRunResponse(slug=payload.slug, **{k: result[k] for k in ("verdict", "passed", "total", "results", "message") if k in result})
 
 
@@ -93,6 +95,8 @@ def submit_code(
     result = judge_code(
         payload.code, payload.slug, language=payload.language, coding_mode=payload.coding_mode
     )
+    if result.get("final") == "unavailable" or result.get("verdict") == "unavailable":
+        raise HTTPException(status_code=503, detail="判题服务暂不可用，请稍后重试")
 
     engine = _engine_for(db, current_user, session.id)
     review = engine.llm.chat_json(
