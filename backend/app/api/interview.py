@@ -43,13 +43,15 @@ from app.schemas.api import (
 from app.schemas.interview import InterviewState
 from app.services.billing import (
     assert_platform_allowed,
-    deduct_platform_quota,
+    reserve_session_quota,
     touch_active,
     uses_platform_key,
 )
 from app.services.interviewer_engine import InterviewEngine
 from app.services.llm.client import OpenAiLlm, StreamingLlm, UsageSink
 from app.services.llm.manager import resolve_llm_config
+from app.services.interview_operations import run_operation
+from app.services.creation_recovery import CREATION_TIMEOUT_SECONDS, fail_creation
 
 router = APIRouter(prefix="/api/interview", tags=["interview"])
 
@@ -62,9 +64,19 @@ def _engine_for(
     enforce_quota: bool = True,
 ) -> InterviewEngine:
     """按用户 LLM 配置构造引擎（带用量统计）；未配置的用户走系统默认 key。"""
-    if enforce_quota:
-        assert_platform_allowed(db, user)
     platform = uses_platform_key(db, user.id)
+    if enforce_quota and platform:
+        funded_session = db.get(InterviewSession, session_id) if session_id else None
+        if funded_session is not None and funded_session.user_id != user.id:
+            raise HTTPException(404, "面试会话不存在")
+        if funded_session is not None and funded_session.billing_source == "user":
+            raise HTTPException(409, "本场使用自填 Key 创建，请恢复自填 Key 后继续，或重新创建平台面试")
+        funded = funded_session is not None and (
+            funded_session.quota_state in {"reserved", "consumed"}
+            or (funded_session.billing_source == "legacy" and funded_session.status in {"active", "finished"})
+        )
+        if not funded:
+            assert_platform_allowed(db, user)
     setting = db.scalars(
         select(UserLlmSetting).where(UserLlmSetting.user_id == user.id)
     ).first()
@@ -133,6 +145,9 @@ def _build_session_view(session: InterviewSession, state: InterviewState) -> dic
             current_coding = build_problem_view(q.get("slug", ""))
     return {
         "session_id": session.id,
+        "version": session.version,
+        "processing": bool(session.pending_operation),
+        "last_submission_id": session.last_submission_id,
         "mode": session.interview_mode,
         "type": session.interview_type,
         "status": session.status,
@@ -421,9 +436,11 @@ def abandon_session(
     db: Session = Depends(get_db),
 ) -> dict:
     """中途退出：结束本场但不生成报告。可从历史里看到「已退出」。"""
-    session = _get_owned_session(db, session_id, current_user.id)
-    if session.status != "active":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="面试已结束")
+    return run_operation(db, session_id, current_user.id, "abandon", {},
+                         lambda session: _abandon(session))
+
+
+def _abandon(session: InterviewSession) -> dict:
     state = _load_state(session)
     state.stage = "FINISHED"
     state.history.append(
@@ -435,7 +452,6 @@ def abandon_session(
     _save_state(session, state)
     session.status = "abandoned"
     session.finished_at = datetime.now(timezone.utc)
-    db.commit()
     return {
         "session_id": session.id,
         "status": session.status,
@@ -607,7 +623,12 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
         user = db.get(User, user_id)
         resume = db.get(Resume, meta["resume_id"])
         if session is None or user is None or resume is None:
+            fail_creation(db, session_id)
             return
+        if session.status != "creating":
+            return
+        if int(user.is_disabled or 0):
+            raise HTTPException(403, "账号已被禁用")
         profile = json.loads(resume.profile_json) if resume.profile_json else {}
         state, _opening = _engine_for(db, user, session.id).create(
             session.id,
@@ -627,8 +648,8 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
         )
         _save_state(session, state)
         session.status = "active"
-        if meta.get("platform"):
-            deduct_platform_quota(db, user)
+        if session.quota_state == "reserved":
+            session.quota_state = "consumed"
         touch_active(user)
         db.commit()
         logger.info(
@@ -646,11 +667,8 @@ def _plan_session_background(session_id: int, user_id: int, payload: dict, meta:
             timings=getattr(state, "create_timings", None) or {},
         )
     except Exception as exc:
-        session = db.get(InterviewSession, session_id)
-        if session is not None:
-            session.status = "failed"
-            db.add(session)
-            db.commit()
+        db.rollback()
+        fail_creation(db, session_id)
         try:
             trace_step(session_id, "failed", error=str(exc)[:400])
         except Exception:  # noqa: BLE001
@@ -729,7 +747,9 @@ def create_session(
         status="creating",
         target_role=(payload.target_role or "").strip(),
         target_company=(payload.target_company or "").strip(),
+        creation_deadline=time.time() + CREATION_TIMEOUT_SECONDS,
     )
+    reserve_session_quota(db, current_user, session)
     db.add(session)
     db.commit()
     db.refresh(session)
@@ -782,6 +802,9 @@ def get_create_progress(
     db: Session = Depends(get_db),
 ) -> CreateProgressOut:
     session = _get_owned_session(db, session_id, current_user.id)
+    if session.status == "creating" and session.creation_deadline and session.creation_deadline <= time.time():
+        fail_creation(db, session_id, expired_only=True)
+        db.refresh(session)
     if session.status == "active":
         state = _load_state(session)
         plan_types = [str(q.get("type") or "") for q in (state.plan or [])]
@@ -802,7 +825,7 @@ def get_create_progress(
             progress=0,
             label="规划失败",
             step="failed",
-            detail=_read_create_failure_detail(session_id),
+            detail=_read_create_failure_detail(session_id) or "规划失败或处理超时，预占的平台次数已退回，请重新创建",
         )
     progress, label, step = _read_create_progress(session_id)
     return CreateProgressOut(status="creating", progress=progress, label=label, step=step)
@@ -846,7 +869,8 @@ def _close_with_report(session: InterviewSession, db: Session, state, engine):
 
 
 def _advance(
-    session: InterviewSession, db: Session, text: str, engine: InterviewEngine
+    session: InterviewSession, db: Session, text: str, engine: InterviewEngine,
+    *, commit: bool = True,
 ) -> dict:
     """推进状态机并写库。返回 {message, stage, status, finished, report}。"""
     from app.observability.trace_context import set_session_id
@@ -873,9 +897,6 @@ def _advance(
         if state.cursor == before_cursor:
             qrow.follow_up_count += 1  # 追问，题目未前进
         _answer_row(db, session.id, qrow.id, text, state.per_question[f"q{before_cursor + 1}"])
-        if state.stage == "SUMMARIZING":
-            _save_state(session, state)
-            db.commit()
     elif state.stage in {"ASK_BACK", "SUMMARIZING"}:
         message = ""
     else:
@@ -885,11 +906,13 @@ def _advance(
         state, report, message = _close_with_report(session, db, state, engine)
 
     _save_state(session, state)
-    db.commit()
+    if commit:
+        db.commit()
     try:
         from app.services.session_checkpoint import save_checkpoint
 
-        save_checkpoint(session.id, _build_session_view(session, state))
+        if commit:
+            save_checkpoint(session.id, _build_session_view(session, state))
     except Exception:  # noqa: BLE001  checkpoint 失败不影响主流程
         logger.debug("checkpoint save failed session_id=%s", session.id, exc_info=True)
     return {
@@ -908,12 +931,28 @@ def submit_answer(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AnswerOut:
-    session = _get_owned_session(db, session_id, current_user.id)
-    if session.status != "active":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="面试已结束")
-
-    out = _advance(session, db, payload.text, _engine_for(db, current_user, session.id))
+    out = _submit_answer_command(db, current_user, session_id, payload)
     return AnswerOut(**out)
+
+
+def _submit_answer_command(db: Session, user: User, session_id: int, payload: AnswerRequest,
+                           on_token=None) -> dict:
+    def execute(session: InterviewSession) -> dict:
+        if int(user.is_disabled or 0):
+            raise HTTPException(403, "账号已被禁用")
+        engine = _engine_for(db, user, session.id)
+        if on_token is not None:
+            engine = InterviewEngine(StreamingLlm(engine.llm, on_token))
+        return _advance(session, db, payload.text, engine, commit=False)
+    out = run_operation(db, session_id, user.id, "answer", payload.model_dump(), execute)
+    try:
+        from app.services.session_checkpoint import save_checkpoint
+        session = db.get(InterviewSession, session_id)
+        out["_checkpoint_seq"] = save_checkpoint(session_id, _build_session_view(session, _load_state(session)))
+    except Exception:
+        logger.debug("checkpoint save failed session_id=%s", session_id, exc_info=True)
+        out["_checkpoint_seq"] = 0
+    return out
 
 
 @router.post("/session/{session_id}/answer/stream")
@@ -927,13 +966,13 @@ def submit_answer_stream(
 
     事件：token（消息片段）/ done（最终 JSON：message/stage/status/finished/report）/ error。
     """
-    session = _get_owned_session(db, session_id, current_user.id)
-    if session.status != "active":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="面试已结束")
+    _get_owned_session(db, session_id, current_user.id)
 
     # 请求级 Session 不能进后台线程（SQLAlchemy 非线程安全）；只捕获标量供子线程自建连接。
     user_id = current_user.id
-    answer_text = payload.text
+    password_hash_at_start = current_user.password_hash
+    # Release the request's read transaction before waiting on the streaming worker.
+    db.rollback()
 
     def event_stream():
         from app.observability.trace_context import new_trace_id, set_session_id, set_trace_id
@@ -950,14 +989,11 @@ def submit_answer_stream(
                 if sess is None or user is None or sess.user_id != user_id:
                     q.put(("error", "会话不存在"))
                     return
-                if sess.status != "active":
-                    q.put(("error", "面试已结束"))
+                if int(user.is_disabled or 0) or user.password_hash != password_hash_at_start:
+                    q.put(("error", "账号已禁用或登录已失效，请重新登录"))
                     return
-                engine = _engine_for(thread_db, user, session_id)
-                stream_engine = InterviewEngine(
-                    StreamingLlm(engine.llm, lambda tok: q.put(("token", tok)))
-                )
-                out = _advance(sess, thread_db, answer_text, stream_engine)
+                out = _submit_answer_command(thread_db, user, session_id, payload,
+                                             lambda tok: q.put(("token", tok)))
                 q.put(("done", out))
             except Exception as e:  # noqa: BLE001  线程内异常转为 error 事件
                 try:

@@ -11,11 +11,12 @@ import InterviewStatusBar from "@/components/interview/InterviewStatusBar";
 import MessageTimeline, { type ChatMsg } from "@/components/interview/MessageTimeline";
 import { Badge, ErrorBanner, IconSparkles } from "@/components/ui";
 import { useToast } from "@/components/Toast";
-import { ApiError, api, getToken } from "@/lib/api";
+import { ApiError, api, getToken, newSubmissionId } from "@/lib/api";
 import { friendlyInterviewError } from "@/lib/interviewError";
 import { streamPost } from "@/lib/sse";
 import { useInterviewWebSocket } from "@/hooks/useInterviewWebSocket";
 import { useVoiceEnabled } from "@/lib/voice";
+import { loadDraft, removeDraft, saveDraft } from "@/lib/drafts";
 
 type SessionInfo = {
   session_id: number;
@@ -26,6 +27,9 @@ type SessionInfo = {
   current_coding: CodingProblem | null;
   rounds_used: number;
   total_rounds: number;
+  version: number;
+  processing: boolean;
+  last_submission_id?: string | null;
 };
 type StreamDone = {
   message: string;
@@ -106,6 +110,38 @@ export default function ChatPage() {
   const sawToken = useRef(false);
   const sendingRef = useRef(false);
   const streamingRef = useRef(false);
+  const pendingSubmission = useRef<{ id: string; text: string; version: number } | null>(null);
+  const [draftSession, setDraftSession] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = loadDraft<{ text: string; pending: typeof pendingSubmission.current }>(`answer:${sessionId}`);
+    setInput(saved?.text ?? "");
+    pendingSubmission.current = saved?.pending ?? null;
+    setDraftSession(sessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (draftSession === sessionId) saveDraft(`answer:${sessionId}`, { text: input, pending: pendingSubmission.current });
+  }, [input, sessionId, draftSession]);
+
+  const acknowledge = useCallback(() => {
+    const pending = pendingSubmission.current;
+    if (!pending) return;
+    pendingSubmission.current = null;
+    setInput((value) => value.trim() === pending.text ? "" : value);
+    removeDraft(`answer:${sessionId}`);
+  }, [sessionId]);
+
+  const acceptSnapshot = useCallback((d: SessionInfo) => {
+    if (pendingSubmission.current?.id === d.last_submission_id) acknowledge();
+    else if (!d.processing && pendingSubmission.current) {
+      // Server confirmed no operation is running; a fresh retry may use the new version.
+      pendingSubmission.current = null;
+    }
+    setInfo(d);
+    setMsgs(d.history);
+    setDisconnected(false);
+  }, [acknowledge]);
 
   useEffect(() => {
     sendingRef.current = sending;
@@ -129,13 +165,11 @@ export default function ChatPage() {
   const refreshSession = useCallback(async () => {
     try {
       const d = await api<SessionInfo>(`/api/interview/session/${sessionId}`);
-      setInfo(d);
-      setMsgs(d.history);
-      setDisconnected(false);
+      acceptSnapshot(d);
     } catch {
       setDisconnected(true);
     }
-  }, [sessionId]);
+  }, [sessionId, acceptSnapshot]);
 
   const finishTyping = useCallback(
     (out: StreamDone) => {
@@ -190,6 +224,7 @@ export default function ChatPage() {
 
   const handleStreamDone = useCallback(
     (raw: StreamDone) => {
+      acknowledge();
       if (sawToken.current) {
         pendingDone.current = raw;
         if (!typeBuf.current) finishTyping(raw);
@@ -201,7 +236,7 @@ export default function ChatPage() {
       void refreshSession();
       window.requestAnimationFrame(() => composerRef.current?.focus());
     },
-    [finishTyping, refreshSession]
+    [acknowledge, finishTyping, refreshSession]
   );
 
   const handleStreamError = useCallback(
@@ -212,15 +247,12 @@ export default function ChatPage() {
       }
       typeBuf.current = "";
       pendingDone.current = null;
-      const gotReply = sawToken.current;
       sawToken.current = false;
+      sendingRef.current = false;
+      streamingRef.current = false;
       setSending(false);
       setStreaming(false);
       void refreshSession();
-      if (gotReply) {
-        setDisconnected(false);
-        return;
-      }
       const text = friendlyInterviewError(msg);
       toast.err(text);
       setDisconnected(text === "发送失败，请再试一次");
@@ -246,9 +278,7 @@ export default function ChatPage() {
       },
       onSnapshot: (data) => {
         if (sendingRef.current || streamingRef.current) return;
-        setInfo(data as SessionInfo);
-        setMsgs(data.history as ChatMsg[]);
-        setDisconnected(false);
+        acceptSnapshot(data as SessionInfo);
       },
       onToken: handleStreamToken,
       onDone: (data) => handleStreamDone(data),
@@ -301,9 +331,7 @@ export default function ChatPage() {
     setLoadError("");
     api<SessionInfo>(`/api/interview/session/${sessionId}`)
       .then((d) => {
-        setInfo(d);
-        setMsgs(d.history);
-        setDisconnected(false);
+        acceptSnapshot(d);
       })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 401) {
@@ -325,12 +353,12 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!info || info.status !== "active" || info.stage === "FINISHED") return;
-    if (wsConnected) return;
+    if (wsConnected && !info.processing) return;
     const id = window.setInterval(() => {
       void refreshSession();
     }, 20000);
     return () => window.clearInterval(id);
-  }, [info?.status, info?.stage, refreshSession, wsConnected]);
+  }, [info?.status, info?.stage, info?.processing, refreshSession, wsConnected]);
 
   useEffect(() => {
     const active = document.activeElement;
@@ -350,8 +378,13 @@ export default function ChatPage() {
 
   async function send() {
     const text = input.trim();
-    if (!text || sending || streaming) return;
-    setInput("");
+    if (!text || sendingRef.current || sending || streaming || !info || info.processing) return;
+    const pending = pendingSubmission.current?.text === text ? pendingSubmission.current : {
+      id: newSubmissionId(), text, version: info.version,
+    };
+    pendingSubmission.current = pending;
+    saveDraft(`answer:${sessionId}`, { text: input, pending });
+    sendingRef.current = true;
     setSending(true);
     sawToken.current = false;
     typeBuf.current = "";
@@ -362,11 +395,11 @@ export default function ChatPage() {
     }
     setMsgs((m) => [...m, { role: "candidate", text }]);
     try {
-      if (sendAnswer(text)) return;
+      if (sendAnswer(text, pending.id, pending.version)) return;
 
       await streamPost(
         `/api/interview/session/${sessionId}/answer/stream`,
-        { text },
+        { text, submission_id: pending.id, expected_version: pending.version },
         {
           onToken: handleStreamToken,
           onDone: (raw) => handleStreamDone(raw as StreamDone),
@@ -375,15 +408,7 @@ export default function ChatPage() {
         }
       );
     } catch (e) {
-      if (typeTimer.current) clearInterval(typeTimer.current);
-      typeTimer.current = null;
-      pendingDone.current = null;
-      setStreaming(false);
-      setSending(false);
-      const text = friendlyInterviewError(e instanceof Error ? e.message : "");
-      toast.err(text);
-      setDisconnected(text === "发送失败，请再试一次");
-      void refreshSession();
+      handleStreamError(e instanceof Error ? e.message : "发送失败，请刷新进度后重试");
     }
   }
 
@@ -433,7 +458,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={quitInterview}
-              disabled={quitting || sending || streaming}
+              disabled={quitting || sending || streaming || Boolean(info?.processing)}
               className="text-sm text-zinc-500 hover:text-red-600 disabled:opacity-40"
             >
               {quitting ? "退出中…" : "中途退出"}
@@ -462,7 +487,7 @@ export default function ChatPage() {
         <div className="mx-auto w-full max-w-2xl">
           {loadError ? <ErrorBanner message={loadError} onRetry={load} /> : null}
           <MessageTimeline messages={msgs} ttsAutoPlay={ttsAutoPlay} voiceEnabled={voiceEnabled} />
-          {sending && !streaming ? (
+          {(sending || info?.processing) && !streaming ? (
             <div className="mt-3 flex items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-3.5 py-2.5 text-xs text-zinc-500 shadow-sm">
               <span className="typing-dot" />
               <span className="typing-dot" />
@@ -512,8 +537,9 @@ export default function ChatPage() {
         ) : showCoding && info.current_coding ? (
           <ResizableCodingFrame>
             <CodeEditor
-              key={`${info.current_coding.slug}-${info.current_coding.templates_by_mode ? "v2" : "v1"}`}
+              key={`${sessionId}-${info.current_coding.slug}-${info.current_coding.templates_by_mode ? "v2" : "v1"}`}
               sessionId={sessionId}
+              version={info.version}
               problem={info.current_coding}
               onSubmitted={onCodingSubmitted}
             />
@@ -526,7 +552,7 @@ export default function ChatPage() {
               onChange={setInput}
               onSend={send}
               disabled={!isActive}
-              sending={sending || streaming}
+              sending={sending || streaming || Boolean(info?.processing)}
               voiceEnabled={voiceEnabled}
             />
           </div>

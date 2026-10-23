@@ -1,4 +1,5 @@
 "use client";
+import { userStorageKey } from "@/lib/api";
 
 /** 本地通知中心（先不依赖后端，后续可换成 API） */
 
@@ -17,7 +18,7 @@ const KEY = "fa_notifications";
 function readAll(): AppNotification[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(userStorageKey(KEY));
     if (!raw) return [];
     const list = JSON.parse(raw) as AppNotification[];
     return Array.isArray(list) ? list : [];
@@ -27,7 +28,7 @@ function readAll(): AppNotification[] {
 }
 
 function writeAll(list: AppNotification[]) {
-  localStorage.setItem(KEY, JSON.stringify(list.slice(0, 80)));
+  localStorage.setItem(userStorageKey(KEY), JSON.stringify(list.slice(0, 80)));
   window.dispatchEvent(new Event("fa-notifications"));
 }
 

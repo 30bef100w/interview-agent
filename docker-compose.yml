@@ -38,6 +38,12 @@ services:
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 4
     depends_on:
       redis:
         condition: service_healthy
@@ -52,7 +58,8 @@ services:
         NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
   nginx:
     image: nginx:1.27-alpine

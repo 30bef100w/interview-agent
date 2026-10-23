@@ -32,6 +32,40 @@ export class ApiError extends Error {
   }
 }
 
+export function errorDetail(detail: unknown, fallback: string): string {
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const messages = detail.map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const loc = Array.isArray(item.loc) ? item.loc.filter((v: unknown) => v !== "body").join(".") : "";
+      return typeof item.msg === "string" ? `${loc ? `${loc}：` : ""}${item.msg}` : "";
+    }).filter(Boolean);
+    if (messages.length) return messages.join("；");
+  }
+  return fallback;
+}
+
+/** Browser-only namespacing, not authorization. Never use a token itself as a storage key. */
+export function userStorageKey(name: string): string {
+  try {
+    const token = getToken();
+    if (!token) return `${name}:anonymous`;
+    const encoded = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(encoded));
+    if (typeof payload.sub === "string" && /^\d+$/.test(payload.sub)) return `${name}:user:${payload.sub}`;
+  } catch {}
+  return `${name}:anonymous`;
+}
+
+export function newSubmissionId(): string {
+  // randomUUID is unavailable on plain HTTP; getRandomValues still works there.
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  if (globalThis.crypto?.getRandomValues) {
+    return Array.from(globalThis.crypto.getRandomValues(new Uint8Array(16)), value => value.toString(16).padStart(2, "0")).join("");
+  }
+  return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const isForm = options.body instanceof FormData;
   const headers: Record<string, string> = {
@@ -45,7 +79,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     let detail = `请求失败 (${res.status})`;
     try {
       const body = await res.json();
-      if (body.detail) detail = body.detail;
+      detail = errorDetail(body.detail, detail);
     } catch {}
     throw new ApiError(res.status, detail);
   }

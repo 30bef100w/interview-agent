@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -31,6 +31,27 @@ class InterviewSession(Base):
     # 目标岗位 / 企业：本场定向，规划与提问会消费
     target_role: Mapped[str] = mapped_column(String(128), default="")
     target_company: Mapped[str] = mapped_column(String(128), default="")
+    billing_source: Mapped[str] = mapped_column(String(16), default="legacy", server_default="legacy")
+    quota_state: Mapped[str] = mapped_column(String(16), default="none", server_default="none")
+    version: Mapped[int] = mapped_column(Integer, default=1, server_default="1", nullable=False)
+    pending_operation: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    operation_deadline: Mapped[float | None] = mapped_column(Float, nullable=True)
+    creation_deadline: Mapped[float | None] = mapped_column(Float, nullable=True)
+    last_submission_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    __mapper_args__ = {"version_id_col": version}
+
+
+class InterviewOperation(Base):
+    """Durable cross-transport submission claim and replayable acknowledgement."""
+    __tablename__ = "interview_operations"
+    __table_args__ = (UniqueConstraint("session_id", "request_id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    session_id: Mapped[int] = mapped_column(ForeignKey("interview_sessions.id"), index=True)
+    request_id: Mapped[str] = mapped_column(String(64))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(16), default="processing")
+    result_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Question(Base):

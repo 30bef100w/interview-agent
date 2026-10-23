@@ -1,9 +1,15 @@
 import logging
+import asyncio
+from contextlib import suppress
+from logging.handlers import RotatingFileHandler
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import Depends, HTTPException
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from app import models  # noqa: F401  确保模型注册进 Base.metadata
 from app.middleware.load_alert_middleware import LoadAlertMiddleware
@@ -23,7 +29,7 @@ from app.api import (
     voice,
 )
 from app.config import settings
-from app.db import Base, engine
+from app.db import Base, SessionLocal, engine, get_db
 from app.db_migrate import ensure_schema
 from app.services.feishu_ws import start_feishu_ws
 from app.services.system_log import write_exception
@@ -48,7 +54,7 @@ def _configure_logging() -> None:
         for h in app_logger.handlers
     ):
         try:
-            fh = logging.FileHandler(log_file, encoding="utf-8")
+            fh = RotatingFileHandler(log_file, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
         except OSError:
             fh = None
         if fh is not None:
@@ -82,7 +88,26 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_schema()
     start_feishu_ws()
-    yield
+    async def recover_loop():
+        from app.services.creation_recovery import recover_expired_creations
+        from app.services.interview_operations import recover_expired_operations
+        def recover():
+            with SessionLocal() as db:
+                recover_expired_creations(db)
+                recover_expired_operations(db)
+        while True:
+            try:
+                await asyncio.to_thread(recover)
+            except Exception:
+                logging.getLogger("app").exception("creation recovery failed")
+            await asyncio.sleep(60)
+    recovery = asyncio.create_task(recover_loop())
+    try:
+        yield
+    finally:
+        recovery.cancel()
+        with suppress(asyncio.CancelledError):
+            await recovery
 
 
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
@@ -123,3 +148,14 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/api/ready")
+def readiness(db: Session = Depends(get_db)) -> dict:
+    try:
+        db.execute(text("SELECT 1"))
+        db.execute(select(models.InterviewSession).limit(1))
+        db.execute(select(models.InterviewOperation.id).limit(1))
+    except Exception as exc:
+        raise HTTPException(503, "数据库或数据库结构未就绪") from exc
+    return {"status": "ready"}

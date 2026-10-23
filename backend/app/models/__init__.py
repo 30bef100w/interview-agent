@@ -4,6 +4,7 @@ from app.models.interview import (
     Answer,
     CodeSubmission,
     InterviewSession,
+    InterviewOperation,
     Question,
     ScoreReport,
 )
@@ -16,6 +17,7 @@ __all__ = [
     "Answer",
     "CodeSubmission",
     "InterviewSession",
+    "InterviewOperation",
     "LLMUsage",
     "Question",
     "QuotaGrant",

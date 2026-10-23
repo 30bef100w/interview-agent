@@ -12,8 +12,10 @@ from sqlalchemy import select
 from app.config import settings
 from app.db import SessionLocal
 from app.models import InterviewSession, Resume, ScoreReport, User, UserLlmSetting
-from app.schemas.api import CreateSessionRequest
-from app.services.billing import uses_platform_key
+from app.schemas.api import AnswerRequest, CreateSessionRequest
+from app.services.billing import reserve_session_quota, uses_platform_key
+from app.services.creation_recovery import CREATION_TIMEOUT_SECONDS, fail_creation
+from app.services.interview_operations import run_operation
 from app.services.feishu_channel import ChannelSession, ChannelUser
 
 logger = logging.getLogger("app.feishu_interview")
@@ -77,7 +79,7 @@ class FeishuInterviewRuntime:
         db = SessionLocal()
         try:
             db_user = db.get(User, user.id)
-            if db_user is None:
+            if db_user is None or int(db_user.is_disabled or 0):
                 return ChannelSession(id=0, status="failed", error="深问账号不存在")
             try:
                 assert_platform_allowed(db, db_user)
@@ -106,7 +108,9 @@ class FeishuInterviewRuntime:
                 status="creating",
                 target_role=payload.target_role,
                 target_company=payload.target_company,
+                creation_deadline=time.time() + CREATION_TIMEOUT_SECONDS,
             )
+            reserve_session_quota(db, db_user, session)
             db.add(session)
             db.commit()
             db.refresh(session)
@@ -137,12 +141,11 @@ class FeishuInterviewRuntime:
         try:
             session = db.get(InterviewSession, session_id)
             db_user = db.get(User, user.id)
-            if session is None or db_user is None or session.user_id != user.id:
+            if session is None or db_user is None or session.user_id != user.id or int(db_user.is_disabled or 0):
                 return {"message": "会话不存在", "finished": False}
             if session.status != "active":
                 return {"message": "面试已结束", "finished": True}
-            engine = iv._engine_for(db, db_user, session.id)
-            out = iv._advance(session, db, clipped, engine)
+            out = iv._submit_answer_command(db, db_user, session.id, AnswerRequest(text=clipped))
             coding = False
             try:
                 state = iv._load_state(session)
@@ -171,18 +174,10 @@ class FeishuInterviewRuntime:
             session = db.get(InterviewSession, session_id)
             if session is None or session.user_id != user.id or session.status != "active":
                 return
-            state = iv._load_state(session)
-            state.stage = "FINISHED"
-            state.history.append(
-                {
-                    "role": "interviewer",
-                    "text": "候选人选择中途退出本场面试。本场不生成完整报告，可随时再开一场独立模拟。",
-                }
-            )
-            iv._save_state(session, state)
-            session.status = "abandoned"
-            session.finished_at = datetime.now(timezone.utc)
-            db.commit()
+            db_user = db.get(User, user.id)
+            if db_user is None or int(db_user.is_disabled or 0):
+                return
+            run_operation(db, session_id, user.id, "abandon", {}, iv._abandon)
         finally:
             db.close()
 

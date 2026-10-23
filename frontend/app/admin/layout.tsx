@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { ToastProvider } from "@/components/Toast";
-import { api, clearToken, getToken } from "@/lib/api";
+import { ApiError, api, clearToken, getToken } from "@/lib/api";
 
 const NAV = [
   { href: "/admin", label: "概览", exact: true },
@@ -21,14 +21,21 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    setError("");
+    setReady(false);
     if (!getToken()) {
       router.replace("/login");
       return;
     }
+    let active = true;
+    const token = getToken();
     api<{ username: string; is_admin?: boolean }>("/api/auth/me")
       .then((me) => {
+        if (!active || getToken() !== token) return;
         if (!me.is_admin) {
           router.replace("/dashboard");
           return;
@@ -36,16 +43,25 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         setUsername(me.username);
         setReady(true);
       })
-      .catch(() => {
-        clearToken();
-        router.replace("/login");
+      .catch((err) => {
+        if (!active || getToken() !== token) return;
+        if (err instanceof ApiError && [401, 403].includes(err.status)) {
+          clearToken();
+          router.replace("/login");
+        } else setError(err instanceof Error ? err.message : "权限校验暂时失败");
       });
-  }, [router]);
+    return () => { active = false; };
+  }, [router, retry]);
 
   if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-sm text-zinc-400">
-        校验管理员权限…
+        {error ? (
+          <div className="text-center">
+            <p>{error}</p>
+            <button type="button" className="mt-3 underline" onClick={() => setRetry(value => value + 1)}>重试权限校验</button>
+          </div>
+        ) : "校验管理员权限…"}
       </div>
     );
   }

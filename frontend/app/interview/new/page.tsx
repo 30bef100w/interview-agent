@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 import CustomSettingsModal, {
   countActiveCustom,
@@ -19,7 +19,7 @@ import {
   IconTarget,
   IconUser,
 } from "@/components/ui";
-import { api } from "@/lib/api";
+import { ApiError, api, userStorageKey } from "@/lib/api";
 
 type Resume = { id: number; filename: string };
 type RoleOpt = { id: string; name: string };
@@ -52,6 +52,12 @@ const TYPES = [
 ] as const;
 
 function NewInterviewForm() {
+  const planAbort = useRef<AbortController | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; planAbort.current?.abort(); };
+  }, []);
   const router = useRouter();
   const search = useSearchParams();
   const toast = useToast();
@@ -128,11 +134,14 @@ function NewInterviewForm() {
         setResumes(list);
         if (list.length > 0) {
           const preferred =
-            list.find((r) => String(r.id) === localStorage.getItem(DEFAULT_KEY)) ?? list[0];
+            list.find((r) => String(r.id) === localStorage.getItem(userStorageKey(DEFAULT_KEY))) ?? list[0];
           setResumeId(preferred.id);
         }
       })
-      .catch(() => window.location.assign("/login"));
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) window.location.assign("/login");
+        else toast.err(err instanceof Error ? err.message : "简历列表加载失败，请刷新重试");
+      });
   }, []);
 
   useEffect(() => {
@@ -159,34 +168,44 @@ function NewInterviewForm() {
     else if (!roles.some((r) => r.name === targetRole)) setTargetRole("");
   }
 
-  async function waitForPlanReady(sessionId: number) {
+  async function waitForPlanReady(sessionId: number, signal: AbortSignal) {
     // 真实简历 + 多项目拷打链常需 6～8 分钟，勿过早判超时
     const deadline = Date.now() + 10 * 60 * 1000;
     while (Date.now() < deadline) {
+      signal.throwIfAborted();
       const p = await api<{
         status: string;
         progress: number;
         label: string;
         step: string;
         detail?: string;
-      }>(`/api/interview/session/${sessionId}/create-progress`);
+      }>(`/api/interview/session/${sessionId}/create-progress`, { signal });
       setPlanProgress(p.progress);
       setPlanLabel(p.label || "规划中");
       if (p.status === "ready") return;
       if (p.status === "failed") {
         throw new Error(p.detail?.trim() || "题单规划失败，请重试");
       }
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => { clearTimeout(timer); reject(new DOMException("已离开页面", "AbortError")); };
+        const timer = setTimeout(() => { signal.removeEventListener("abort", abort); resolve(); }, 1200);
+        signal.addEventListener("abort", abort, { once: true });
+        if (signal.aborted) abort();
+      });
     }
     throw new Error("规划耗时较长仍未完成，请稍后在「面试记录」查看是否已生成，或重试");
   }
 
   async function start() {
+    if (creating) return;
     if (!resumeId) {
       toast.err("请先上传简历");
       return;
     }
     setCreating(true);
+    planAbort.current?.abort();
+    const controller = new AbortController();
+    planAbort.current = controller;
     setPlanProgress(3);
     setPlanLabel("准备规划");
     try {
@@ -234,9 +253,12 @@ function NewInterviewForm() {
         }
         if (bits.length) toast.ok(`本场设置：${bits.join(" · ")}`);
       }
-      await waitForPlanReady(session.session_id);
+      if (!mounted.current) return;
+      await waitForPlanReady(session.session_id, controller.signal);
+      if (!mounted.current || controller.signal.aborted) return;
       window.location.assign(`/interview/${session.session_id}`);
     } catch (e) {
+      if (!mounted.current || controller.signal.aborted) return;
       toast.err(e instanceof Error ? e.message : "创建失败，请重试");
       setCreating(false);
     }

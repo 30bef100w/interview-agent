@@ -20,6 +20,7 @@ from app.schemas.api import CodeRunRequest, CodeRunResponse, CodeSubmitRequest, 
 from app.services.code_judger import judge as judge_code
 from app.services.code_judger import run_examples
 from app.services.question_bank import build_problem_view
+from app.services.interview_operations import run_operation
 
 router = APIRouter(prefix="/api/interview", tags=["code"])
 
@@ -86,7 +87,13 @@ def submit_code(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> CodeSubmitResponse:
-    session = _get_owned_session(db, session_id, current_user.id)
+    result = run_operation(db, session_id, current_user.id, "code", payload.model_dump(),
+                           lambda session: _submit_code(session, payload, current_user, db))
+    return CodeSubmitResponse(**result)
+
+
+def _submit_code(session: InterviewSession, payload: CodeSubmitRequest, current_user: User,
+                 db: Session) -> dict:
     _check_coding_turn(session, payload.slug)
     problem = build_problem_view(payload.slug)
     if problem is None:
@@ -153,8 +160,6 @@ def submit_code(
         )
     )
     _save_state(session, state)
-    db.commit()
-
     return CodeSubmitResponse(
         judge=result,
         review=review,
@@ -162,4 +167,4 @@ def submit_code(
         stage=state.stage,
         status=session.status,
         finished=session.status == "finished",
-    )
+    ).model_dump()

@@ -1,16 +1,21 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Annotated
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+from app.services.auth_service import validate_password_bytes
+
+Password = Annotated[str, Field(min_length=6, max_length=128), AfterValidator(validate_password_bytes)]
 
 
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=2, max_length=64)
-    password: str = Field(min_length=6, max_length=128)
+    password: Password
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=128)
 
 
 class UserOut(BaseModel):

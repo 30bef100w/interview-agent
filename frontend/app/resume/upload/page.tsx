@@ -15,7 +15,7 @@ import {
   IconUpload,
   btnCls,
 } from "@/components/ui";
-import { api } from "@/lib/api";
+import { ApiError, api, userStorageKey } from "@/lib/api";
 
 type Resume = {
   id: number;
@@ -44,10 +44,21 @@ export default function UploadPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [profileText, setProfileText] = useState("");
   const [defaultId, setDefaultId] = useState<number | null>(null);
+  const selectedId = useRef<number | null>(null);
+  const editVersion = useRef(0);
+
+  function selectResume(resume: Resume | null) {
+    selectedId.current = resume?.id ?? null;
+    editVersion.current += 1;
+    setSelected(resume);
+    setProfileText(resume?.profile ? JSON.stringify(resume.profile, null, 2) : "");
+    setAnalysis(resume?.analysis ?? null);
+    setAnalysisOpen(false);
+  }
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(DEFAULT_KEY);
+      const raw = localStorage.getItem(userStorageKey(DEFAULT_KEY));
       if (raw) setDefaultId(Number(raw));
     } catch {
       /* ignore */
@@ -57,19 +68,20 @@ export default function UploadPage() {
         setResumes(list);
         if (list.length > 0) {
           const preferred =
-            list.find((r) => String(r.id) === localStorage.getItem(DEFAULT_KEY)) ?? list[0];
-          setSelected(preferred);
-          setProfileText(preferred.profile ? JSON.stringify(preferred.profile, null, 2) : "");
-          setAnalysis(preferred.analysis ?? null);
+            list.find((r) => String(r.id) === localStorage.getItem(userStorageKey(DEFAULT_KEY))) ?? list[0];
+          selectResume(preferred);
         }
       })
-      .catch(() => window.location.assign("/login"));
+      .catch((err) => {
+        if (err instanceof ApiError && err.status === 401) window.location.assign("/login");
+        else toast.err(err instanceof Error ? err.message : "简历列表加载失败，请刷新重试");
+      });
   }, []);
 
   function setAsDefault(id: number) {
     setDefaultId(id);
     try {
-      localStorage.setItem(DEFAULT_KEY, String(id));
+      localStorage.setItem(userStorageKey(DEFAULT_KEY), String(id));
     } catch {
       /* ignore */
     }
@@ -77,6 +89,7 @@ export default function UploadPage() {
   }
 
   async function upload(file: File) {
+    if (uploading || parsing || saving || deleting || analyzing) return;
     setUploading(true);
     setAnalysis(null);
     try {
@@ -84,16 +97,18 @@ export default function UploadPage() {
       form.append("file", file);
       const resume = await api<Resume>("/api/resume/upload", { method: "POST", body: form });
       setResumes((prev) => [resume, ...prev]);
-      setSelected(resume);
-      setProfileText("");
+      selectResume(resume);
+      const revision = editVersion.current;
       toast.info("上传成功，AI 正在解析画像…");
       setParsing(true);
       const parsed = await api<{ profile: Record<string, unknown> }>(
         `/api/resume/${resume.id}/parse`,
         { method: "POST" }
       );
-      setProfileText(JSON.stringify(parsed.profile, null, 2));
-      setSelected((prev) => (prev ? { ...prev, profile: parsed.profile } : prev));
+      if (selectedId.current === resume.id && editVersion.current === revision) {
+        setProfileText(JSON.stringify(parsed.profile, null, 2));
+      }
+      setSelected((prev) => (prev?.id === resume.id ? { ...prev, profile: parsed.profile } : prev));
       setResumes((prev) =>
         prev.map((r) => (r.id === resume.id ? { ...r, profile: parsed.profile } : r))
       );
@@ -123,7 +138,7 @@ export default function UploadPage() {
         method: "PUT",
         body: JSON.stringify({ profile }),
       });
-      setSelected(updated);
+      setSelected((prev) => prev?.id === updated.id ? updated : prev);
       setResumes((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       toast.ok("画像已保存");
     } catch (err) {
@@ -139,17 +154,12 @@ export default function UploadPage() {
     setDeleting(true);
     try {
       await api<null>(`/api/resume/${selected.id}`, { method: "DELETE" });
-      const next = resumes.filter((r) => r.id !== selected.id);
-      setResumes(next);
+      setResumes((prev) => prev.filter((r) => r.id !== selected.id));
       if (defaultId === selected.id) {
         setDefaultId(null);
-        localStorage.removeItem(DEFAULT_KEY);
+        localStorage.removeItem(userStorageKey(DEFAULT_KEY));
       }
-      const pick = next[0] ?? null;
-      setSelected(pick);
-      setProfileText(pick?.profile ? JSON.stringify(pick.profile, null, 2) : "");
-      setAnalysis(pick?.analysis ?? null);
-      setAnalysisOpen(false);
+      if (selectedId.current === selected.id) selectResume(null);
       toast.ok("简历已删除");
     } catch (err) {
       toast.err(err instanceof Error ? err.message : "删除失败");
@@ -167,15 +177,15 @@ export default function UploadPage() {
       const res = await api<{ analysis: ResumeAnalysis }>(`/api/resume/${selected.id}/analyze`, {
         method: "POST",
       });
-      setAnalysis(res.analysis);
-      setSelected((prev) => (prev ? { ...prev, analysis: res.analysis } : prev));
+      if (selectedId.current === selected.id) setAnalysis(res.analysis);
+      setSelected((prev) => (prev?.id === selected.id ? { ...prev, analysis: res.analysis } : prev));
       setResumes((prev) =>
         prev.map((r) => (r.id === selected.id ? { ...r, analysis: res.analysis } : r))
       );
       toast.ok("分析完成");
     } catch (err) {
       toast.err(err instanceof Error ? err.message : "分析失败");
-      setAnalysisOpen(false);
+      if (selectedId.current === selected.id) setAnalysisOpen(false);
     } finally {
       setAnalyzing(false);
     }
@@ -249,9 +259,7 @@ export default function UploadPage() {
                 key={r.id}
                 type="button"
                 onClick={() => {
-                  setSelected(r);
-                  setProfileText(r.profile ? JSON.stringify(r.profile, null, 2) : "");
-                  setAnalysis(r.analysis ?? null);
+                  selectResume(r);
                 }}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-all ${
                   selected?.id === r.id
@@ -318,7 +326,7 @@ export default function UploadPage() {
               <button
                 type="button"
                 className={btnCls("danger", "sm")}
-                disabled={deleting}
+                disabled={deleting || saving || analyzing || parsing}
                 onClick={removeResume}
               >
                 {deleting ? "删除中…" : "删除"}
@@ -327,7 +335,7 @@ export default function UploadPage() {
           </div>
           <textarea
             value={profileText}
-            onChange={(e) => setProfileText(e.target.value)}
+            onChange={(e) => { editVersion.current += 1; setProfileText(e.target.value); }}
             placeholder={parsing ? "解析中…" : "上传简历后在此显示画像"}
             spellCheck={false}
             className="min-h-[260px] flex-1 resize-y rounded-xl border border-zinc-200 bg-white p-4 font-mono text-sm text-zinc-900 outline-none transition-all focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"

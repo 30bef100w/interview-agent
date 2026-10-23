@@ -9,7 +9,7 @@ import OnboardingModal from "@/components/OnboardingModal";
 import { FeedbackProvider, useFeedback } from "@/components/FeedbackProvider";
 import { ToastProvider } from "@/components/Toast";
 import { IconChart, IconChat, IconHistory, IconMic, IconNotebook, IconReport, IconSliders, IconTarget, IconUpload, Logo } from "@/components/ui";
-import { api, clearToken, getToken } from "@/lib/api";
+import { ApiError, api, clearToken, getToken } from "@/lib/api";
 import { loadRememberedLogin } from "@/lib/auth-storage";
 import { unreadCount } from "@/lib/notifications";
 
@@ -101,19 +101,24 @@ function AppShellInner({ children }: { children: ReactNode }) {
       router.replace("/login");
       return;
     }
+    let active = true;
+    const token = getToken();
     api<{ username: string; is_admin?: boolean }>("/api/auth/me")
       .then((me) => {
+        if (!active || getToken() !== token) return;
         localStorage.setItem("username", me.username);
         localStorage.setItem("is_admin", me.is_admin ? "1" : "0");
         setUsername(me.username);
         setIsAdmin(Boolean(me.is_admin));
       })
-      .catch(() => {
+      .catch((err) => {
+        if (!active || getToken() !== token || !(err instanceof ApiError) || ![401, 403].includes(err.status)) return;
         clearToken();
         localStorage.removeItem("username");
         localStorage.removeItem("is_admin");
         router.replace("/login");
       });
+    return () => { active = false; };
   }, [router, pathname]);
 
   useEffect(() => {
