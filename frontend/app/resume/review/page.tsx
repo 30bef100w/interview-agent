@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import ResumeReviewBoard, { type ResumeReview } from "@/components/ResumeReviewBoard";
 import { useToast } from "@/components/Toast";
@@ -10,7 +10,7 @@ import {
   IconFile,
   IconNotebook,
 } from "@/components/ui";
-import { ApiError, api } from "@/lib/api";
+import { ApiError, api, userStorageKey } from "@/lib/api";
 
 type Resume = {
   id: number;
@@ -28,10 +28,12 @@ export default function ResumeReviewPage() {
   const [review, setReview] = useState<ResumeReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [onlyWithNotes, setOnlyWithNotes] = useState(false);
+  const reviewRequest = useRef(0);
 
   const loadReview = useCallback(async (resumeId: number) => {
+    const request = ++reviewRequest.current;
     const data = await api<ResumeReview>(`/api/resume/${resumeId}/review`);
-    setReview(data);
+    if (request === reviewRequest.current) setReview(data);
   }, []);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function ResumeReviewPage() {
           setReview(null);
           return;
         }
-        const stored = Number(localStorage.getItem(DEFAULT_KEY) || 0);
+        const stored = Number(localStorage.getItem(userStorageKey(DEFAULT_KEY)) || 0);
         const preferred = list.find((r) => r.id === stored) ?? list[0];
         setSelectedId(preferred.id);
         await loadReview(preferred.id);

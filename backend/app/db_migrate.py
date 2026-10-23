@@ -1,4 +1,5 @@
 """轻量补列：create_all 不会改已有表。兼容 SQLite 与 PostgreSQL。"""
+import time
 from sqlalchemy import inspect, text
 
 from app.db import engine
@@ -23,6 +24,20 @@ def _add_column(conn, table: str, column: str, ddl: str) -> None:
 
 def ensure_schema() -> None:
     with engine.begin() as conn:
+        for name, ddl in (
+            ("billing_source", "billing_source VARCHAR(16) DEFAULT 'legacy' NOT NULL"),
+            ("quota_state", "quota_state VARCHAR(16) DEFAULT 'none' NOT NULL"),
+            ("version", "version INTEGER DEFAULT 1 NOT NULL"),
+            ("pending_operation", "pending_operation VARCHAR(64)"),
+            ("operation_deadline", "operation_deadline DOUBLE PRECISION"),
+            ("creation_deadline", "creation_deadline DOUBLE PRECISION"),
+            ("last_submission_id", "last_submission_id VARCHAR(64)"),
+        ):
+            _add_column(conn, "interview_sessions", name, ddl)
+        # Old interrupted creates get one bounded recovery window after upgrade.
+        conn.execute(text("UPDATE interview_sessions SET creation_deadline = :deadline "
+                          "WHERE status = 'creating' AND creation_deadline IS NULL"),
+                     {"deadline": time.time() + 20 * 60})
         _add_column(
             conn,
             "interview_sessions",

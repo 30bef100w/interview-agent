@@ -12,6 +12,9 @@ export type WsSnapshot = {
   topics: string[];
   rounds_used: number;
   total_rounds: number;
+  version: number;
+  processing: boolean;
+  last_submission_id?: string | null;
   current_coding?: unknown;
 };
 
@@ -45,6 +48,13 @@ export function useInterviewWebSocket(sessionId: string, handlers: WsHandlers, e
   const retryRef = useRef(0);
   const shouldConnectRef = useRef(false);
   const sendingRef = useRef(false);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const answerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAnswerTimeout = useCallback(() => {
+    if (answerTimeoutRef.current) clearTimeout(answerTimeoutRef.current);
+    answerTimeoutRef.current = null;
+  }, []);
 
   const clearHeartbeat = useCallback(() => {
     if (heartbeatRef.current) {
@@ -55,6 +65,7 @@ export function useInterviewWebSocket(sessionId: string, handlers: WsHandlers, e
 
   const connect = useCallback(() => {
     if (!enabled || !sessionId) return;
+    if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) return;
     shouldConnectRef.current = true;
 
     const ws = new WebSocket(interviewWsUrl(sessionId));
@@ -92,10 +103,12 @@ export function useInterviewWebSocket(sessionId: string, handlers: WsHandlers, e
             handlersRef.current.onToken?.(String((msg as { data?: string }).data ?? ""));
             break;
           case "done":
+            clearAnswerTimeout();
             sendingRef.current = false;
             if (msg.data) handlersRef.current.onDone?.(msg.data as WsDone);
             break;
           case "error":
+            clearAnswerTimeout();
             sendingRef.current = false;
             handlersRef.current.onError?.(msg.message ?? "WebSocket 错误");
             break;
@@ -105,17 +118,30 @@ export function useInterviewWebSocket(sessionId: string, handlers: WsHandlers, e
             break;
         }
       } catch {
-        /* ignore malformed */
+        clearAnswerTimeout();
+        sendingRef.current = false;
+        handlersRef.current.onError?.("服务端消息格式异常，提交结果尚未确认，请刷新进度");
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      if (wsRef.current !== ws) return;
+      wsRef.current = null;
       clearHeartbeat();
+      clearAnswerTimeout();
+      const interrupted = sendingRef.current;
+      sendingRef.current = false;
+      if (interrupted) handlersRef.current.onError?.("连接中断，提交结果尚未确认，请刷新进度后重试");
       handlersRef.current.onClose?.();
-      if (shouldConnectRef.current && retryRef.current < MAX_RETRIES && !sendingRef.current) {
+      if ([4401, 4403, 4404].includes(event.code)) {
+        shouldConnectRef.current = false;
+        return;
+      }
+      if (shouldConnectRef.current && retryRef.current < MAX_RETRIES) {
         const delay = BASE_DELAY * 2 ** retryRef.current;
         retryRef.current += 1;
-        setTimeout(() => {
+        reconnectRef.current = setTimeout(() => {
+          reconnectRef.current = null;
           if (shouldConnectRef.current) connect();
         }, delay);
       }
@@ -124,18 +150,25 @@ export function useInterviewWebSocket(sessionId: string, handlers: WsHandlers, e
     ws.onerror = () => {
       handlersRef.current.onClose?.();
     };
-  }, [sessionId, enabled, clearHeartbeat]);
+  }, [sessionId, enabled, clearHeartbeat, clearAnswerTimeout]);
 
   const disconnect = useCallback(() => {
     shouldConnectRef.current = false;
     retryRef.current = 0;
+    sendingRef.current = false;
+    if (reconnectRef.current) clearTimeout(reconnectRef.current);
+    reconnectRef.current = null;
+    clearAnswerTimeout();
     clearHeartbeat();
     if (wsRef.current) {
       wsRef.current.onclose = null;
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onerror = null;
       wsRef.current.close();
       wsRef.current = null;
     }
-  }, [clearHeartbeat]);
+  }, [clearHeartbeat, clearAnswerTimeout]);
 
   const resync = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -145,10 +178,13 @@ export function useInterviewWebSocket(sessionId: string, handlers: WsHandlers, e
     return false;
   }, []);
 
-  const sendAnswer = useCallback((text: string) => {
-    if (wsRef.current?.readyState !== WebSocket.OPEN) return false;
+  const sendAnswer = useCallback((text: string, submissionId?: string, expectedVersion?: number) => {
+    if (sendingRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return false;
     sendingRef.current = true;
-    wsRef.current.send(JSON.stringify({ type: "answer", text }));
+    wsRef.current.send(JSON.stringify({ type: "answer", text, submission_id: submissionId, expected_version: expectedVersion }));
+    answerTimeoutRef.current = setTimeout(() => {
+      if (sendingRef.current) wsRef.current?.close();
+    }, 20 * 60 * 1000);
     return true;
   }, []);
 

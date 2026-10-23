@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     whisper_model: str = "small"  # tiny | base | small（越大越准越慢；上传兜底用）
     # 空=开发开、生产关；true/false 强制覆盖（云端先下掉语音）
     voice_enabled: str = ""
-    admin_usernames: str = ""  # 逗号分隔，登录时同步 is_admin=1
+    admin_usernames: str = ""  # 仅保留用户名，禁止公开注册；授权使用 app.manage_admin
     default_platform_quota: int = 3  # 新用户平台 Key 试用面试次数
     # 逗号分隔；生产经 Nginx 同源时可留空
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"

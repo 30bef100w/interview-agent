@@ -1,4 +1,4 @@
-import { API_BASE, ApiError, getToken } from "@/lib/api";
+import { API_BASE, ApiError, errorDetail, getToken } from "@/lib/api";
 
 export type StreamHandlers = {
   onToken?: (text: string) => void;
@@ -10,7 +10,8 @@ export type StreamHandlers = {
 export async function streamPost(
   path: string,
   body: unknown,
-  handlers: StreamHandlers
+  handlers: StreamHandlers,
+  signal?: AbortSignal
 ): Promise<void> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
@@ -19,12 +20,13 @@ export async function streamPost(
       Authorization: `Bearer ${getToken() ?? ""}`,
     },
     body: JSON.stringify(body),
+    signal: signal ?? AbortSignal.timeout(20 * 60 * 1000),
   });
   if (!res.ok || !res.body) {
     let detail = `请求失败 (${res.status})`;
     try {
       const j = await res.json();
-      if (j.detail) detail = j.detail;
+      detail = errorDetail(j.detail, detail);
     } catch {}
     throw new ApiError(res.status, detail);
   }
@@ -32,30 +34,51 @@ export async function streamPost(
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = "";
-  for (;;) {
+  let terminal = false;
+  try {
+   for (;;) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) {
+      if (!terminal) {
+        const message = "连接提前结束，提交结果尚未确认，请刷新进度后重试";
+        if (handlers.onError) handlers.onError(message);
+        else throw new Error(message);
+      }
+      break;
+    }
     buf += decoder.decode(value, { stream: true });
+    buf = buf.replace(/\r\n/g, "\n");
     let idx: number;
     while ((idx = buf.indexOf("\n\n")) >= 0) {
       const raw = buf.slice(0, idx);
       buf = buf.slice(idx + 2);
       let event = "message";
-      let data = "";
+      const dataLines: string[] = [];
       for (const line of raw.split("\n")) {
         if (line.startsWith("event:")) event = line.slice(6).trim();
-        else if (line.startsWith("data:")) data += line.slice(5);
+        else if (line.startsWith("data:")) dataLines.push(line.slice(5).replace(/^ /, ""));
       }
+      const data = dataLines.join("\n");
       if (!data) continue;
       if (event === "token") {
         handlers.onToken?.(JSON.parse(data));
       } else if (event === "done") {
+        terminal = true;
         handlers.onDone?.(JSON.parse(data));
+        return;
       } else if (event === "error") {
-        handlers.onError?.(JSON.parse(data));
+        terminal = true;
+        const message = errorDetail(JSON.parse(data), "处理失败，请刷新进度后重试");
+        if (handlers.onError) handlers.onError(message);
+        else throw new Error(message);
+        return;
       } else {
-        handlers.onError?.(`未知事件：${event}`);
+        throw new Error(`无法识别服务端事件：${event}`);
       }
     }
+   }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { btnCls } from "@/components/ui";
+import { userStorageKey } from "@/lib/api";
 
 const KEY = "fa_onboarding_done";
 
@@ -33,7 +34,7 @@ export default function OnboardingModal() {
 
   useEffect(() => {
     try {
-      if (!localStorage.getItem(KEY)) setOpen(true);
+      if (!localStorage.getItem(userStorageKey(KEY))) setOpen(true);
     } catch {
       /* ignore */
     }
@@ -41,7 +42,7 @@ export default function OnboardingModal() {
 
   function dismiss() {
     try {
-      localStorage.setItem(KEY, "1");
+      localStorage.setItem(userStorageKey(KEY), "1");
     } catch {
       /* ignore */
     }

@@ -18,6 +18,7 @@ from app.models import (
     UserLlmSetting,
 )
 from app.services.auth_service import hash_password
+from app.schemas.auth import Password
 from app.services.billing import grant_platform_quota, uses_platform_key
 from app.services.system_log import write_log
 
@@ -36,7 +37,7 @@ class UserUpdateBody(BaseModel):
 
 
 class ResetPasswordBody(BaseModel):
-    new_password: str = Field(min_length=6, max_length=128)
+    new_password: Password
 
 
 def _utc_day_start(now: datetime | None = None) -> datetime:

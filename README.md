@@ -115,7 +115,7 @@ cd frontend && npm run build
 
 ```bash
 cp deploy/env.example .env
-# 编辑 .env：DEEPSEEK_API_KEY、JWT_SECRET、POSTGRES_PASSWORD、ADMIN_USERNAMES
+# 编辑 .env：DEEPSEEK_API_KEY、JWT_SECRET、POSTGRES_PASSWORD（ADMIN_USERNAMES 仅用于保留名称）
 docker compose --profile bundled-db up -d --build
 ```
 
@@ -129,6 +129,8 @@ docker compose --profile bundled-db up -d --build
 - **判题**：生产只通过隔离容器执行；需额外配置专用执行环境，缺失时拒绝执行，配置见 [`deploy/README.md`](deploy/README.md#9-隔离判题)
 
 ## 开源范围
+
+应用可靠性、安全边界及后续 Agent 修复的持续记录见[问题修复记录](docs/问题修复记录/README.md)，按“后端设计”和“Agent 设计”分别存放。
 
 本仓库开源**产品架构与代码**。自行整理的面经、结构化题库、算法题配置不随仓库分发。
 

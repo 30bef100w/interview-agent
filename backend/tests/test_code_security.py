@@ -113,7 +113,7 @@ def test_unavailable_judge_does_not_score_or_advance_session(monkeypatch):
 
     monkeypatch.setattr(api, "_engine_for", must_not_score)
     with pytest.raises(HTTPException) as exc:
-        api.submit_code(1, CodeSubmitRequest(slug="test", code="pass"), SimpleNamespace(id=1), None)
+        api._submit_code(SimpleNamespace(id=1), CodeSubmitRequest(slug="test", code="pass"), SimpleNamespace(id=1), None)
     assert exc.value.status_code == 503
 
 

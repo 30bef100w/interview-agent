@@ -1,5 +1,7 @@
 """飞书事件 Webhook：验签、解密、展平。"""
 import json
+import time
+import pytest
 
 from app.services.feishu_dispatch import already_seen
 from app.services.feishu_events import (
@@ -88,8 +90,9 @@ def test_signature_and_encrypt(monkeypatch):
     outer = json.dumps({"encrypt": enc}).encode()
     monkeypatch.setattr(ev.settings, "feishu_encrypt_key", "ek")
     monkeypatch.setattr(ev.settings, "feishu_verification_token", "t")
-    sig = signature_hex("ts", "no", "ek", outer)
-    out = parse_callback(outer, timestamp="ts", nonce="no", signature=sig)
+    timestamp = str(int(time.time()))
+    sig = signature_hex(timestamp, "no", "ek", outer)
+    out = parse_callback(outer, timestamp=timestamp, nonce="no", signature=sig)
     assert out["challenge"] == "c1"
 
 
@@ -120,6 +123,10 @@ def test_webhook_endpoint_acks(monkeypatch):
     from fastapi.testclient import TestClient
 
     from app.main import app
+    from app.services.feishu_events import settings
+
+    monkeypatch.setattr(settings, "feishu_encrypt_key", "")
+    monkeypatch.setattr(settings, "feishu_verification_token", "verify-token")
 
     got = []
     monkeypatch.setattr(
@@ -138,12 +145,42 @@ def test_webhook_challenge(monkeypatch):
     from app.main import app
     from app.services import feishu_events as ev
 
-    monkeypatch.setattr(ev.settings, "feishu_verification_token", "")
+    monkeypatch.setattr(ev.settings, "feishu_verification_token", "verify-token")
     monkeypatch.setattr(ev.settings, "feishu_encrypt_key", "")
     client = TestClient(app)
     res = client.post(
         "/api/feishu/event",
-        json={"type": "url_verification", "challenge": "hello", "token": ""},
+        json={"type": "url_verification", "challenge": "hello", "token": "verify-token"},
     )
     assert res.status_code == 200
     assert res.json() == {"challenge": "hello"}
+
+
+@pytest.mark.parametrize("payload", [{}, {"header": {}}, {"type": "url_verification", "challenge": "x"}])
+def test_missing_token_is_rejected(monkeypatch, payload):
+    from app.services import feishu_events as ev
+    monkeypatch.setattr(ev.settings, "feishu_verification_token", "configured")
+    monkeypatch.setattr(ev.settings, "feishu_encrypt_key", "")
+    with pytest.raises(ev.FeishuEventError):
+        parse_callback(json.dumps(payload).encode())
+
+
+def test_unconfigured_callback_is_closed(monkeypatch):
+    from app.services import feishu_events as ev
+    monkeypatch.setattr(ev.settings, "feishu_verification_token", "")
+    monkeypatch.setattr(ev.settings, "feishu_encrypt_key", "")
+    with pytest.raises(ev.FeishuEventError):
+        parse_callback(json.dumps(SAMPLE).encode())
+
+
+def test_encrypt_mode_requires_signature_and_rejects_old_signature(monkeypatch):
+    from app.services import feishu_events as ev
+    monkeypatch.setattr(ev.settings, "feishu_verification_token", "verify-token")
+    monkeypatch.setattr(ev.settings, "feishu_encrypt_key", "key")
+    body = json.dumps(SAMPLE).encode()
+    with pytest.raises(ev.FeishuEventError):
+        parse_callback(body)
+    timestamp = str(int(time.time()) - 601)
+    with pytest.raises(ev.FeishuEventError, match="expired"):
+        parse_callback(body, timestamp=timestamp, nonce="n",
+                       signature=signature_hex(timestamp, "n", "key", body))

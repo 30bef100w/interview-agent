@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from cryptography.fernet import Fernet, InvalidToken
+from fastapi import HTTPException
 
 from app.config import settings
 
@@ -107,8 +108,8 @@ def decrypt_key(encrypted: str) -> str:
         return ""
     try:
         return _fernet().decrypt(encrypted.encode()).decode()
-    except InvalidToken:
-        return ""
+    except (InvalidToken, ValueError, UnicodeError) as exc:
+        raise HTTPException(status_code=409, detail="已保存的 API Key 无法解密，请在模型设置中重新填写") from exc
 
 
 def resolve_llm_config(
@@ -122,12 +123,14 @@ def resolve_llm_config(
     if not p:
         p = find_provider("deepseek")
     model = find_model(p["id"], user_model) or p["models"][0]
-    if use_default or not user_key_encrypted:
+    if use_default:
         api_key = settings.deepseek_api_key
         base_url = settings.deepseek_base_url
         model_id = settings.deepseek_model
         m = find_model("deepseek", model_id) or {"input_price_per_m": 1.0, "output_price_per_m": 2.0}
     else:
+        if not user_key_encrypted:
+            raise HTTPException(status_code=409, detail="请填写自己的 API Key，或明确切换至平台配置")
         api_key = decrypt_key(user_key_encrypted)
         base_url = p["base_url"]
         model_id = model["id"]

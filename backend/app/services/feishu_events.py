@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
 import logging
+import re
+import time
 from typing import Any
 
 from cryptography.hazmat.backends import default_backend
@@ -62,16 +65,25 @@ def parse_callback(
     encrypt_key = (settings.feishu_encrypt_key or "").strip()
     verify_token = (settings.feishu_verification_token or "").strip()
     sign_key = encrypt_key or verify_token
-    if signature and sign_key:
+    if not sign_key:
+        raise FeishuEventError("callback authentication is not configured")
+    # Encrypt-key mode requires a signature on the original body, including challenges.
+    if encrypt_key or signature:
+        if not signature or not timestamp or not nonce:
+            raise FeishuEventError("missing signature fields")
         expect = signature_hex(timestamp, nonce, sign_key, body)
-        if expect != signature.strip().lower() and expect != signature.strip():
-            # 飞书文档为 sha256 hex；有的网关带 sha256= 前缀
-            got = signature.strip().lower().removeprefix("sha256=")
-            if expect != got:
-                raise FeishuEventError("invalid signature")
+        got = signature.strip().lower().removeprefix("sha256=")
+        if not re.fullmatch(r"[0-9a-f]{64}", got) or not hmac.compare_digest(expect, got):
+            raise FeishuEventError("invalid signature")
+        try:
+            signed_at = int(timestamp)
+        except ValueError as exc:
+            raise FeishuEventError("invalid signature timestamp") from exc
+        if abs(time.time() - signed_at) > 300:
+            raise FeishuEventError("expired signature")
     try:
         payload = json.loads(body.decode("utf-8") or "{}")
-    except json.JSONDecodeError as exc:
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise FeishuEventError("invalid json") from exc
     if not isinstance(payload, dict):
         raise FeishuEventError("invalid payload")
@@ -87,7 +99,7 @@ def parse_callback(
             raise FeishuEventError("decrypted payload invalid")
     if str(payload.get("type") or "") == "url_verification":
         token = str(payload.get("token") or "").strip()
-        if verify_token and token and token != verify_token:
+        if verify_token and not hmac.compare_digest(token.encode(), verify_token.encode()):
             raise FeishuEventError("invalid verification token")
         challenge = str(payload.get("challenge") or "").strip()
         if not challenge:
@@ -95,7 +107,7 @@ def parse_callback(
         return {"_url_verification": True, "challenge": challenge}
     header = payload.get("header") if isinstance(payload.get("header"), dict) else {}
     token = str(header.get("token") or payload.get("token") or "").strip()
-    if verify_token and token and token != verify_token:
+    if verify_token and not hmac.compare_digest(token.encode(), verify_token.encode()):
         raise FeishuEventError("invalid verification token")
     return payload
 

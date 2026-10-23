@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class CreateSessionRequest(BaseModel):
@@ -38,6 +38,15 @@ class CreateProgressOut(BaseModel):
 
 class AnswerRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
+    submission_id: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    expected_version: int | None = Field(default=None, ge=1)
+
+    @field_validator("text")
+    @classmethod
+    def nonblank_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("回答不能为空")
+        return value.strip()
 
 
 class AnswerOut(BaseModel):
@@ -69,6 +78,8 @@ class CodeSubmitRequest(BaseModel):
     code: str = Field(min_length=1, max_length=20000)
     language: str = Field(default="python", pattern="^(python|java|cpp|go)$")
     coding_mode: str = Field(default="function", pattern="^(function|scratch)$")
+    submission_id: str | None = Field(default=None, min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    expected_version: int | None = Field(default=None, ge=1)
 
 
 class CodeSubmitResponse(BaseModel):

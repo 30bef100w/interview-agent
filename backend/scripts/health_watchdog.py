@@ -22,7 +22,7 @@ from app.services.alert_throttle import mark_alert_sent, should_send_alert
 from app.services.feishu_notify import send_ops_alert, send_feishu_text
 
 STATE_PATH = Path(__file__).resolve().parents[1] / "logs" / "health_watchdog_state.json"
-HEALTH_URL = os.environ.get("HEALTH_CHECK_URL", "http://nginx/api/health").strip()
+HEALTH_URL = os.environ.get("HEALTH_CHECK_URL", "http://nginx/api/ready").strip()
 FAIL_THRESHOLD = max(1, int(os.environ.get("HEALTH_FAIL_THRESHOLD", "2")))
 COOLDOWN = max(60, int(os.environ.get("ALERT_COOLDOWN_SECONDS", "600")))
 
@@ -49,7 +49,7 @@ def _check_health() -> tuple[bool, str]:
             if resp.status != 200:
                 return False, f"HTTP {resp.status}: {body[:200]}"
             data = json.loads(body) if body.strip().startswith("{") else {}
-            if data.get("status") != "ok":
+            if data.get("status") not in {"ready", "ok"}:
                 return False, f"unexpected body: {body[:200]}"
             return True, "ok"
     except urllib.error.URLError as exc:

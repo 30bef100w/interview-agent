@@ -20,7 +20,7 @@ cp deploy/env.example .env
 | `DEEPSEEK_API_KEY` | LLM 接口 Key |
 | `JWT_SECRET` | 随机长字符串，勿用默认值 |
 | `POSTGRES_PASSWORD` | 数据库密码 |
-| `ADMIN_USERNAMES` | 管理员用户名（逗号分隔） |
+| `ADMIN_USERNAMES` | 可选保留用户名（逗号分隔），禁止公开注册；不自动授予管理员 |
 
 若使用**本机已有 PostgreSQL**，注释 compose 里的 `postgres` 服务，并把 `DATABASE_URL` 改为：
 
@@ -49,7 +49,15 @@ docker compose up -d --build
 
 浏览器访问：**http://服务器IP**（或 `HTTP_PORT` 指定的端口）。
 
-健康检查：`curl http://localhost/api/health`
+存活检查：`curl http://localhost/api/health`；数据库和会话表结构就绪检查：`curl http://localhost/api/ready`。
+
+管理员授权不再依赖用户名配置：先注册普通账号，核验用户 ID 后，在受信任服务器运行
+`docker compose exec backend python -m app.manage_admin --user-id 123`（替换为实际 ID）。
+已有数据库的管理员标记会保留；`--revoke` 可撤销指定用户的管理员身份。
+
+2026-10-22 稳定性修复升级前请先备份数据库和上传文件，停止旧后端后完成单实例升级，
+不要让旧代码与新增会话版本/处理标记的代码混跑。升级后旧登录 Token 会失效，用户需重新登录一次。
+详细变更、兼容策略与未完成项见[后端设计修复记录](../docs/问题修复记录/后端设计.md)。
 
 ## 4. 架构说明
 

@@ -3,7 +3,8 @@
 import Editor, { loader } from "@monaco-editor/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { api } from "@/lib/api";
+import { api, newSubmissionId } from "@/lib/api";
+import { loadDraft, saveDraft } from "@/lib/drafts";
 
 // 国内镜像加载 Monaco（默认 jsdelivr 在国内不稳定）
 loader.config({
@@ -65,6 +66,7 @@ type Review = {
 
 type Props = {
   sessionId: string;
+  version?: number;
   problem: CodingProblem;
   onSubmitted: (judge: JudgeResult, review: Review, message: string) => void;
 };
@@ -232,7 +234,7 @@ function legacyDescriptionToHtml(text: string): string {
     : "";
 }
 
-export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
+export default function CodeEditor({ sessionId, version, problem, onSubmitted }: Props) {
   const languages = useMemo(() => {
     return FALLBACK_LANGS.map((fb) => {
       const fromServer = problem.languages?.find((l) => l.id === fb.id);
@@ -270,7 +272,8 @@ export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
 
   const [mode, setMode] = useState<CodingMode>("scratch");
   const [lang, setLang] = useState(defaultLang);
-  const [code, setCode] = useState(() => templateMap.scratch[defaultLang] || templateMap.function[defaultLang]);
+  const [code, setCode] = useState(() => loadDraft<string>(`code:${sessionId}:${problem.slug}:scratch:${defaultLang}`)
+    ?? templateMap.scratch[defaultLang] ?? templateMap.function[defaultLang]);
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [runOut, setRunOut] = useState<JudgeResult | null>(null);
@@ -278,6 +281,14 @@ export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const codeCache = useRef<Record<string, string>>({});
+  const submissionRef = useRef<{ id: string; content: string; version?: number } | null>(null);
+  const versionRef = useRef(version);
+  useEffect(() => { versionRef.current = version; }, [version]);
+
+  useEffect(() => {
+    codeCache.current[cacheKey(mode, lang)] = code;
+    saveDraft(`code:${sessionId}:${problem.slug}:${mode}:${lang}`, code);
+  }, [code, mode, lang, sessionId, problem.slug]);
 
   const currentMeta = languages.find((l) => l.id === lang) || FALLBACK_LANGS[0];
   const filename =
@@ -302,6 +313,8 @@ export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
   }, [templateMap]);
 
   function loadCode(nextMode: CodingMode, nextLang: string): string {
+    const saved = loadDraft<string>(`code:${sessionId}:${problem.slug}:${nextMode}:${nextLang}`);
+    if (saved !== null) return saved;
     const key = cacheKey(nextMode, nextLang);
     if (codeCache.current[key] != null) return codeCache.current[key];
     return (
@@ -355,24 +368,33 @@ export default function CodeEditor({ sessionId, problem, onSubmitted }: Props) {
   }
 
   async function submit() {
+    if (submitting || done) return;
     setSubmitting(true);
     setError("");
+    const content = JSON.stringify({ slug: problem.slug, code, language: lang, coding_mode: mode });
+    if (submissionRef.current?.content !== content) submissionRef.current = { id: newSubmissionId(), content, version: versionRef.current };
     try {
       const res = await api<{ judge: JudgeResult; review: Review; message: string }>(
         `/api/interview/session/${sessionId}/code/submit`,
-        { method: "POST", body: JSON.stringify({ slug: problem.slug, code, language: lang, coding_mode: mode }) }
+        { method: "POST", body: JSON.stringify({ ...JSON.parse(content), submission_id: submissionRef.current.id,
+          expected_version: submissionRef.current.version }) }
       );
       setDone({ judge: res.judge, review: res.review, message: res.message });
       onSubmitted(res.judge, res.review, res.message);
     } catch (e) {
       setError(e instanceof Error ? e.message : "提交失败");
+      try {
+        const current = await api<{ version: number; processing: boolean; last_submission_id?: string }>(`/api/interview/session/${sessionId}`);
+        versionRef.current = current.version;
+        if (!current.processing && current.last_submission_id !== submissionRef.current?.id) submissionRef.current = null;
+      } catch { /* Outcome is unknown: retain the ID for a safe replay. */ }
     }
     setSubmitting(false);
   }
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-3 p-4">
-      <div className="grid min-h-0 flex-1 grid-cols-2 gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 md:grid-cols-2">
         {/* 左：题面 */}
         <div className="flex min-h-0 flex-col overflow-y-auto rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="mb-2 flex flex-wrap items-center gap-2">
