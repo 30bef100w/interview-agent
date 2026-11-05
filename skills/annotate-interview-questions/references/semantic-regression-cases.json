@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.0.0",
+  "corpus_id": "2026-10-28-batch4-10000",
+  "source_sha256": "52d7d5052747d1d92a097b1680b8d1612e2b518822f18583de5d8c1a4c7ce5a8",
+  "purpose": "固定题库中已确认语义关系的回归检查；检查列明的禁用与必需关系，不自动打标签，不推断新题语义。",
+  "cases": [
+    {
+      "sample_id": "S0061",
+      "forbidden_tests": [
+        "java.basics"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "C++字符串字节序不能挂Java字符串。"
+    },
+    {
+      "sample_id": "S0391",
+      "forbidden_tests": [
+        "agent.context",
+        "agent.memory",
+        "agent.state",
+        "proposed.agent.reference_bank"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "长视频生成的跨片段一致性机制，不是Agent上下文/记忆/Checkpoint。"
+    },
+    {
+      "sample_id": "S0423",
+      "forbidden_tests": [
+        "ai.eval"
+      ],
+      "forbidden_scenes": [
+        "scene:candidate:proposed.scene.ai_interview"
+      ],
+      "forbidden_scene_concept_links": [],
+      "reason": "原答案明确为候选人答题助手，不能当模拟面试官，也不证明考察面试评估。"
+    },
+    {
+      "sample_id": "S0295",
+      "forbidden_tests": [
+        "data.agent"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "音乐推荐系统不是Data Agent/ChatBI。"
+    },
+    {
+      "sample_id": "S0726",
+      "forbidden_tests": [
+        "algorithm.dp"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "递归空间复杂度不直接证明考察动态规划。"
+    },
+    {
+      "sample_id": "S0985",
+      "forbidden_tests": [
+        "redis.expiry_eviction"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "超时取消没有指定Redis方案。"
+    },
+    {
+      "sample_id": "S0484",
+      "forbidden_tests": [
+        "ai.eval.judge"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "泛问大模型评测，没有指定LLM-as-Judge。"
+    },
+    {
+      "sample_id": "S0533",
+      "forbidden_tests": [
+        "network.tcp"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "select的作用用法属于IO多路复用，不自动考察TCP握手挥手。"
+    },
+    {
+      "sample_id": "S1763",
+      "forbidden_tests": [
+        "frontend.ai_interaction"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "GraphQL编辑器补全不自动属于AI长任务交互。"
+    },
+    {
+      "sample_id": "S1827",
+      "forbidden_tests": [
+        "agent.plan_execute"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "Cline交互模式不等同自主Plan-and-Execute范式。"
+    },
+    {
+      "sample_id": "S1860",
+      "forbidden_tests": [
+        "vector_search.index"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "缺少项目索引对象时不能猜向量索引。"
+    },
+    {
+      "sample_id": "S1875",
+      "forbidden_tests": [
+        "engineering.logs"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "Prometheus metric设计不直接考察日志/Trace。"
+    },
+    {
+      "sample_id": "S1910",
+      "forbidden_tests": [
+        "rag"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "通用ChatGPT类聊天系统设计未指定RAG知识检索。"
+    },
+    {
+      "sample_id": "S1991",
+      "forbidden_tests": [
+        "frontend.sse"
+      ],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [],
+      "reason": "接收后端消息未指定SSE，不能将候选实现标成确定考点。"
+    },
+    {
+      "sample_id": "S1740",
+      "forbidden_tests": [],
+      "forbidden_scenes": [],
+      "forbidden_scene_concept_links": [
+        {
+          "scene_id": "scene:candidate:proposed.scene.distributed_file_storage",
+          "concept_id": "proposed.distributed.file_consistency"
+        }
+      ],
+      "reason": "仅介绍项目不能证明具体涉及文件一致性机制。"
+    },
+    {
+      "sample_id": "S0135",
+      "required_scenes": [
+        "scene:candidate:proposed.scene.customer_service"
+      ],
+      "reason": "多Agent客户服务系统明确符合智能客服模板，无具名项目也有业务场景。"
+    },
+    {
+      "sample_id": "S3052",
+      "required_scenes": [
+        "scene:candidate:proposed.scene.customer_service"
+      ],
+      "reason": "客服Agent的workflow/agent选型明确符合智能客服模板。"
+    },
+    {
+      "sample_id": "S2467",
+      "required_scenes": [
+        "scene:candidate:proposed.scene.enterprise_chatbot"
+      ],
+      "reason": "企业内部知识库问答方案选型明确符合企业文档问答产品。"
+    },
+    {
+      "sample_id": "S4046",
+      "required_tests": [
+        "proposed.spring.aop"
+      ],
+      "reason": "题干明确并列询问Spring控制反转和AOP，AOP已有节点不能漏掉。"
+    },
+    {
+      "sample_id": "S3973",
+      "forbidden_tests": [
+        "proposed.agent.system_design"
+      ],
+      "forbidden_scene_concept_links": [
+        {
+          "scene_id": "scene:business:community",
+          "concept_id": "proposed.agent.system_design"
+        }
+      ],
+      "reason": "常规社交信息流系统设计不属于Agent系统设计。"
+    }
+  ]
+}

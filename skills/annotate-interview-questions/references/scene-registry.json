@@ -1,0 +1,3145 @@
+{
+  "schema_version": "1.0.0",
+  "registry_version": "2026-11-05.scene.v06",
+  "purpose": "AI标注时查阅的场景定义库；不是生产图快照，也不自动生成图边。",
+  "source_graph_snapshot": "data/index_review/2026-11-03",
+  "identity_policy": "KG按业务场景或完整应用任务建入口；匹配题干/上下文/简历描述的业务对象与任务，不要求教程或产品名称相同。黑马点评归本地生活服务，苍穹外卖归外卖服务。来源项目名称保留作属性；同项目不按模块拆分，无业务依据不补场景。",
+  "scenes": [
+    {
+      "id": "scene:business:admin_system",
+      "name": "后台管理与企业业务系统",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "供员工、运营或管理人员处理组织内部业务的应用，常见功能包括权限、审批、配置与业务管理。",
+      "match_when": [
+        "题目明确讨论后台管理、企业内部系统或对应业务流程。"
+      ],
+      "exclude_when": [
+        "仅问CRUD、RBAC或数据库原理，没有企业系统语境。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "后台管理/企业系统",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向组织内部员工、运营及管理人员的业务处理系统，核心是让不同角色在权限边界内录入、审批、查询和追踪业务。与面向消费者的购物产品相比，重点常在流程一致性、数据权限和操作可追溯性。",
+        "participants": [
+          "业务员工",
+          "审核人及管理者",
+          "系统管理员"
+        ],
+        "typical_workflow": [
+          "身份认证与角色分配",
+          "提交业务数据或审批单",
+          "按权限流转、审核和状态变更",
+          "查询统计并保留操作记录"
+        ],
+        "interview_focus": [
+          "角色与数据权限如何协同",
+          "审批状态、并发更新与幂等",
+          "操作日志、审计与异常补偿"
+        ],
+        "resume_clues": [
+          "管理后台",
+          "企业审批平台",
+          "运营工作台",
+          "RBAC与数据权限"
+        ],
+        "scope_boundary": "单问CRUD、角色表或日志原理不足以确定此场景；这些只是可能的工程考点。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:ai_app",
+      "name": "AI应用与对话产品",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "将模型能力用于面向用户的问答、生成或辅助决策产品，是AI应用的宽口径入口，不代表某个具体项目。",
+      "match_when": [
+        "题目明确以AI应用产品为对象，且无法确定更具体的场景。"
+      ],
+      "exclude_when": [
+        "只是问Transformer、向量检索或Agent原理；已有客服、面试、导购等准确入口。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "AI 应用/对话机器人",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "用于暂时无法定位更具体应用任务的AI产品业务入口。它描述用户提交自然语言或其他输入、系统调用模型并交付结果的完整服务过程；能确定是客服、面试或问数产品时，应使用相应应用入口。",
+        "participants": [
+          "终端用户",
+          "模型服务",
+          "产品运营"
+        ],
+        "typical_workflow": [
+          "接收输入与会话上下文",
+          "选择模型与必要工具",
+          "生成并交付结果",
+          "处理反馈、费用和异常"
+        ],
+        "interview_focus": [
+          "流式输出与取消重试",
+          "模型超时、限流和降级",
+          "用户隔离、成本与效果评价"
+        ],
+        "resume_clues": [
+          "AI助手",
+          "智能对话应用",
+          "模型服务产品化"
+        ],
+        "scope_boundary": "不是所有LLM原理题都有AI产品场景；不要给已有准确业务入口的题机械再加本宽标签。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:bigdata",
+      "name": "大数据与数据平台",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "围绕数据采集、同步、存储、加工、治理和分析构建的平台，服务于数据生产与消费。",
+      "match_when": [
+        "题目明确讨论数据平台、数仓或数据管线的业务系统。"
+      ],
+      "exclude_when": [
+        "单独SQL、Spark语法题；明确电商问数项目时用该项目入口。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "大数据/数据平台",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "为组织持续提供可信数据的生产与消费平台，连接业务数据源、加工任务与分析使用者。主要价值不是执行一条SQL，而是让数据按约定的时效、口径和权限稳定进入下游分析或服务。",
+        "participants": [
+          "数据生产方",
+          "数据工程师",
+          "分析人员与数据消费者"
+        ],
+        "typical_workflow": [
+          "采集和同步源数据",
+          "清洗、建模并执行计算任务",
+          "进行质量检查、编排和补数",
+          "向报表、分析或应用交付数据"
+        ],
+        "interview_focus": [
+          "实时与离线链路的取舍",
+          "数据一致性、口径和血缘",
+          "任务失败恢复、时效与资源治理"
+        ],
+        "resume_clues": [
+          "数据平台",
+          "数仓建设",
+          "数据同步",
+          "ETL与任务编排"
+        ],
+        "scope_boundary": "独立SQL、Spark语法或算法题不自动属于数据平台；自然语言问数有完整任务时优先问数入口。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:community",
+      "name": "内容社区与社交产品",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "围绕用户发布内容、互动与关系链构建的产品，如动态、评论、关注和内容分发。",
+      "match_when": [
+        "明确内容社区、社交平台或其业务链路。"
+      ],
+      "exclude_when": [
+        "只出现评论、消息、点赞的数据结构；普通点评项目不能因此视为黑马点评。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "内容社区/社交",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "围绕用户生产内容、互动和关系链形成的社区产品。用户不仅消费信息，还通过发布、评论、关注等行为产生后续分发与互动需求，因此常同时关注内容状态、消息通知和访问热点。",
+        "participants": [
+          "内容创作者",
+          "浏览和互动用户",
+          "内容运营"
+        ],
+        "typical_workflow": [
+          "发布并管理内容",
+          "审核或处理可见性",
+          "向关注用户或信息流分发",
+          "完成评论、点赞和消息通知"
+        ],
+        "interview_focus": [
+          "信息流拉取与推送",
+          "计数一致性与热点内容",
+          "权限、删除和通知的协同"
+        ],
+        "resume_clues": [
+          "社区平台",
+          "动态与关注",
+          "评论互动",
+          "内容信息流"
+        ],
+        "scope_boundary": "本地商户点评以到店消费为主要任务时归本地生活；孤立点赞或Redis计数题不自动标社区。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:delivery",
+      "name": "外卖服务",
+      "aliases": [
+        "外卖系统",
+        "在线点餐与外卖平台"
+      ],
+      "scope_type": "business_domain",
+      "definition": "连接消费者、餐饮商家与配送履约方的在线餐饮订购应用，主要任务是选餐、下单、支付、商家接单及配送履约。按业务任务复用场景，不依赖简历或题干出现苍穹外卖等教程项目名。",
+      "match_when": [
+        "题干、准确项目上下文或简历描述明确餐饮外卖、商家接单或餐饮订单配送业务。",
+        "来源明确为苍穹外卖的有效业务面试题可归入本场景；来源名称保留作溯源。"
+      ],
+      "exclude_when": [
+        "菜名、价格、页面标题等非题目；孤立Swagger或浏览器扩展问题。",
+        "仅有通用订单、支付、日志、Redis知识而无餐饮外卖业务上下文。",
+        "商户发现、探店点评与到店优惠券消费主要归本地生活服务。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "user_confirmed_business_scene",
+      "evidence": [
+        {
+          "locator": "conversation:2026-11-05:business-scene-granularity",
+          "quote": "黑马点评可以归到本地生活服务或者电商里，苍穹外卖可以归到外卖里，不用单设"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "场景根据业务任务判断，不按教程名和订单、日志等模块另建入口。",
+        "与本地生活服务平级；不为每题机械叠加电商等宽类。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "外卖/本地生活",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "服务消费者点餐、商家接单与配送履约的餐饮外卖系统。它连接菜单和库存、交易订单以及实际配送过程，既要处理付款后的状态变化，也要面对取消、退款、超时和多方协作。苍穹外卖只是此类业务的一种来源示例。",
+        "participants": [
+          "消费者",
+          "餐饮商家",
+          "配送及运营人员"
+        ],
+        "typical_workflow": [
+          "选择商家与菜品并加入购物车",
+          "创建订单、支付并通知商家",
+          "接单、备餐与配送状态流转",
+          "处理取消、退款、超时和经营统计"
+        ],
+        "interview_focus": [
+          "订单状态机与重复回调",
+          "库存、价格和支付的一致性",
+          "接单通知、超时任务与异常补偿"
+        ],
+        "resume_clues": [
+          "餐饮外卖平台",
+          "在线点餐",
+          "商家接单",
+          "配送订单"
+        ],
+        "scope_boundary": "不用教程项目名判断归属；菜名、原型按钮和通用测试知识不因来源是外卖仓库就成为外卖业务题。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:ecommerce",
+      "name": "电商购物与交易业务",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "围绕商品、购物车、订单、支付及售后形成的商业交易系统；此处交易主要指商品买卖。",
+      "match_when": [
+        "明确电商购物、商品订单或售后流程。",
+        "以业务对象和任务判断同类商城项目，不要求出现某个教程名。"
+      ],
+      "exclude_when": [
+        "泛问事务、锁、库存；证券/加密资产交易平台不能仅因交易二字混入。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "以商品购物与交易为核心的项目按本定义复用，不要求教程名一致。",
+        "本地商户点评与到店消费优先本地生活服务；餐饮订购配送优先外卖服务。不因共享支付/订单模块就机械叠加场景。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "电商/交易",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向商品选购和线上交易的业务系统，连接商品与价格、购物车、订单、支付及售后。不同商城在履约方式和促销规则上可能不同，但可共享商品交易这个业务场景。",
+        "participants": [
+          "消费者",
+          "商家及运营",
+          "支付与履约服务"
+        ],
+        "typical_workflow": [
+          "浏览商品和价格",
+          "购物车结算、优惠核算与下单",
+          "付款、库存扣减与履约",
+          "取消退款、售后及对账"
+        ],
+        "interview_focus": [
+          "库存与订单的一致性",
+          "促销并发、幂等和防超卖",
+          "支付回调、超时关闭与补偿"
+        ],
+        "resume_clues": [
+          "商城",
+          "商品交易",
+          "购物车与订单",
+          "促销结算"
+        ],
+        "scope_boundary": "证券交易不是商品电商；到店点评和餐饮外卖优先各自业务入口，不能因都含支付就全部混为电商。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:finance",
+      "name": "金融与支付业务",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "处理账户、资金流转、支付清结算、金融服务或合规要求的业务系统。",
+      "match_when": [
+        "明确金融、支付、资金或清结算业务。"
+      ],
+      "exclude_when": [
+        "通用幂等与并发题；明确智能客服或交易Agent完整应用时优先对应入口，保险退费只是功能流程，不单列场景。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "金融/支付",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "围绕账户、资金和金融业务流程构建的系统入口。处理对象可能是余额、支付指令或账务记录，重点在业务结果可核对、失败可恢复以及权限和风险约束；实际能力仍以题目中的具体金融任务为准。",
+        "participants": [
+          "账户持有人",
+          "业务运营",
+          "支付渠道或账务服务"
+        ],
+        "typical_workflow": [
+          "验证身份与业务权限",
+          "受理资金或金融业务请求",
+          "记录并执行状态变更",
+          "对账、追踪异常并完成补偿"
+        ],
+        "interview_focus": [
+          "金额精度与账务一致性",
+          "重复请求、回调和资金幂等",
+          "对账、审计与失败补偿"
+        ],
+        "resume_clues": [
+          "资金账户",
+          "支付平台",
+          "清结算",
+          "金融业务系统"
+        ],
+        "scope_boundary": "投顾建议和自动交易执行分别有应用入口；一般锁、事务或金额运算题不自动证明金融项目归属。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:game",
+      "name": "游戏业务系统",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "面向游戏玩家与运营的业务系统，包含匹配、房间、游戏状态、道具与活动等实际产品任务。",
+      "match_when": [
+        "题目明确游戏业务或游戏服务端场景。"
+      ],
+      "exclude_when": [
+        "泛问排行榜、网络或并发，但没有游戏语境。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "游戏",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "为玩家完成匹配、进入房间、交互对局和结果结算的游戏业务系统。它同时处理持续变化的在线状态和对时延敏感的事件，具体玩法、同步方式和容错要求需要依据项目上下文判断。",
+        "participants": [
+          "玩家",
+          "房间或对局服务",
+          "游戏运营"
+        ],
+        "typical_workflow": [
+          "登录与匹配",
+          "分配房间并开始对局",
+          "同步状态或事件",
+          "结算奖励并持久化结果"
+        ],
+        "interview_focus": [
+          "实时交互与状态同步",
+          "掉线重连和重复事件",
+          "房间扩容、热点与结果一致性"
+        ],
+        "resume_clues": [
+          "游戏后端",
+          "匹配系统",
+          "房间服务",
+          "实时对战"
+        ],
+        "scope_boundary": "独立图形学、随机数或碰撞算法未必有游戏业务语境；不能只因使用UDP就标游戏。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:im",
+      "name": "即时通讯系统",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "支持用户或群组实时收发消息的产品系统，重点在消息路由、投递、离线补偿、会话与一致性。",
+      "match_when": [
+        "明确聊天、IM、群聊或消息投递业务。"
+      ],
+      "exclude_when": [
+        "只问TCP、消息队列、WebSocket原理，没有通讯产品上下文。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "即时通讯",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "支持用户或群组持续发送、接收和查看消息的通信产品。除在线低延迟投递之外，还需要在断线、多端登录及服务重启后保持合理的会话状态和消息可见性。",
+        "participants": [
+          "消息发送者",
+          "个人或群组接收者",
+          "消息与会话服务"
+        ],
+        "typical_workflow": [
+          "建立连接与鉴权",
+          "提交消息并分配标识",
+          "路由到接收端或离线存储",
+          "回执、拉取历史与断线补偿"
+        ],
+        "interview_focus": [
+          "顺序、重复与投递语义",
+          "离线消息和多端同步",
+          "长连接、群聊扩散与容量"
+        ],
+        "resume_clues": [
+          "即时通讯",
+          "聊天系统",
+          "群消息",
+          "离线消息补偿"
+        ],
+        "scope_boundary": "WebSocket、消息队列或TCP原理不能单独证明聊天产品场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:iot",
+      "name": "物联网与嵌入式产品",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "连接或控制设备、传感器、边缘端与云服务的产品，业务对象包含真实硬件与设备生命周期。",
+      "match_when": [
+        "明确设备接入、嵌入式产品或物联网业务。"
+      ],
+      "exclude_when": [
+        "所有硬件题一律挂此入口；孤立芯片电路题仍需判断是否具有具体产品场景。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "物联网/嵌入式",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "将设备或传感器的运行状态与云端业务连接起来的应用。除了处理数据上报，还可能包含设备身份、配置下发和指令执行；网络不稳定、设备资源有限和版本差异常是实际约束。",
+        "participants": [
+          "设备及传感器",
+          "设备使用者",
+          "边缘网关与云平台"
+        ],
+        "typical_workflow": [
+          "设备注册、鉴权与连接",
+          "采集并上报状态数据",
+          "云端存储分析或下发指令",
+          "设备执行、回执与运维"
+        ],
+        "interview_focus": [
+          "弱网重试与离线缓存",
+          "设备身份、协议与指令幂等",
+          "远程升级、资源约束和状态一致性"
+        ],
+        "resume_clues": [
+          "设备接入平台",
+          "传感器数据",
+          "边缘设备",
+          "云端控制"
+        ],
+        "scope_boundary": "单纯电路、CPU或嵌入式语言题不一定构成完整物联网业务；不能从某总线协议推断项目。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:job_platform",
+      "name": "招聘与求职平台",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "连接求职者、岗位和招聘方的产品系统，提供职位检索、简历投递、匹配和招聘流程管理。",
+      "match_when": [
+        "题目明确招聘平台或求职产品的设计实现。"
+      ],
+      "exclude_when": [
+        "普通面试题、HR提问或简历建议；AI模拟面试平台已有独立入口。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "招聘/求职平台",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "连接求职者、岗位与招聘方的双边产品，管理信息展示、匹配和招聘流程。它关注候选人和岗位信息如何流转，而不是仅仅对一道面试题生成答案。",
+        "participants": [
+          "求职者",
+          "招聘方",
+          "平台运营"
+        ],
+        "typical_workflow": [
+          "维护简历与职位信息",
+          "搜索、筛选或匹配岗位",
+          "投递和处理候选人状态",
+          "沟通、预约与流程跟踪"
+        ],
+        "interview_focus": [
+          "检索匹配与权限隔离",
+          "投递状态、重复操作与通知",
+          "隐私字段和业务审计"
+        ],
+        "resume_clues": [
+          "招聘平台",
+          "简历投递",
+          "职位搜索",
+          "候选人管理"
+        ],
+        "scope_boundary": "AI模拟面试、候选人答题助手属于不同应用任务，不因都涉及求职而合并。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:media",
+      "name": "音视频与直播产品",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "处理音视频内容上传、播放、转码、分发或实时直播的产品系统。",
+      "match_when": [
+        "题目明确音视频平台、直播或内容播放业务。"
+      ],
+      "exclude_when": [
+        "只问编码、网络协议或GPU；视频生成平台与音乐推荐按任务使用独立入口。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "音视频/直播",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "为音视频内容提供上传、处理、播放和分发服务的产品入口。既可能处理已有文件，也可能处理实时直播流；两者在时延、失败恢复和资源成本上的侧重点不同。",
+        "participants": [
+          "内容生产者",
+          "观众",
+          "媒体处理与分发服务"
+        ],
+        "typical_workflow": [
+          "采集或上传媒体",
+          "转码、切片或处理直播流",
+          "存储与分发内容",
+          "播放、质量监控和异常恢复"
+        ],
+        "interview_focus": [
+          "转码任务、状态与重试",
+          "播放延迟、带宽与CDN",
+          "文件或流的权限和资源治理"
+        ],
+        "resume_clues": [
+          "音视频平台",
+          "直播服务",
+          "视频上传转码",
+          "媒体分发"
+        ],
+        "scope_boundary": "独立编解码原理和视频模型题不自动属于媒体业务；生成视频任务的平台有独立应用入口。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:search_rec",
+      "name": "搜索与推荐业务平台",
+      "aliases": [],
+      "scope_type": "business_domain",
+      "definition": "根据用户查询或兴趣，从商品、内容等候选中检索和排序的业务系统。",
+      "match_when": [
+        "明确搜索平台、推荐系统及其业务链路。"
+      ],
+      "exclude_when": [
+        "独立算法、RAG召回题；明确音乐推荐项目时优先使用音乐推荐。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "legacy_business_category_definition",
+      "evidence": [],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "仅在题干明确对应业务应用、且没有更准确项目/产品入口时使用；不是上级必经节点，不机械同时挂宽类与具体项目。",
+        "行业或泛化类别名称本身不足以给题目生成场景关系。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "搜索/推荐",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "从大量候选商品或内容中为用户找出合适结果的业务系统。搜索主要以明确查询为入口，推荐更多使用用户兴趣和行为；两者都可能经历候选获取、过滤、排序和效果反馈。",
+        "participants": [
+          "搜索或浏览用户",
+          "内容及商品供给方",
+          "检索排序服务"
+        ],
+        "typical_workflow": [
+          "理解查询或用户兴趣",
+          "召回候选并进行过滤",
+          "排序与结果展示",
+          "采集反馈、评估并迭代"
+        ],
+        "interview_focus": [
+          "候选覆盖与排序效果",
+          "特征更新、冷启动与时效",
+          "在线延迟、实验指标与反馈偏差"
+        ],
+        "resume_clues": [
+          "搜索系统",
+          "推荐平台",
+          "商品推荐",
+          "信息流排序"
+        ],
+        "scope_boundary": "单独向量算法或RAG召回题不一定是搜索推荐产品；完整音乐推荐有更明确应用入口。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.ai_interview",
+      "name": "AI模拟面试系统",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "由系统担任面试官，结合岗位、简历或历史作答进行出题、追问、评价与复盘的应用。",
+      "match_when": [
+        "系统向候选人提问或根据回答决定下一问；讨论该系统的设计实现。"
+      ],
+      "exclude_when": [
+        "帮助候选人在真实面试中识别问题并生成答案的答题助手；普通面试题不自动属于此项目。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0294",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:294",
+          "quote": "如何设计一个基于RAG的AI面试系统？",
+          "source_file": "1971540523425732447"
+        },
+        {
+          "sample_id": "S0423",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:423",
+          "quote": "AI 面试助手是如何工作的？",
+          "source_file": "18498897404"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / ai interview",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "由系统担任面试官的练习与评估产品，围绕岗位、简历和候选人回答组织提问与反馈。核心任务是推动一场有目的的模拟面试，并在结束后给出基于回答证据的复盘。",
+        "participants": [
+          "练习者",
+          "AI面试官",
+          "题库与评估服务"
+        ],
+        "typical_workflow": [
+          "录入岗位、简历或练习目标",
+          "制定考察方向并提出问题",
+          "根据回答追问和调整难度",
+          "生成评价、薄弱项与复盘建议"
+        ],
+        "interview_focus": [
+          "考点覆盖与场景匹配",
+          "追问上下文和会话状态",
+          "评分依据、语音输入与结果复现"
+        ],
+        "resume_clues": [
+          "AI模拟面试",
+          "简历面试练习",
+          "自动追问与评分",
+          "面试复盘"
+        ],
+        "scope_boundary": "系统承担面试官角色；在真实面试中为候选人提供答案建议的应用应归候选人答题助手。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.ai_toc_backend",
+      "name": "面向个人用户的AI应用后端",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "为个人用户提供模型驱动服务的后端产品，涉及用户接入、任务编排、模型调用、用量与结果交付。",
+      "match_when": [
+        "明确要求从零设计AI ToC后端或讨论该产品的整体实现。"
+      ],
+      "exclude_when": [
+        "通用JWT、网关和限流题；具体写作/客服项目应优先其准确场景。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:ai_app",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0505",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:505",
+          "quote": "如果让你从 0 到 1 搭一个 AI ToC 后端服务，你会怎么拆：",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/03_垂直写作与审阅平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "面向个人用户、后端分层与从零搭建是受众或工程侧重点，不构成新的项目身份；明确是AI应用且没有更准确产品任务时复用AI应用入口。",
+        "仅记录入口收拢；旧题关系仍需根据原文判断，不把全部旧边直接复制给目标。"
+      ],
+      "classification_reason": "面向个人用户、后端分层与从零搭建是受众或工程侧重点，不构成新的项目身份；明确是AI应用且没有更准确产品任务时复用AI应用入口。",
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / ai toc backend",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.bank_customer_service",
+      "name": "银行智能客服",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "面向银行客户的业务咨询与服务系统，结合银行知识、账户业务边界和合规要求提供帮助。",
+      "match_when": [
+        "明确银行业务语境下的客服设计与实现。"
+      ],
+      "exclude_when": [
+        "普通客服或任意金融算法题；只有银行招聘来源不足以证明该场景。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:candidate:proposed.scene.customer_service",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1475",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1475",
+          "quote": "某银行想用大模型做智能客服，你怎么设计？",
+          "source_file": "2022081427286627718"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "银行客服仍是智能客服产品；银行属于行业属性，合规、资金安全等要求作为知识点和业务约束，不再按行业复制客服入口。明确的具名银行项目仍可单独登记。",
+        "仅记录入口收拢；旧题关系仍需根据原文判断，不把全部旧边直接复制给目标。"
+      ],
+      "classification_reason": "银行客服仍是智能客服产品；银行属于行业属性，合规、资金安全等要求作为知识点和业务约束，不再按行业复制客服入口。明确的具名银行项目仍可单独登记。",
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / bank customer service",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.chatbot",
+      "name": "通用AI对话产品",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "以多轮自然语言对话为主要交互方式的通用AI聊天系统，负责会话、生成与服务交付。",
+      "match_when": [
+        "明确设计ChatGPT类聊天产品或通用AI chatbot。"
+      ],
+      "exclude_when": [
+        "企业文档问答、客服等已有具体任务；单独问注意力机制。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1910",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1910",
+          "quote": "EN: Design an AI chatbot or ChatGPT-like conversational system. CN: 設計一個 AI chatbot / 類 ChatGPT 對話系統",
+          "source_file": "ai_agent_interview_240/skills/interview-skills/references/chatbox-senior-ai-chatbot.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / chatbot",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "以开放多轮交流为主要任务的通用AI聊天产品。用户问题不固定属于某个专业流程，因此产品重点在会话上下文、生成过程、用户体验和基础服务保障。",
+        "participants": [
+          "聊天用户",
+          "模型服务",
+          "会话管理服务"
+        ],
+        "typical_workflow": [
+          "创建会话并提交消息",
+          "组织历史与系统指令",
+          "流式生成、停止或重试",
+          "保存历史和处理用户反馈"
+        ],
+        "interview_focus": [
+          "上下文窗口与长会话",
+          "流式连接与重复发送",
+          "多用户隔离、费用和降级"
+        ],
+        "resume_clues": [
+          "AI聊天",
+          "多轮对话",
+          "会话管理",
+          "模型接入"
+        ],
+        "scope_boundary": "能确定是客服、知识问答或模拟面试时使用具体应用入口；不能只因界面有聊天框就归通用聊天。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.commerce_agent",
+      "name": "交易平台下单权限片段（历史误命名）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "旧ID虽含commerce，但当前依据来自交易Agent与风控平台，表达真实下单的权限边界，不是另一个已确认电商项目。",
+      "match_when": [
+        "核查到同一交易平台项目依据后，使用交易Agent与风控平台入口。"
+      ],
+      "exclude_when": [
+        "不能把所有Agent下单题按此旧名称归成电商场景。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:candidate:proposed.scene.trading_agent_platform",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0941",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:941",
+          "quote": "如果 Agent 可以下单，你怎么做权限边界？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/02_交易Agent与风控平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / commerce agent",
+      "classification_reason": "旧ID虽含commerce，但当前依据来自交易Agent与风控平台，表达真实下单的权限边界，不是另一个已确认电商项目。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.content_creation_agent",
+      "name": "AI内容创作助手",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "辅助用户完成内容规划、检索、生成、审校、人工确认与发布的创作产品。",
+      "match_when": [
+        "题目明确AI创作助手或内容生产工作流及其实现。"
+      ],
+      "exclude_when": [
+        "仅问提示词或模型生成；视频生成任务平台、一般报告分析有各自任务边界。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1553",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1553",
+          "quote": "如果做一个 Agent 创作助手，工作流怎么编排、状态怎么保存、怎么观测。",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/06_AIGC内容平台/01_核心问答.md"
+        },
+        {
+          "sample_id": "S1883",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1883",
+          "quote": "如果做一个 Agent 创作助手，你怎么设计工作流？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/06_AIGC内容平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / content creation agent",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "辅助创作者把目标转化为可交付内容的产品，任务可以覆盖选题、资料整理、起草和审校。它关心内容生产流程中的人机分工、版本变化和最终交付，而不仅是一次文本生成调用。",
+        "participants": [
+          "内容创作者",
+          "审校或发布人员",
+          "生成与检索工具"
+        ],
+        "typical_workflow": [
+          "接收创作目标、受众和风格",
+          "检索或整理材料并形成大纲",
+          "生成和反复修改内容",
+          "确认、导出或发布"
+        ],
+        "interview_focus": [
+          "多阶段状态与版本管理",
+          "事实引用、风格和人工确认",
+          "工具失败与任务恢复"
+        ],
+        "resume_clues": [
+          "内容创作助手",
+          "智能写作平台",
+          "创作工作流",
+          "生成审校发布"
+        ],
+        "scope_boundary": "自动调研以证据分析和报告为核心时用调研入口；普通语言模型生成原理没有自动场景归属。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.customer_service",
+      "name": "智能客服系统",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "为用户解决咨询、业务办理与售后问题的智能客服产品，可由单Agent、多Agent或固定工作流实现。银行、电商等属于行业背景，转人工、权限、合规等属于该产品的关注点。",
+      "match_when": [
+        "明确客服系统、客服Agent或客服业务设计；退款客服可在没有独立项目身份时复用该模板。"
+      ],
+      "exclude_when": [
+        "仅问Agent架构、RAG或多Agent原理而无客服业务；仅是企业内部文档检索产品，没有客服服务任务。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0135",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:135",
+          "quote": "设计一个多 Agent 协作的客户服务系统。",
+          "source_file": "2058501690568053904"
+        },
+        {
+          "sample_id": "S3052",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:3052",
+          "quote": "面试里让你设计一个客服 Agent，你会先做 workflow 还是 agent？",
+          "source_file": "agent_camp/agent/definition.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / customer service",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向用户咨询、业务办理和售后的智能服务系统。系统需要理解用户诉求、获取有权限的业务信息，再给出答复或通过工具执行操作；遇到能力不足或高影响操作时可能转人工。",
+        "participants": [
+          "咨询用户",
+          "客服人员",
+          "业务系统及知识库"
+        ],
+        "typical_workflow": [
+          "识别用户身份与诉求",
+          "检索知识或查询业务数据",
+          "生成答复或执行授权操作",
+          "转人工、记录结果与跟进反馈"
+        ],
+        "interview_focus": [
+          "知识命中与业务状态一致性",
+          "工具权限、敏感操作与转人工",
+          "会话记忆、服务指标和失败恢复"
+        ],
+        "resume_clues": [
+          "智能客服",
+          "售后机器人",
+          "工单助手",
+          "业务办理Agent"
+        ],
+        "scope_boundary": "银行、电商可为行业背景，不必复制入口；企业内部文档查询若没有客服任务，应按文档问答判断。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.distributed_file_storage",
+      "name": "分布式文件存储系统",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "将文件分散存储于多节点、支持上传下载与副本管理的产品或项目，关心容量、故障和一致性。",
+      "match_when": [
+        "明确FastDFS类文件存储项目或分布式文件服务的设计。"
+      ],
+      "exclude_when": [
+        "单独文件IO、数据库复制或文件名问题，没有文件存储系统语境。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1740",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1740",
+          "quote": "请详细介绍一下你的项目（分布式文件存储系统）",
+          "source_file": "voice_interview_exp/百度123面/百度123面"
+        },
+        {
+          "sample_id": "S1754",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1754",
+          "quote": "你说你用了fastDFS，你对分布式文件存储系统有了解么？",
+          "source_file": "voice_interview_exp/百度123面/百度123面"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / distributed file storage",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "为用户或应用持续保存和访问文件的分布式存储产品。系统把文件数据分布在多个节点，并维护足以定位和恢复数据的元信息，面向容量增长、节点失效与并发读写提供服务。",
+        "participants": [
+          "文件上传者与下载者",
+          "存储节点",
+          "元数据及运维服务"
+        ],
+        "typical_workflow": [
+          "认证并发起文件上传",
+          "分块或选择存储位置",
+          "保存数据及元信息",
+          "下载读取、校验与故障恢复"
+        ],
+        "interview_focus": [
+          "元数据一致性与文件完整性",
+          "副本、分片与故障恢复",
+          "大文件、权限和容量治理"
+        ],
+        "resume_clues": [
+          "分布式文件系统",
+          "文件上传下载",
+          "存储节点管理",
+          "副本恢复"
+        ],
+        "scope_boundary": "只提到对象存储作为某产品附件服务，不一定把整题归为独立文件存储产品。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.ecommerce_chatbi",
+      "name": "电商问数项目",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "通过自然语言查询电商业务数据的项目，以元数据和指标知识帮助生成、执行与解释SQL，源项目包含数据同步、元数据知识库和问数智能体。",
+      "match_when": [
+        "题干点名电商问数，或准确来源章节证明属于该项目；泛化电商ChatBI设计也需明确电商分析任务。"
+      ],
+      "exclude_when": [
+        "普通SQL、任何Data Agent或所有电商项目；源项目采用的组件不自动成为每道题考点。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0863",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:863",
+          "quote": "请描述「电商问数」项目的整体架构，包括核心模块、基础服务以及它们之间的关系。",
+          "source_file": "ai_agents_from_zero/实战项目-电商问数/2-项目整体架构与智能体流程.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / ecommerce chatbi",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向电商经营分析的自然语言问数产品。用户询问销售、订单或经营指标，系统需要把业务口径、库表结构和数据权限结合起来，生成并执行查询，再解释数据结果。",
+        "participants": [
+          "电商运营与分析人员",
+          "数据平台",
+          "问数智能体"
+        ],
+        "typical_workflow": [
+          "识别经营问题与指标口径",
+          "查找元数据、字段和关联关系",
+          "生成、校验并执行查询",
+          "解释结果并支持追问"
+        ],
+        "interview_focus": [
+          "指标歧义与口径一致性",
+          "SQL正确性、权限与执行风险",
+          "查询链路评估和结果可追溯"
+        ],
+        "resume_clues": [
+          "电商问数",
+          "经营指标助手",
+          "自然语言查订单数据",
+          "Text2SQL经营分析"
+        ],
+        "scope_boundary": "是分析经营数据而非完成购物交易；只有电商名称而没有分析任务不能使用此入口。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.ecommerce_order",
+      "name": "电商订单系统",
+      "aliases": [],
+      "scope_type": "mixed_legacy_entry",
+      "definition": "管理商品购物中的订单创建、明细、支付、状态流转与售后的业务系统。",
+      "match_when": [
+        "明确电商订单的设计或实现；购物车与订单配合等问题。"
+      ],
+      "exclude_when": [
+        "仅有订单详情页面标题或商品名；明确苍穹外卖时优先准确项目，不沿用历史误挂。"
+      ],
+      "tag_policy": "context_review",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0097",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:97",
+          "quote": "订单是直接生成插入数据库吗？购物车和订单是怎么配合的？",
+          "source_file": "685419945"
+        },
+        {
+          "sample_id": "S1262",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1262",
+          "quote": "订单详情",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/订单详情.html"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "订单不是电商的独立子场景；旧入口同时混有购物车订单问题和苍穹外卖页面资料，不能设置单一重定向。",
+        "resolution_rules是语义判断指南，不是可执行的关键词分流规则。"
+      ],
+      "classification_reason": "订单不是电商的独立子场景；旧入口同时混有购物车订单问题和苍穹外卖页面资料，不能设置单一重定向。",
+      "resolution_rules": [
+        {
+          "when": "题目明确是一般电商购物项目的订单或购物车，未指向其他具名项目",
+          "target_id": "scene:business:ecommerce"
+        },
+        {
+          "when": "准确来源证明是苍穹外卖，且原记录是有效问题",
+          "target_id": "scene:business:delivery"
+        },
+        {
+          "when": "菜名、页面按钮或订单详情等界面片段",
+          "action": "not_question，不生成图关系"
+        },
+        {
+          "when": "只知道订单功能，无法确定业务或项目",
+          "action": "通用题可无场景；必要项目上下文缺失则needs_context"
+        }
+      ],
+      "classification_group": "mixed_source",
+      "legacy_name": "scene / ecommerce order",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.enterprise_chatbot",
+      "name": "企业文档知识问答系统",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "以企业文档为知识来源，为员工或客户提供检索问答、证据引用与权限控制的产品。",
+      "match_when": [
+        "明确公司文档RAG chatbot或企业知识库问答系统。"
+      ],
+      "exclude_when": [
+        "泛问向量检索或所有聊天机器人；电商问数主要产出SQL，不是此文档问答模板。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1923",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1923",
+          "quote": "EN: Build a RAG chatbot over company documents. CN: 用公司文件建 RAG chatbot。",
+          "source_file": "ai_agent_interview_240/skills/interview-skills/references/chatbox-senior-ai-chatbot.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / enterprise chatbot",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "围绕企业文档提供有依据问答的知识产品。用户希望得到与内部制度、产品或技术资料一致的答案，并能够查看引用来源；不同用户可能具有不同文档访问权限。",
+        "participants": [
+          "企业员工或客户",
+          "文档维护者",
+          "检索问答服务"
+        ],
+        "typical_workflow": [
+          "接入、解析并更新文档",
+          "建立检索索引和权限信息",
+          "检索证据并生成回答",
+          "展示出处、收集反馈与更新知识"
+        ],
+        "interview_focus": [
+          "文档清洗、分块和更新",
+          "检索质量、引用与拒答",
+          "权限过滤与知识时效"
+        ],
+        "resume_clues": [
+          "企业知识库问答",
+          "制度文档助手",
+          "文档RAG",
+          "带引用的知识机器人"
+        ],
+        "scope_boundary": "客服系统内的知识检索模块不必单独拆成场景；单问Embedding算法也不足以证明企业文档业务。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_item",
+      "name": "苍穹外卖菜品片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "原依据为苍穹外卖原型中的菜名，属于项目页面内容，不应为每种餐饮商品单建场景。",
+      "match_when": [
+        "有效问题有明确苍穹外卖项目依据时归该项目。"
+      ],
+      "exclude_when": [
+        "宫保鸡丁等菜名不是面试题，也不能迁移后就变成项目题。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1382",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1382",
+          "quote": "宫保鸡丁",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/订单详情.html"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food item",
+      "classification_reason": "原依据为苍穹外卖原型中的菜名，属于项目页面内容，不应为每种餐饮商品单建场景。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_analytics",
+      "name": "苍穹外卖统计模块（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "苍穹外卖的营业额、用户、订单等统计页面或模块，是同一项目的一部分。",
+      "match_when": [
+        "有效技术问答归苍穹外卖，统计模块保留为属性。"
+      ],
+      "exclude_when": [
+        "统计页面说明不自动成为面试题；不能为每个图表再建项目场景。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1202",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1202",
+          "quote": "订单统计：根据时间选择区间，展示订单总数、有效订单数、订单完成率",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/数据统计.html"
+        },
+        {
+          "sample_id": "S1217",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1217",
+          "quote": "营业额统计：根据时间选择区间，展示营业额的趋势数据\n3.1 X轴为日期\n3.2 Y轴为营业额",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/数据统计.html"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering analytics",
+      "classification_reason": "苍穹外卖的营业额、用户、订单等统计页面或模块，是同一项目的一部分。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_backend",
+      "name": "苍穹外卖后端模块（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "苍穹外卖历史订单、商家接单和配送范围等后端任务的片段。",
+      "match_when": [
+        "有效问题归苍穹外卖，后端模块记作上下文。"
+      ],
+      "exclude_when": [
+        "整份实战作业要求不自动等价一条面试题。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1724",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1724",
+          "quote": "完成用户端历史订单模块、商家端订单管理模块相关业务新功能开发和已有功能优化，具体任务列表如下：#### 1. 新功能开发 用户端历史订单模块：- 查询历史订单 - 查询订单详情 - 取消订单 - 再来",
+          "source_file": "sky_take_out/资料/day09/项目实战要求.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering backend",
+      "classification_reason": "苍穹外卖历史订单、商家接单和配送范围等后端任务的片段。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_data",
+      "name": "苍穹外卖数据页面片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "来源为苍穹外卖原型中的菜品等字段文字，不是独立项目。",
+      "match_when": [
+        "恢复为有效问题且能确认来源时归苍穹外卖。"
+      ],
+      "exclude_when": [
+        "菜品二字或字段标题本身不是场景题。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1367",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1367",
+          "quote": "菜品",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/订单详情.html"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering data",
+      "classification_reason": "来源为苍穹外卖原型中的菜品等字段文字，不是独立项目。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_order",
+      "name": "苍穹外卖订单模块（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "苍穹外卖的历史订单、取消、再来一单和商家订单处理功能，属于同一项目。",
+      "match_when": [
+        "有效订单实现题归苍穹外卖，订单模块作为属性。"
+      ],
+      "exclude_when": [
+        "不是所有订单题都属于苍穹外卖，仍需明确项目依据。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1794",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1794",
+          "quote": "历史订单查询",
+          "source_file": "sky_take_out/资料/day09/项目实战参考答案/项目实战参考答案.md"
+        },
+        {
+          "sample_id": "S1808",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1808",
+          "quote": "查询订单详情",
+          "source_file": "sky_take_out/资料/day09/项目实战参考答案/项目实战参考答案.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering order",
+      "classification_reason": "苍穹外卖的历史订单、取消、再来一单和商家订单处理功能，属于同一项目。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_order_state",
+      "name": "苍穹外卖订单状态片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "旧依据包含配送中、已完成等原型页面状态与计数，不应形成独立场景。",
+      "match_when": [
+        "恢复后的有效项目问题归苍穹外卖。"
+      ],
+      "exclude_when": [
+        "配送中订单(4)等页面文字应先判断为非题目，不能仅改场景就入图。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1277",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1277",
+          "quote": "配送中订单(4)",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/订单详情.html"
+        },
+        {
+          "sample_id": "S1292",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1292",
+          "quote": "待配送订单(6)",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_管理端/订单详情.html"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering order state",
+      "classification_reason": "旧依据包含配送中、已完成等原型页面状态与计数，不应形成独立场景。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_schema",
+      "name": "苍穹外卖数据库模块（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "苍穹外卖员工、菜品、分类等数据表说明，属于项目数据库设计内容。",
+      "match_when": [
+        "有效表设计问答归苍穹外卖，表名与模块保留属性。"
+      ],
+      "exclude_when": [
+        "数据库表说明或DDL不自动就是面试题；普通employee表不证明此项目。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1547",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1547",
+          "quote": "employee表为员工表，用于存储商家内部的员工信息。具体表结构如下：",
+          "source_file": "sky_take_out/资料/day01/数据库/数据库设计文档.md"
+        },
+        {
+          "sample_id": "S1562",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1562",
+          "quote": "category表为分类表，用于存储商品的分类信息。具体表结构如下：",
+          "source_file": "sky_take_out/资料/day01/数据库/数据库设计文档.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering schema",
+      "classification_reason": "苍穹外卖员工、菜品、分类等数据表说明，属于项目数据库设计内容。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.food_ordering_ui",
+      "name": "苍穹外卖界面片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "来源为苍穹外卖用户端、管理端产品原型页面，是项目界面资料。",
+      "match_when": [
+        "有效界面交互题归苍穹外卖，端与页面保留属性。"
+      ],
+      "exclude_when": [
+        "首页、价格、未点餐等页面文字不自动生成题目关系。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0727",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:727",
+          "quote": "首页-未点餐",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_用户端/首页_1.html"
+        },
+        {
+          "sample_id": "S0743",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:743",
+          "quote": "首页-已点餐",
+          "source_file": "sky_take_out/资料/day01/产品原型/苍穹外卖_用户端/首页_1.html"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / food ordering ui",
+      "classification_reason": "来源为苍穹外卖用户端、管理端产品原型页面，是项目界面资料。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.insurance_refund",
+      "name": "保险退保与保费退还",
+      "aliases": [],
+      "scope_type": "module_or_task",
+      "definition": "处理保险合同退保后资金退回的业务任务，涉及流水、重复退费、审计与补偿等业务要求。",
+      "match_when": [
+        "明确保险、退保、返还保费的题干或对应项目上下文。"
+      ],
+      "exclude_when": [
+        "普通商品退款、客服退款或无保险依据的事务题；并列问到的秒杀不自动属于保险业务。"
+      ],
+      "tag_policy": "module_only",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0223",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:223",
+          "quote": "秒杀系统要考虑什么，保险品退保返保费要注意什么？",
+          "source_file": "campus_recruitment_questions/阿里/readme.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "保险退保与保费退还属于保险业务流程；原依据还同时提到秒杀系统，不能据此把两个业务挂成同一个项目。",
+        "有明确上属项目时使用该项目场景；没有时scenes留空，考点依原文逐项判断。若未来原文明确是独立完整产品，再登记该产品定义，不沿用此功能片段入口。"
+      ],
+      "classification_reason": "保险退保与保费退还属于保险业务流程；原依据还同时提到秒杀系统，不能据此把两个业务挂成同一个项目。",
+      "classification_group": "module_or_task",
+      "legacy_name": "scene / insurance refund",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.interview_agent_modes",
+      "name": "项目模拟面试工具的模式片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "旧依据是project-mock-interview工具的拷问与代码诊断模式，属于该工具能力说明。",
+      "match_when": [
+        "有有效问题且明确属于该工具时复用其项目入口。"
+      ],
+      "exclude_when": [
+        "模式说明不是独立项目；README描述也不自动成为面试题。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:candidate:proposed.scene.interview_drill_engine",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S2348",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:2348",
+          "quote": "双模式：拷问模式（审人：出题 → 作答 → 点评 → 复盘）/ 诊断模式（审代码：架构对齐 / 坑点预警 / 演进建议）",
+          "source_file": "ai_agent_interview_240/skills/project-mock-interview/README.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / interview agent modes",
+      "classification_reason": "旧依据是project-mock-interview工具的拷问与代码诊断模式，属于该工具能力说明。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.interview_drill_engine",
+      "name": "GitHub项目模拟面试与代码诊断工具",
+      "aliases": [],
+      "scope_type": "named_project",
+      "definition": "project-mock-interview工具围绕GitHub项目进行题库路由、逐题问答、点评复盘和代码诊断。",
+      "match_when": [
+        "明确该工具、该项目章节或其具体实现。"
+      ],
+      "exclude_when": [
+        "任意AI模拟面试平台并不都是这个工具；源README介绍不自动转成面试题。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S2293",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:2293",
+          "quote": "针对 GitHub 项目的面试拷问引擎：根据项目内容路由匹配内嵌题库（240 道大厂 AI Agent / RAG 面试题合集），逐题提问、四维点评、复盘沉淀；支持对代码做三维诊断审查。全部语料内嵌于",
+          "source_file": "ai_agent_interview_240/skills/project-mock-interview/README.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / interview drill engine",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "以代码仓库为材料开展项目面试练习和代码诊断的应用。它把仓库中的实现和设计转换为可讨论的问题，并在作答后给出针对项目的点评或改进线索。",
+        "participants": [
+          "项目练习者",
+          "面试练习工具",
+          "代码仓库"
+        ],
+        "typical_workflow": [
+          "选择或解析项目仓库",
+          "组织项目相关题目",
+          "记录回答并继续深挖",
+          "形成诊断和练习反馈"
+        ],
+        "interview_focus": [
+          "仓库证据与问题对应",
+          "题库路由、状态和点评依据",
+          "代码读取范围与诊断可复现性"
+        ],
+        "resume_clues": [
+          "围绕GitHub项目面试",
+          "代码项目深挖",
+          "项目诊断工具"
+        ],
+        "scope_boundary": "当前入口有特定源工具依据；未说明项目诊断任务的通用模拟面试应按AI模拟面试判断。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.large_report_export",
+      "name": "大规模报表导出",
+      "aliases": [],
+      "scope_type": "module_or_task",
+      "definition": "从数据库等来源分批读取海量数据、生成报表并交付到文件或对象存储的业务任务。",
+      "match_when": [
+        "明确千万级等大数据量报表导出，讨论分片、内存、续传或交付流程。"
+      ],
+      "exclude_when": [
+        "任意分页查询、OSS用法或GC题，没有报表导出任务。"
+      ],
+      "tag_policy": "module_only",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0419",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:419",
+          "quote": "场景题：使用普通数据库和 Java 原生能力，设计一个千万级数据量导出报表至 OSS 的流程，要求考虑数据切分、并行、续传、差错检验、幂等、高效、内存压力、有序、一致等指标。",
+          "source_file": "2002875522384930669"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "千万级报表导出是工程任务，不能据此断言属于独立报表产品，也不能给所有数据平台自动挂题。",
+        "有明确上属项目时使用该项目场景；没有时scenes留空，考点依原文逐项判断。若未来原文明确是独立完整产品，再登记该产品定义，不沿用此功能片段入口。"
+      ],
+      "classification_reason": "千万级报表导出是工程任务，不能据此断言属于独立报表产品，也不能给所有数据平台自动挂题。",
+      "classification_group": "module_or_task",
+      "legacy_name": "scene / large report export",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.music_recommendation",
+      "name": "音乐推荐系统",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "为用户推荐歌曲、歌单等音乐内容的产品系统，依据用户偏好、内容信息与反馈组织推荐流程。",
+      "match_when": [
+        "明确音乐/歌曲/歌单推荐，或源项目点名网易云音乐推荐。"
+      ],
+      "exclude_when": [
+        "一般冷启动题不能仅因可用于音乐就声明来自音乐项目；音乐推荐模板不等于网易云真实内部实现。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0295",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:295",
+          "quote": "用大模型来重新设计一个网易云音乐的推荐系统，你会怎么做？",
+          "source_file": "1962941558333632556"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / music recommendation",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向听歌用户提供歌曲或歌单选择的推荐产品。它把用户历史偏好、歌曲信息和交互反馈用于组织候选与排序，同时面对新用户、新歌曲和兴趣变化的问题。",
+        "participants": [
+          "听歌用户",
+          "音乐内容供给方",
+          "推荐服务"
+        ],
+        "typical_workflow": [
+          "采集偏好与内容信息",
+          "召回歌曲或歌单候选",
+          "排序并展示推荐",
+          "根据播放和互动反馈迭代"
+        ],
+        "interview_focus": [
+          "推荐效果与冷启动",
+          "实时反馈、召回和排序",
+          "多样性、延迟与实验评价"
+        ],
+        "resume_clues": [
+          "音乐推荐",
+          "歌单推荐",
+          "听歌兴趣建模"
+        ],
+        "scope_boundary": "仅在别的产品中使用通用推荐算法，不自动意味着完整音乐推荐系统。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.order_timeout",
+      "name": "订单超时取消",
+      "aliases": [],
+      "scope_type": "module_or_task",
+      "definition": "用户创建订单后在限定时间内未完成支付或确认，系统自动关闭并处理资源释放的业务任务。",
+      "match_when": [
+        "明确订单/票务预订超时取消及相关并发处理。"
+      ],
+      "exclude_when": [
+        "一般延迟队列、Redis过期题；支付失败退款与超时取消相关但不是同一事实，须依题意区分。"
+      ],
+      "tag_policy": "module_only",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0180",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:180",
+          "quote": "订单 30 分钟不支付就自动取消，你用 Redis 怎么实现？",
+          "source_file": "ai_agent_interview_240/docs/02-语言八股/Java/课件/0058-redis-delayed-mq.md"
+        },
+        {
+          "sample_id": "S0985",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:985",
+          "quote": "买票时，30分钟后自动取消，怎么实现？",
+          "source_file": "voice_interview_exp/字节跳动  一二三面面经/字节跳动  一二三面面经"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "订单超时取消是跨电商、票务等项目的功能，不能把票务问题统一归到电商项目。",
+        "有明确上属项目时使用该项目场景；没有时scenes留空，考点依原文逐项判断。若未来原文明确是独立完整产品，再登记该产品定义，不沿用此功能片段入口。"
+      ],
+      "classification_reason": "订单超时取消是跨电商、票务等项目的功能，不能把票务问题统一归到电商项目。",
+      "classification_group": "module_or_task",
+      "legacy_name": "scene / order timeout",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.product_guide",
+      "name": "商品智能导购",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "根据用户偏好、需求与商品信息提供咨询和选购建议的导购产品，例如奶茶导购。",
+      "match_when": [
+        "明确导购、商品选择建议或相应产品的数据构造与实现。"
+      ],
+      "exclude_when": [
+        "通用模型微调、内容生成；自动执行下单涉及不同动作边界，不能仅凭工具相似合并。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0487",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:487",
+          "quote": "要做一个奶茶导购，怎么构造数据去微调？",
+          "source_file": "1996674184785467249"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / product guide",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "辅助用户完成商品选择的交互式导购应用。它围绕用户需求、预算、偏好和商品约束进行询问、检索和比较，最终交付可解释的推荐或购买线索。",
+        "participants": [
+          "消费者",
+          "商家与商品数据服务",
+          "导购助手"
+        ],
+        "typical_workflow": [
+          "收集需求和约束",
+          "查找可用商品及属性",
+          "比较并解释推荐理由",
+          "接受追问或引导选购"
+        ],
+        "interview_focus": [
+          "需求澄清与商品事实一致性",
+          "实时价格库存与工具查询",
+          "推荐评价、权限及异常处理"
+        ],
+        "resume_clues": [
+          "智能导购",
+          "商品选购助手",
+          "个性化商品建议"
+        ],
+        "scope_boundary": "以完成售后或问题处理为目标时归客服；普通商品召回算法没有完整导购任务时不自动挂此场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.ranking_list",
+      "name": "业务排行榜系统",
+      "aliases": [],
+      "scope_type": "module_or_task",
+      "definition": "按热度、增长、积分等业务规则排序并维护榜单的功能场景，包含更新、查询和时间窗口。",
+      "match_when": [
+        "明确爆款榜、飙升榜、积分榜等业务榜单及其实现。"
+      ],
+      "exclude_when": [
+        "单问ZSet命令或排序算法；同技术并不证明属于某个榜单项目。"
+      ],
+      "tag_policy": "module_only",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S2581",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:2581",
+          "quote": "你刚刚说有一个爆款榜一个飙升榜功能是吧,这个具体是怎么实现的?你可以大致说一下吗?",
+          "source_file": "2033154560982824098"
+        },
+        {
+          "sample_id": "S2601",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:2601",
+          "quote": "你这里写到用到 Redis,具体用到什么数据结构然后大概是怎么实现的?",
+          "source_file": "2033154560982824098"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "爆款榜、飙升榜是业务功能；缺少完整项目身份时保留功能语境和考点，不建立排行榜场景。",
+        "有明确上属项目时使用该项目场景；没有时scenes留空，考点依原文逐项判断。若未来原文明确是独立完整产品，再登记该产品定义，不沿用此功能片段入口。"
+      ],
+      "classification_reason": "爆款榜、飙升榜是业务功能；缺少完整项目身份时保留功能语境和考点，不建立排行榜场景。",
+      "classification_group": "module_or_task",
+      "legacy_name": "scene / ranking list",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.research_report",
+      "name": "自动调研与分析报告",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "围绕调研目标采集多来源资料、整理分析并输出报告的产品任务，可能使用爬虫和模型加工。",
+      "match_when": [
+        "明确调研报告生成、资料采集与分析交付流程。"
+      ],
+      "exclude_when": [
+        "普通爬虫或文本生成题；不因deep research字样就断定某个同名具体项目。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0648",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:648",
+          "quote": "业务场景：产出分析调研报告，需爬虫拉取数据源+大模型数据加工，落地过哪些方案？有没有可灵活拓展、支持用户自主迭代的方案？",
+          "source_file": "2053283206334518476"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / research report",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "针对一个调研目标搜集、比较和综合多来源信息，形成带有依据的分析报告。任务通常跨多个步骤，重点在问题分解、证据质量和最终结论能否回溯到材料，而不是固定一次检索就回答。",
+        "participants": [
+          "研究或业务用户",
+          "资料来源",
+          "调研与报告生成服务"
+        ],
+        "typical_workflow": [
+          "澄清调研问题并制定计划",
+          "搜索、读取和筛选资料",
+          "比较事实、形成分析并核对引用",
+          "撰写报告、人工确认与交付"
+        ],
+        "interview_focus": [
+          "长任务规划与过程恢复",
+          "来源可信度、事实冲突与引用",
+          "工具预算、覆盖度和报告评价"
+        ],
+        "resume_clues": [
+          "自动调研",
+          "Deep Research类产品",
+          "研究报告生成",
+          "多来源资料分析"
+        ],
+        "scope_boundary": "对外宣传写作优先内容创作；原理题出现Deep Research一词不代表具体源项目身份。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.short_url",
+      "name": "短链接系统",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "把长URL映射为短码并提供跳转服务的系统，典型任务包括短码生成、冲突处理、映射存储和热点访问。",
+      "match_when": [
+        "题干明确短链/短网址，或准确章节证明属于短链接系统。"
+      ],
+      "exclude_when": [
+        "单问Redis、哈希或唯一ID；这些技术不自动说明存在短链场景。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1606",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1606",
+          "quote": "短链系统设计：唯一短码生成方案的架构权衡",
+          "source_file": "php_interview_qa/docs/architecture/短链系统设计：唯一短码生成方案的架构权衡.md"
+        },
+        {
+          "sample_id": "S1621",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1621",
+          "quote": "一致性：短链写入 MySQL 成功但 Redis 异步写入失败（服务宕机），读请求如何保证正确？",
+          "source_file": "php_interview_qa/docs/architecture/短链系统设计：唯一短码生成方案的架构权衡.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / short url",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "把长链接转换为短码，并在访问短码时可靠跳转到目标地址的服务。系统既需要生成不冲突的映射，也需要处理访问热点、链接有效期和潜在的恶意目标。",
+        "participants": [
+          "链接创建者",
+          "访问者",
+          "短码映射服务"
+        ],
+        "typical_workflow": [
+          "提交长URL和访问约束",
+          "生成短码并保存映射",
+          "访问短码、校验并跳转",
+          "处理失效、统计及异常"
+        ],
+        "interview_focus": [
+          "短码空间、冲突与唯一性",
+          "热点缓存与高并发读取",
+          "失效删除、幂等和安全跳转"
+        ],
+        "resume_clues": [
+          "短链系统",
+          "URL压缩",
+          "短码跳转服务"
+        ],
+        "scope_boundary": "其他产品分享链接只是使用方式，不能据此给该产品所有题都标为短链接场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.trading_agent",
+      "name": "交易平台Agent落地片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "旧依据讨论同一交易Agent与风控平台的客服、投研、风控和交易助手选型，不另建项目。",
+      "match_when": [
+        "项目依据明确时复用交易Agent与风控平台。"
+      ],
+      "exclude_when": [
+        "不能把所有金融客服、所有交易任务都当成同一具体项目经历。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:candidate:proposed.scene.trading_agent_platform",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1037",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1037",
+          "quote": "Agent 在交易所里最先该落在哪个场景，客服、投研、风控还是交易助手？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/02_交易Agent与风控平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / trading agent",
+      "classification_reason": "旧依据讨论同一交易Agent与风控平台的客服、投研、风控和交易助手选型，不另建项目。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.trading_agent_platform",
+      "name": "交易Agent与风控平台",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "在交易平台中向Agent提供行情、账户与交易能力，利用统一工具接入、授权和确定性风控约束真实交易动作的系统模板。",
+      "match_when": [
+        "明确交易平台Agent、Agent Hub/MCP接入或真实交易的权限与风控。"
+      ],
+      "exclude_when": [
+        "普通商品购物下单、通用MCP协议或单独提示注入题；同模板不代表同一家交易所。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1223",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1223",
+          "quote": "为什么交易平台要做 Agent Hub / MCP，而不是继续让大家自己调 API？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/02_交易Agent与风控平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / trading agent platform",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "让Agent在明确权限与风控约束内使用行情、账户和交易能力的平台。信息分析与真实订单执行需要区分，尤其要保证模型输出不会绕过确定性业务校验。",
+        "participants": [
+          "策略或交易用户",
+          "Agent",
+          "行情账户服务与风控执行层"
+        ],
+        "typical_workflow": [
+          "接收目标并查询行情和账户",
+          "形成候选动作",
+          "进行授权、额度与风险校验",
+          "执行允许动作并跟踪成交与审计"
+        ],
+        "interview_focus": [
+          "工具接入与最小权限",
+          "下单幂等、撤单和状态核对",
+          "确定性风控、隔离与紧急停止"
+        ],
+        "resume_clues": [
+          "交易Agent",
+          "账户行情工具平台",
+          "带风控的自动交易"
+        ],
+        "scope_boundary": "投资建议本身不等于真实订单执行；商品电商下单也不能仅因交易二字混入本场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.trading_agent_risk",
+      "name": "交易Agent风控模块（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "同一交易Agent与风控平台中的授权、额度、提示注入防护和执行风险控制模块。",
+      "match_when": [
+        "有效问题有交易平台项目依据时复用平台入口，风控作为关注点。"
+      ],
+      "exclude_when": [
+        "不为每个风控功能另建项目，也不把通用安全题自动挂入交易平台。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:candidate:proposed.scene.trading_agent_platform",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0166",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:166",
+          "quote": "如果让你给一个交易平台做一个“可真实交易”的 Agent，你如何设计权限和风控边界？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/02_交易Agent与风控平台/01_核心问答.md"
+        },
+        {
+          "sample_id": "S1085",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1085",
+          "quote": "你怎么看 AI 在现货 / 合约 / 风控 / 合规里的边界？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/02_交易Agent与风控平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / trading agent risk",
+      "classification_reason": "同一交易Agent与风控平台中的授权、额度、提示注入防护和执行风险控制模块。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.trading_mvp",
+      "name": "交易Agent最小版本片段（历史入口）",
+      "aliases": [],
+      "scope_type": "legacy_fragment",
+      "definition": "同一交易Agent与风控平台的资源约束与MVP实施讨论，是建设阶段而不是独立场景身份。",
+      "match_when": [
+        "明确该平台MVP设计时复用平台入口。"
+      ],
+      "exclude_when": [
+        "MVP、两人六周等实施约束不是新场景的命名依据。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:candidate:proposed.scene.trading_agent_platform",
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1238",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1238",
+          "quote": "如果只有 2 个工程师 + 6 周时间，你会给一个交易平台做什么 MVP？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/02_交易Agent与风控平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "只在场景词典中记录项目归属建议；未修改旧图或迁移题目。"
+      ],
+      "classification_group": "retired_fragment",
+      "legacy_name": "scene / trading mvp",
+      "classification_reason": "同一交易Agent与风控平台的资源约束与MVP实施讨论，是建设阶段而不是独立场景身份。",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。"
+    },
+    {
+      "id": "scene:candidate:proposed.scene.travel_planning",
+      "name": "旅行规划Agent",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "结合目的地、时间、预算与偏好等条件制定和调整行程的智能体应用。",
+      "match_when": [
+        "明确旅行/行程规划产品的方案和实现。"
+      ],
+      "exclude_when": [
+        "单独问Plan-and-Execute或ReAct；使用相同规划方法不证明旅行场景。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S0572",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:572",
+          "quote": "设计一个旅行规划 Agent，描述你如何结合 Plan-and-Solve 和 ReAct 来实现它。",
+          "source_file": "2040017882319434840"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / travel planning",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "根据目的地、时间、预算和出行偏好生成并调整行程的智能助手。它需要组织景点、交通和住宿等信息，同时在约束变化时保持计划的时间与空间可行性。",
+        "participants": [
+          "出行用户",
+          "地图或旅行信息服务",
+          "规划助手"
+        ],
+        "typical_workflow": [
+          "澄清行程约束和偏好",
+          "查询目的地与交通等信息",
+          "生成分日或分段计划",
+          "根据变化重新调整并交付"
+        ],
+        "interview_focus": [
+          "约束满足与动态重规划",
+          "外部信息时效和工具失败",
+          "计划解释、偏好记忆与评价"
+        ],
+        "resume_clues": [
+          "旅行规划",
+          "行程助手",
+          "旅游路线推荐"
+        ],
+        "scope_boundary": "仅做旅游FAQ或普通地图查询不必等同完整行程规划产品。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:candidate:proposed.scene.video_generation_platform",
+      "name": "视频生成任务平台",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "管理用户提交的视频生成任务、异步执行、任务状态、结果文件与交付的产品平台。",
+      "match_when": [
+        "明确视频生成任务系统及其后端设计。"
+      ],
+      "exclude_when": [
+        "普通视频播放平台、模型训练原理或任意异步任务题。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "source_records_reviewed_for_definition",
+      "evidence": [
+        {
+          "sample_id": "S1856",
+          "source_locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:1856",
+          "quote": "如果让你做一个“视频生成任务平台”，后端核心模块怎么拆？",
+          "source_file": "agent_java_offer/docs/interview_prep/05_项目表达/06_AIGC内容平台/01_核心问答.md"
+        }
+      ],
+      "graph_snapshot_present": true,
+      "edge_review_status": "existing_edges_not_revalidated",
+      "notes": [
+        "定义用于后续语义匹配，不自动生成考点或场景关系。"
+      ],
+      "classification_group": "project_or_application",
+      "legacy_name": "scene / video generation platform",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向用户交付AI生成视频的任务平台，连接输入素材、模型或工作流、异步计算资源和结果文件。长耗时任务需要可查询、可恢复的状态，避免重复扣费或结果丢失。",
+        "participants": [
+          "视频创作用户",
+          "生成模型或工作流",
+          "任务与文件服务"
+        ],
+        "typical_workflow": [
+          "提交文本或素材及参数",
+          "排队并调度生成任务",
+          "跟踪进度、失败和重试",
+          "存储、预览与下载成品"
+        ],
+        "interview_focus": [
+          "异步任务状态与重复提交",
+          "资源排队、超时和费用控制",
+          "结果文件、权限与交付一致性"
+        ],
+        "resume_clues": [
+          "视频生成平台",
+          "AIGC视频任务",
+          "生成队列与作品交付"
+        ],
+        "scope_boundary": "视频模型原理归知识点；上传播放已有视频而不生成内容时优先媒体平台。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:project:heima_dianping",
+      "name": "黑马点评",
+      "aliases": [
+        "黑马点评项目"
+      ],
+      "scope_type": "named_project",
+      "definition": "以本地生活商户点评与消费服务为背景的教学项目，用户围绕商户信息、探店点评和优惠券等业务进行交互。常见教学实现会讨论缓存、优惠券秒杀、用户互动等模块，但具体题目应以对应版本和实际项目上下文为准。",
+      "match_when": [
+        "题干明确点名黑马点评，或准确的项目章节、简历项目说明能证明就是该教学项目。"
+      ],
+      "exclude_when": [
+        "只说点评类项目、大众点评、Redis、缓存或秒杀；这些都不能证明是黑马点评。"
+      ],
+      "registration_basis": "user_confirmed_business_scene",
+      "evidence": [
+        {
+          "locator": "conversation:2026-11-04",
+          "quote": "比如黑马点评，你还得为每个场景写上解释"
+        },
+        {
+          "locator": "conversation:2026-11-05:business-scene-granularity",
+          "quote": "黑马点评可以归到本地生活服务或者电商里，苍穹外卖可以归到外卖里，不用单设"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "notes": [
+        "2026-11-05按用户确认归入业务场景；名称仅保留为源项目说明和历史ID，不再单设KG入口。",
+        "归类不代表具体项目与业务大类为同义词，也不自动新增题目或知识点关系。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:local_life",
+      "edge_review_status": "no_graph_edges_created",
+      "classification_group": "retired_fragment",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:project:sky_take_out",
+      "name": "苍穹外卖",
+      "aliases": [
+        "sky_take_out",
+        "苍穹外卖项目"
+      ],
+      "scope_type": "named_project",
+      "definition": "以商家与消费者两端为对象的外卖教学项目，包含菜品套餐、购物车、下单支付、订单处理与经营统计等业务。数据库、页面和订单模块属于该项目的不同部分，不应分别当成新的项目身份。",
+      "match_when": [
+        "题干点名苍穹外卖，或准确来源路径/章节能证明属于sky_take_out项目。"
+      ],
+      "exclude_when": [
+        "普通外卖项目或通用订单题；菜名、价格、页面按钮等非题目内容，即使来自该项目也不能直接当面试题。"
+      ],
+      "registration_basis": "user_confirmed_business_scene",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:1724#source_file",
+          "quote": "sky_take_out/资料/day09/项目实战要求.md"
+        },
+        {
+          "locator": "sample.jsonl:1547#source_file",
+          "quote": "sky_take_out/资料/day01/数据库/数据库设计文档.md"
+        },
+        {
+          "locator": "conversation:2026-11-05:business-scene-granularity",
+          "quote": "黑马点评可以归到本地生活服务或者电商里，苍穹外卖可以归到外卖里，不用单设"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "notes": [
+        "2026-11-05按用户确认归入业务场景；名称仅保留为源项目说明和历史ID，不再单设KG入口。",
+        "归类不代表具体项目与业务大类为同义词，也不自动新增题目或知识点关系。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:delivery",
+      "edge_review_status": "no_graph_edges_created",
+      "classification_group": "retired_fragment",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "redirect_semantics": "business_scenario_classification"
+    },
+    {
+      "id": "scene:template:interview_answer_assistant",
+      "name": "面试候选人答题助手",
+      "aliases": [],
+      "scope_type": "project_template",
+      "definition": "在面试进行中识别面试官提出的问题，结合候选人简历或知识库生成回答建议，主要帮助候选人作答的应用。",
+      "match_when": [
+        "系统的角色明确是听取真实面试问题并向候选人提供回答建议。"
+      ],
+      "exclude_when": [
+        "系统自己担任面试官、向候选人出题和追问；这属于AI模拟面试。"
+      ],
+      "registration_basis": "source_records_disambiguation",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:423#answer",
+          "quote": "帮助面试候选人回答问题"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "notes": [
+        "用于区分旧AI面试入口混入的答题辅助语义，不在本次自动重挂S0423。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "edge_review_status": "no_graph_edges_created",
+      "classification_group": "project_or_application",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "在面试进行时帮助候选人理解问题并生成回答建议的辅助产品。系统的用户是作答者，核心流程围绕问题识别、简历或知识材料检索以及及时呈现建议，而非由系统担任面试官。",
+        "participants": [
+          "候选人",
+          "问题识别服务",
+          "回答建议服务"
+        ],
+        "typical_workflow": [
+          "接收语音或文字问题",
+          "识别问题并关联候选人资料",
+          "检索或生成回答建议",
+          "及时展示并处理后续问题"
+        ],
+        "interview_focus": [
+          "语音转写与低延迟",
+          "简历事实一致性和引用",
+          "连续问题上下文与展示交互"
+        ],
+        "resume_clues": [
+          "面试答题助手",
+          "候选人回答建议",
+          "实时问题识别"
+        ],
+        "scope_boundary": "与AI模拟面试的系统角色不同；普通面试题解材料不一定意味着实时辅助产品。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:template:coding_agent",
+      "name": "AI编程助手与编码Agent",
+      "definition": "面向开发者理解代码、生成或修改代码、编写和执行测试的AI开发辅助产品，可为CLI、IDE或自研Agent。工具调用、上下文压缩、计划、审查和多Agent属于同一产品的实现关注点，不另拆场景。此入口为相似业务模板，复用不意味着不同候选人的项目是同一源码项目。",
+      "aliases": [
+        "Coding Agent",
+        "代码Agent",
+        "AI编程助手"
+      ],
+      "scope_type": "application_template",
+      "match_when": [
+        "题干明确讨论编程助手或编码Agent的产品架构、工具设计、质量保障或对应项目。"
+      ],
+      "exclude_when": [
+        "通用Agent或语言原理题无编码应用语境。",
+        "面试诊断工具用于提问和评价候选人时使用面试工具入口，不因含代码而归本模板。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05逐题语义核查与批内去重",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:7416#question",
+          "quote": "你做的 coding agent 和 Claude Code 与 Codex 区别在哪？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "模板复用表示业务相似，不声明不同来源为同一个具体项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块、技术或版本拆分场景。",
+      "detail_profile": {
+        "introduction": "面向开发者理解仓库、修改代码和验证结果的AI开发辅助产品。一个任务可能跨越读取文件、制定计划、编辑、运行工具和修复反馈，重点在修改过程可控且结果可验证。",
+        "participants": [
+          "开发者",
+          "编码Agent",
+          "代码仓库及开发工具"
+        ],
+        "typical_workflow": [
+          "理解需求与仓库上下文",
+          "定位文件并形成修改计划",
+          "编辑代码及执行受控工具",
+          "运行验证、检查差异并汇报"
+        ],
+        "interview_focus": [
+          "代码上下文与编辑可靠性",
+          "沙箱、执行权限和工具失败",
+          "长任务状态、测试反馈与成本"
+        ],
+        "resume_clues": [
+          "AI编程助手",
+          "编码Agent",
+          "CLI或IDE开发助手"
+        ],
+        "scope_boundary": "不同产品可复用应用模板但来源仍独立；单问代码生成模型或某API不自动构成完整编码产品。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:template:data_analysis_agent",
+      "name": "自然语言数据分析助手",
+      "definition": "为业务分析者通过自然语言完成数据查询、清洗、统计、建模与可视化的完整产品，可通过Text2SQL或代码执行访问数据。数据库权限、分析结果回传和数字可追溯性是关注点，不分拆场景。明确为电商问数既有项目时优先使用其项目入口。",
+      "aliases": [
+        "数据分析Agent",
+        "Code Interpreter数据分析助手",
+        "ChatBI产品"
+      ],
+      "scope_type": "application_template",
+      "match_when": [
+        "题目明确以数据分析Agent或自然语言分析产品为整体业务对象。"
+      ],
+      "exclude_when": [
+        "纯SQL、Python或工具协议原理题无分析产品语境。",
+        "已明确为既有电商问数项目，不将其身份改成泛化模板。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05逐题语义核查与批内去重",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:6465#question",
+          "quote": "数据分析 Agent 的核心范式是 Code Interpreter，为什么不是 Text-to-SQL？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "模板复用表示业务相似，不声明不同来源为同一个具体项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块、技术或版本拆分场景。",
+      "detail_profile": {
+        "introduction": "帮助分析人员从自然语言问题走到可解释数据结果的完整应用。它可以选择查询数据库或执行分析代码，关键是尊重数据权限、保持计算过程可核对，并把结果转换成用户能理解的表格或图表。",
+        "participants": [
+          "业务分析用户",
+          "数据库或数据文件",
+          "分析助手与执行环境"
+        ],
+        "typical_workflow": [
+          "澄清问题、数据范围和指标",
+          "读取元数据或查看数据结构",
+          "生成并执行查询或分析代码",
+          "核对数值、解释结果与可视化"
+        ],
+        "interview_focus": [
+          "SQL或代码正确性",
+          "只读权限、资源隔离和执行限制",
+          "数字可追溯、失败恢复与多轮分析"
+        ],
+        "resume_clues": [
+          "自然语言数据分析",
+          "Text2SQL助手",
+          "数据分析Agent"
+        ],
+        "scope_boundary": "已有明确电商经营分析上下文可用电商问数；单独SQL语法题或图表库问题不自动属于此应用。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:template:medical_qa_agent",
+      "name": "医疗健康问答助手",
+      "definition": "为有医疗健康信息需求的用户提供专业问答和证据核对的应用，可结合医学知识、病历或症状理解及权威来源。知识库、工具和验证是实现关注点，不作为独立业务场景；不将问答能力等同自主诊疗或处方。",
+      "aliases": [
+        "医学问答Agent",
+        "医疗问答系统"
+      ],
+      "scope_type": "application_template",
+      "match_when": [
+        "题目明确以医疗、医学问答或健康咨询应用为对象。"
+      ],
+      "exclude_when": [
+        "通用RAG或Agent原理题没有医疗语境。",
+        "医院管理、预约挂号等独立非问答业务。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05逐题语义核查与批内去重",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:7883#question",
+          "quote": "请你设计一个 LLM Agent，用于医学问答，它需要具备哪些关键组件？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "模板复用表示业务相似，不声明不同来源为同一个具体项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块、技术或版本拆分场景。",
+      "detail_profile": {
+        "introduction": "为用户提供医疗健康信息解释与证据核对的问答应用。系统可能读取健康问题、医学资料或有权限的病历信息，关键在于回答的依据、适用范围和不确定性能够被看见。",
+        "participants": [
+          "健康信息咨询者",
+          "医学资料维护者",
+          "问答与验证服务"
+        ],
+        "typical_workflow": [
+          "理解问题和必要背景",
+          "检索相关医学证据",
+          "组织有出处的解释",
+          "核对结论并提示适用范围"
+        ],
+        "interview_focus": [
+          "专业知识时效与证据一致性",
+          "敏感数据权限和隐私",
+          "不确定性、拒答及质量评价"
+        ],
+        "resume_clues": [
+          "医学问答",
+          "健康知识助手",
+          "带证据的医疗信息检索"
+        ],
+        "scope_boundary": "知识问答不等同自主诊疗或开具处方；一般RAG原理题未必有医疗业务场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:template:investment_advisor",
+      "name": "智能投顾助手",
+      "definition": "面向投资者提供投资信息分析、资产配置建议或理财规划的智能辅助产品。记忆、工具接入、推理与反馈同属产品能力；区别于以真实订单执行和风控约束为核心的交易Agent平台。",
+      "aliases": [
+        "智能投顾项目",
+        "robo-advisor"
+      ],
+      "scope_type": "application_template",
+      "match_when": [
+        "题目明确讨论智能投顾或投资顾问助手及其准确项目上下文。"
+      ],
+      "exclude_when": [
+        "泛问Agent或MCP而无该项目依据。",
+        "纯交易执行平台或因子自动挖掘系统，应分别判断其任务身份。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05逐题语义核查与批内去重",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:7920#question",
+          "quote": "智能投顾助手项目：业务目标、核心技术难点、算法方案"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "模板复用表示业务相似，不声明不同来源为同一个具体项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块、技术或版本拆分场景。",
+      "detail_profile": {
+        "introduction": "面向投资者提供信息分析、配置建议或理财规划的辅助应用。它需要先理解用户目标和约束，再整理相关信息并解释建议；建议的生成过程与真实资金订单执行应分别看待。",
+        "participants": [
+          "投资或理财用户",
+          "信息与分析工具",
+          "投顾助手"
+        ],
+        "typical_workflow": [
+          "了解目标、期限和风险偏好",
+          "收集市场或资产信息",
+          "形成并解释候选建议",
+          "根据反馈更新建议与记录"
+        ],
+        "interview_focus": [
+          "信息时效和来源可信度",
+          "偏好记忆及建议解释",
+          "工具权限、评价和适当边界"
+        ],
+        "resume_clues": [
+          "智能投顾",
+          "投资分析助手",
+          "资产配置建议"
+        ],
+        "scope_boundary": "不把建议能力等同自动真实交易或收益保证；实盘指令与确定性风控优先交易平台场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:template:factor_mining_agent",
+      "name": "量化因子挖掘系统",
+      "definition": "为量化研究者生成、评估、筛选和迭代量化投资因子的自动研究产品，可由生成、评测和进化等Agent协作。因子库和评测是同一系统的模块，不各建场景。",
+      "aliases": [
+        "Multi-Agent因子挖掘"
+      ],
+      "scope_type": "application_template",
+      "match_when": [
+        "题干明确讨论因子生成、评估和进化组成的量化因子挖掘应用。"
+      ],
+      "exclude_when": [
+        "通用多Agent协作或进化原理题无因子研究业务。",
+        "投资建议或真实交易执行产品不自动归入因子挖掘。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05逐题语义核查与批内去重",
+      "evidence": [
+        {
+          "locator": "sample.jsonl:7985#question",
+          "quote": "请画出你设计的Multi-Agent因子挖掘系统的整体架构图（文字描述即可），并说明各Agent之间如何传递信息。"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "模板复用表示业务相似，不声明不同来源为同一个具体项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块、技术或版本拆分场景。",
+      "detail_profile": {
+        "introduction": "辅助量化研究者提出、评估和迭代投资因子的研究系统。它把候选因子表达式或代码与数据、回测和统计评价连接起来，研究产物需要能够复算，而不是仅让模型给出一个看似合理的因子。",
+        "participants": [
+          "量化研究者",
+          "因子生成和评测服务",
+          "行情及研究数据"
+        ],
+        "typical_workflow": [
+          "定义研究目标和可用数据",
+          "生成候选表达式或代码",
+          "运行检验、回测和指标评价",
+          "筛选、记录并迭代候选"
+        ],
+        "interview_focus": [
+          "数据泄漏与过拟合",
+          "执行隔离、评测可复现性",
+          "因子版本、反馈和候选筛选"
+        ],
+        "resume_clues": [
+          "因子挖掘",
+          "自动量化研究",
+          "因子生成评测Agent"
+        ],
+        "scope_boundary": "因子研究不等于自动实盘交易；研究指标不能自动当成真实收益承诺。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:project:mall_swarm",
+      "name": "mall-swarm微服务商城",
+      "definition": "mall-swarm开源微服务商城项目，服务电商购物及后台运营管理，原文说明采用Spring Cloud、Spring Boot等并提供Vue管理后台。仅将源项目的整体身份作为场景，不把组件或订单模块拆成场景。",
+      "aliases": [
+        "mall-swarm"
+      ],
+      "match_when": [
+        "明确点名mall-swarm，或准确项目章节可以核实是该商城。"
+      ],
+      "exclude_when": [
+        "mall、litemall等其他商城不是同一项目。",
+        "泛电商或Spring Cloud原理题没有该项目依据。"
+      ],
+      "evidence": [
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:553#question",
+          "quote": "mall-swarm 是什么？"
+        },
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:553#answer",
+          "quote": "mall-swarm 是一套微服务商城系统，采用了 Spring Cloud Greenwich、Spring Boot 2、MyBatis、Docker、Elasticsearch 等核心技术，同时提供了基于 Vue 的管理后台方便快速搭建系统。"
+        }
+      ],
+      "scope_type": "named_project",
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05待上下文复核：核实原题、原答案与同源项目问题",
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "登记定义不自动迁移历史模板边；不将同类应用声明为同一源码项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块或技术栈拆分场景。",
+      "detail_profile": {
+        "introduction": "当前源记录中的mall-swarm是一类微服务商城实现，业务围绕商品购物、订单交易和后台运营。场景介绍保留其来源身份，读者可以据业务理解相关工程问题，不能把源资料没有说明的组件或实现视为已证实。",
+        "participants": [
+          "商城用户",
+          "商家及运营",
+          "商城服务"
+        ],
+        "typical_workflow": [
+          "维护商品和运营数据",
+          "用户浏览并提交交易",
+          "协调订单与支付等业务",
+          "处理后台管理和服务异常"
+        ],
+        "interview_focus": [
+          "微服务边界和服务调用",
+          "交易一致性与失败处理",
+          "部署治理和后台权限"
+        ],
+        "resume_clues": [
+          "微服务商城",
+          "mall-swarm来源项目",
+          "电商后台"
+        ],
+        "scope_boundary": "具体项目名是来源线索；通用电商题不冒称来自mall-swarm，未来入口归类可继续按业务统一。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:project:zhiyu",
+      "name": "智语求职准备助手",
+      "definition": "智语是原文具名的求职准备项目，包含简历优化、按流程模拟面试、面试题解答与评价。系统在模拟面试中按分类提问并给出总结；不将不同功能分别建立场景，也不等同真实面试中的候选人代答助手。",
+      "aliases": [
+        "智语"
+      ],
+      "match_when": [
+        "明确智语项目或同源精确项目章节，讨论其功能、技术选型或实现。"
+      ],
+      "exclude_when": [
+        "其他AI模拟面试产品不能仅因任务相似就声明来自智语。",
+        "通用简历或面试知识题无该项目依据。"
+      ],
+      "evidence": [
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:598#question",
+          "quote": "智语项目的技术选型是什么？"
+        },
+        {
+          "locator": "/Users/xuyongqi/Desktop/knowledge_base.zip!/knowledge_base/questions_dedup.jsonl:42193#question",
+          "quote": "智语项目中如何实现模拟面试功能？"
+        },
+        {
+          "locator": "/Users/xuyongqi/Desktop/knowledge_base.zip!/knowledge_base/questions_dedup.jsonl:42193#answer",
+          "quote": "根据既定的面试流程，按分类提问面试题，最后给出总结和评价。"
+        }
+      ],
+      "scope_type": "named_project",
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05待上下文复核：核实原题、原答案与同源项目问题",
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "登记定义不自动迁移历史模板边；不将同类应用声明为同一源码项目。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用不按模块或技术栈拆分场景。",
+      "detail_profile": {
+        "introduction": "源项目智语用于求职准备，材料明确包含简历优化、按流程模拟面试、题目解答与评价。各项功能服务于同一准备过程，应保留共同上下文，而非为简历、提问和评分分别拆场景。",
+        "participants": [
+          "求职练习者",
+          "求职准备助手",
+          "简历与题目资料"
+        ],
+        "typical_workflow": [
+          "整理简历和目标",
+          "选择练习内容与流程",
+          "执行模拟问答和讲解",
+          "总结表现并形成改进建议"
+        ],
+        "interview_focus": [
+          "简历事实与问答关联",
+          "练习流程状态和反馈依据",
+          "多功能协作与用户数据隔离"
+        ],
+        "resume_clues": [
+          "简历优化与模拟面试",
+          "求职准备助手",
+          "智语来源项目"
+        ],
+        "scope_boundary": "帮助真实面试中候选人即时作答的工具具有不同角色；不能因都涉及面试就混用。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:project:wps",
+      "name": "WPS办公客户端",
+      "definition": "面向办公用户的WPS客户端产品。原面经明确围绕截图、取词、模拟按键的功能设计，以及客户端内存泄露治理进行提问；这些能力属于同一产品，不单独拆成场景。",
+      "aliases": [
+        "WPS客户端"
+      ],
+      "match_when": [
+        "原题明确以WPS软件功能或客户端实现为对象。"
+      ],
+      "exclude_when": [
+        "仅因为候选人在金山WPS面试，不将所有C++、Qt或算法题都归为WPS项目。",
+        "没有WPS项目证据的通用办公软件问题。"
+      ],
+      "evidence": [
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:8008#question",
+          "quote": "WPS 情景分析题。截图、取词、模拟按键功能，考察软件功能的分析和设计"
+        },
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:8014#question",
+          "quote": "WPS 如何应对内存泄露"
+        }
+      ],
+      "scope_type": "named_project",
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05 S8001-S9000逐题语义核查",
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "登记不自动改写历史题目关系。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用的功能和技术不分别建场景。",
+      "detail_profile": {
+        "introduction": "源面经围绕WPS办公客户端中的功能实现与稳定性问题。当前已知讨论截图、取词、模拟按键和内存泄漏，这些应作为客户端产品内的能力与工程问题理解，不推断未出现的办公业务实现。",
+        "participants": [
+          "办公用户",
+          "客户端进程",
+          "系统接口"
+        ],
+        "typical_workflow": [
+          "接收用户操作",
+          "与系统或文档界面交互",
+          "完成目标功能并管理资源",
+          "定位异常和稳定性问题"
+        ],
+        "interview_focus": [
+          "系统接口与功能边界",
+          "对象生命周期和资源释放",
+          "内存泄漏定位与验证"
+        ],
+        "resume_clues": [
+          "办公客户端开发",
+          "桌面截图取词",
+          "客户端稳定性"
+        ],
+        "scope_boundary": "不是所有桌面开发题都来自WPS；来源未描述的功能只能作为一般讨论，不能声称源项目已实现。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:project:yanshang_booksite",
+      "name": "炎上书屋网站",
+      "definition": "原面经中的具名个人网站，面向网站访问者提供网页服务和用户登录。来源明确讨论其账号系统、Cookie登录及登录态校验；没有说明书籍交易或阅读业务，不能从名称推断商城或电子书平台。",
+      "aliases": [
+        "炎上书屋"
+      ],
+      "match_when": [
+        "原题点名炎上书屋，或同源准确上下文能明确回指该网站。"
+      ],
+      "exclude_when": [
+        "只问一般网站设计、登录或前端架构，没有该网站身份依据。",
+        "不能将名称近似的其他书屋或电商项目视为同一网站。"
+      ],
+      "evidence": [
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:8967#question",
+          "quote": "炎上书屋网站的登录是如何实现的？"
+        },
+        {
+          "locator": "data/knowledge_index_pilot/2026-10-28-batch4-10000/sample.jsonl:8967#answer",
+          "quote": "用户名和密码发给后端，之后后端通过 set-cookie 来设置 HTTP-Only 的 Cookie。密码是直接传明文，考虑到只会在 HTTPS 上运行，就决定不再自己加一层，而是交给 TLS 作加密。"
+        }
+      ],
+      "scope_type": "named_project",
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "2026-11-05 S8001-S9000逐题语义核查",
+      "graph_snapshot_present": false,
+      "edge_review_status": "only_explicit_annotation_relations",
+      "notes": [
+        "登记不自动改写历史题目关系。"
+      ],
+      "classification_group": "project_application",
+      "module_policy": "同一应用的功能和技术不分别建场景。",
+      "detail_profile": {
+        "introduction": "原面经中的个人网站项目入口，当前明确材料集中在账号系统、Cookie登录和登录态校验。虽然名称包含书屋，现有证据并不能证明它承担图书交易或电子阅读任务。",
+        "participants": [
+          "网站访问者",
+          "注册用户",
+          "网站账号服务"
+        ],
+        "typical_workflow": [
+          "访问网页或提交登录信息",
+          "校验身份并建立登录态",
+          "携带Cookie访问受保护功能",
+          "处理过期、退出和异常状态"
+        ],
+        "interview_focus": [
+          "Cookie与会话安全",
+          "身份校验与权限边界",
+          "登录态失效及前后端协同"
+        ],
+        "resume_clues": [
+          "个人网站账号系统",
+          "Cookie登录",
+          "网站项目来源说明"
+        ],
+        "scope_boundary": "不从项目名称猜测商城、图书借阅或电子书业务；归属仍依赖准确面经上下文。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:local_life",
+      "name": "本地生活服务",
+      "aliases": [
+        "本地生活平台",
+        "商户点评与到店消费服务"
+      ],
+      "scope_type": "business_domain",
+      "definition": "围绕本地商户和线下消费构建的服务应用，帮助用户发现商户、查看点评、探店互动、领取或购买优惠券并完成到店核销等任务。黑马点评是此业务的一种实现示例；场景也适用于未使用该名称的同类简历项目。",
+      "match_when": [
+        "题目或明确项目上下文涉及本地商户发现、探店点评、到店消费或商户优惠券业务。",
+        "明确为黑马点评的有效业务题归入此场景，不要求简历出现该名称。"
+      ],
+      "exclude_when": [
+        "只有Redis、缓存、秒杀、优惠券技术词，没有本地商户或到店消费业务依据。",
+        "以餐饮下单和配送为主要业务时用外卖服务；普通商品购物交易用电商购物与交易业务。"
+      ],
+      "tag_policy": "reuse",
+      "redirect_to": null,
+      "registration_basis": "user_confirmed_business_scene",
+      "evidence": [
+        {
+          "locator": "conversation:2026-11-05:business-scene-granularity",
+          "quote": "黑马点评可以归到本地生活服务或者电商里，苍穹外卖可以归到外卖里，不用单设"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "definition_updated_not_new_question_annotations",
+      "notes": [
+        "场景相同表示业务相似，不代表源项目、技术实现或原题来源相同。",
+        "商户点评、优惠券、日志等是关注点，不分拆成独立场景。"
+      ],
+      "classification_group": "broad_business",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "围绕本地商户发现、口碑评价和线下消费服务用户的产品。典型对象是商户、探店内容和到店优惠券，用户可查找店铺、浏览点评、领取或购买优惠权益并核销消费；黑马点评是此类业务的一个教学实现。",
+        "participants": [
+          "本地消费者",
+          "商户",
+          "内容及活动运营"
+        ],
+        "typical_workflow": [
+          "发现商户并浏览店铺与点评",
+          "进行探店互动或收藏关注",
+          "领取或购买到店权益",
+          "消费核销及评价反馈"
+        ],
+        "interview_focus": [
+          "商户数据缓存与热点访问",
+          "优惠券库存、并发和核销幂等",
+          "点评数据、位置查询及互动一致性"
+        ],
+        "resume_clues": [
+          "本地生活平台",
+          "商户点评",
+          "到店消费",
+          "优惠券核销"
+        ],
+        "scope_boundary": "主要任务为餐饮下单配送时归外卖；一般商品网购归电商。出现缓存、Redis或秒杀本身不构成本地生活场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    }
+  ],
+  "tag_policies": {
+    "reuse": "可复用的项目或完整应用场景；仍需逐题证据。",
+    "broad_only": "可复用的业务宽入口；按业务语义使用，不以缺少教程项目名为拒绝理由；已有准确业务任务时避免机械叠加宽标签。",
+    "redirect": "停用的历史片段入口，阅读目标定义后逐题判断；不允许作为新标签。",
+    "module_only": "功能/工程任务，不作为新场景；明确项目则用项目，考点和功能语境单独保留。",
+    "context_review": "旧入口混合不同来源，需逐题判断目标，不允许作为新标签。"
+  },
+  "resume_policy": "简历模块仅决定考察重点，不限制同项目的日志、监控、风控等合理追问；未提及不代表未实现。补充通用题不据此新增项目原题关系。",
+  "classification_groups": {
+    "project_or_application": "具名项目或完整业务应用",
+    "broad_business": "通用业务场景（平级入口）",
+    "retired_fragment": "收拢的历史入口",
+    "module_or_task": "退出场景的功能任务",
+    "mixed_source": "逐题分流的混合入口"
+  },
+  "classification_counts": {
+    "broad_only": 12,
+    "reuse": 27,
+    "redirect": 17,
+    "context_review": 1,
+    "module_only": 4
+  },
+  "legacy_entry_count": 48,
+  "graph_migration_applied": false,
+  "scene_granularity_revision": {
+    "previous_version": "2026-11-05.scene.v04",
+    "evidence": {
+      "locator": "conversation:2026-11-05:business-scene-granularity",
+      "quote": "黑马点评可以归到本地生活服务或者电商里，苍穹外卖可以归到外卖里，不用单设"
+    },
+    "annotation_semantics_changed_automatically": false
+  },
+  "description_revision": {
+    "previous_version": "2026-11-05.scene.v05",
+    "scope": "补充39个可复用场景的业务说明、角色、流程、考察侧重点和边界；不更改场景ID及挂载规则。",
+    "creates_graph_edges": false
+  }
+}

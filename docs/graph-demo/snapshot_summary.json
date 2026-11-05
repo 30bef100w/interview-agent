@@ -1,0 +1,80 @@
+{
+  "snapshot": "2026-11-05-mgkg-9000-v3",
+  "scene_registry_version": "2026-11-05.scene.v06",
+  "status": "offline_graph_with_drafts; retrieval_design_only; TG_not_implemented",
+  "annotation_count": 9000,
+  "status_counts": {
+    "labeled": 8704,
+    "needs_context": 24,
+    "not_question": 272
+  },
+  "nodes_by_type": {
+    "Concept": 2346,
+    "Question": 8704,
+    "Scene": 39
+  },
+  "concepts_by_state": {
+    "active": 263,
+    "draft": 2083
+  },
+  "edges_by_relation": {
+    "COVERS_TOPIC": 22,
+    "HAS_QUESTION": 415,
+    "HAS_SUBTOPIC": 2360,
+    "INVOLVES": 140,
+    "REQUIRES": 33,
+    "TESTS": 13053
+  },
+  "edges_by_state": {
+    "active": 8343,
+    "draft": 7680
+  },
+  "nodes_with_detail_profiles": {
+    "Concept": 64,
+    "Scene": 39
+  },
+  "checks": {
+    "dangling_edges": 0,
+    "duplicate_edge_triples": 0,
+    "excluded_question_nodes": 0,
+    "hierarchy_cycles": 0,
+    "invalid_relation_types": 0,
+    "non_navigation_without_parent": 0,
+    "scene_registry_hash_verified": true,
+    "source_hash_verified": true,
+    "unregistered_references": 0
+  },
+  "files": [
+    {
+      "path": "index.html",
+      "bytes": 15485663,
+      "sha256": "7dd3883abb189b472841c4957f0bdf4cc90de02ac02ccfca9ab98a741d4bf2b5"
+    },
+    {
+      "path": "mgkg-9000-v3.zip",
+      "bytes": 12576000,
+      "sha256": "8fb8a50d0c58af7af88d22de231da9dfd4865a713409715d7d6fc8e27e6888f4"
+    }
+  ],
+  "snapshot_files": {
+    "detail_enrichment_audit.json": "00aa931fed08d9c85fa21be82cbac8e1db2929f0c6f4c1041a5a486b92da7fcd",
+    "edges.jsonl": "67b57184fb9be82026a6c9038fd93001b415a0b39f3c40946f03237fdcd0b3ab",
+    "entity_redirects.json": "0b518259d8241eb0a1b77a2bd3f1509298812f480f1eba8f325204dd247d13ff",
+    "excluded_records.jsonl": "2c264fa5babb94abd98f6fdec52fcbf2e5c64af7258a0df68f0601318162e164",
+    "graph_issues.jsonl": "dd0feada340a64d9ade8abe002f04575905987f03cf62d49e01d0c20e4a055f0",
+    "graph_manifest.json": "e46ecaf99fc66e416ac59966ac229a8e32c3d0ba3f8a25c60af0586106dad8ae",
+    "kg_edges.jsonl": "3d57b41aa740def5015cec8b892e5244c2cab45ca8f5c373937284e47d3a4f42",
+    "kg_nodes.jsonl": "6e50a8928b1f23760cc59c9de19819ca84281f493d6a87ff459cd4b1cee451a8",
+    "mapping_report.json": "b6b60514e2ac5f09a8769e8e7623872428fff6442ceaaf6de18c5dac6ecd6e1d",
+    "mg_edges.jsonl": "e96b652627768fa8ef48bb02fb0cdebddff4353e38f23067c6545a6e5b8bf6db",
+    "mg_nodes.jsonl": "a048dfff9b0f011096e4a092769c60e4210e222d564ffec5216b1d2fd57b3a0a",
+    "nodes.jsonl": "85936d29040c89d4b960712926f4da1dd741dd87db096d2587bf3f27e581dc1d",
+    "preview.html": "7dd3883abb189b472841c4957f0bdf4cc90de02ac02ccfca9ab98a741d4bf2b5",
+    "source_records.jsonl": "21cf8c9a067e2cf95d3a87b8fec71c0bbe75ee613877b9f6b8f66b0063ac5487"
+  },
+  "notes": [
+    "构建输入哈希及原路径保留在压缩包的graph_manifest.json作为溯源；完整历史输入不在此发布包。",
+    "浏览器中的流程与考察示例不自动构成图关系；原答案不是已验证标准答案。",
+    "该快照由用户明确要求公开，完整生产题库仍不随仓库分发。"
+  ]
+}

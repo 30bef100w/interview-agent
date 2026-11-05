@@ -1,0 +1,2175 @@
+{
+  "version": "2026-11-03.v02",
+  "base_graph": "2026-10-28-semantic-3750-v5",
+  "scope": "3750 道已有标注的索引整理与挂载检查；不等同于全部题目答案正确性复核。",
+  "rules": [
+    "新增前查完整注册表（预设节点、全部历史候选与别名），按语义逐层定位。",
+    "同义才合并；父子概念、语言特有实现和对比题不能按名称合并。",
+    "所有层级可挂题，navigation 不挂题；保留原标注与修订前后记录。",
+    "层级为组织性细分，不表示逻辑蕴含或前置依赖；跨域关联不自动参与下钻。",
+    "不按题量删除节点，不自动把草稿改为 active；组织完毕不等于语义验证完毕。"
+  ],
+  "aliases": {
+    "proposed.agent.hitl": "proposed.agent.human_in_loop",
+    "proposed.algorithm.lowest_common_ancestor": "proposed.algorithm.lca",
+    "proposed.llm.flash_attention": "proposed.attention.flashattention",
+    "proposed.reasoning.cot": "proposed.llm.chain_of_thought",
+    "proposed.ml.batch_normalization": "proposed.normalization.batchnorm",
+    "proposed.spring.boot_autoconfig": "proposed.spring.auto_configuration",
+    "proposed.php.switch_match": "proposed.php.match_switch",
+    "proposed.go.compiler_escape_analysis": "proposed.go.escape_analysis",
+    "proposed.agent.orchestrator_workers": "proposed.multi_agent.orchestrator_worker",
+    "proposed.llm.emergence": "proposed.llm.emergent_ability",
+    "proposed.ai.semantic_cache": "proposed.cache.semantic",
+    "proposed.function_calling.schema_design": "proposed.agent.tool_schema",
+    "proposed.code.multi_head_attention": "proposed.attention.multi_head",
+    "proposed.high_concurrency_definition": "performance",
+    "proposed.java.thread_pool": "proposed.java.thread_pool",
+    "proposed.finetuning.peft": "proposed.llm.finetuning.peft",
+    "proposed.training.peft": "proposed.llm.finetuning.peft",
+    "proposed.agent.self_correction": "proposed.agent.self_correction",
+    "proposed.code_agent.self_correction": "proposed.agent.self_correction",
+    "proposed.code_agent.reflexion": "proposed.reflection.reflexion",
+    "proposed.reflection.reflexion": "proposed.reflection.reflexion"
+  },
+  "splits": {
+    "proposed.solid.srp_ocp": [
+      "proposed.solid.srp",
+      "proposed.solid.ocp"
+    ],
+    "proposed.solid.dip_ocp": [
+      "proposed.design.dip",
+      "proposed.solid.ocp"
+    ],
+    "proposed.solid.lsp_ocp": [
+      "proposed.solid.lsp",
+      "proposed.solid.ocp"
+    ]
+  },
+  "new_nodes": {
+    "index.ml": {
+      "name": "机器学习基础",
+      "kind": "navigation",
+      "parents": [
+        "nav.ai"
+      ]
+    },
+    "index.robotics": {
+      "name": "具身智能与机器人",
+      "kind": "navigation",
+      "parents": [
+        "nav.ai"
+      ]
+    },
+    "index.ai_product": {
+      "name": "AI 应用选型与产品工程",
+      "kind": "navigation",
+      "parents": [
+        "nav.ai"
+      ]
+    },
+    "index.concurrency": {
+      "name": "并发基础与同步机制",
+      "kind": "navigation",
+      "parents": [
+        "os"
+      ]
+    },
+    "index.languages": {
+      "name": "通用编程语言与编译基础",
+      "kind": "navigation",
+      "parents": [
+        "nav.fundamentals"
+      ]
+    },
+    "index.architecture": {
+      "name": "软件架构与设计原则",
+      "kind": "navigation",
+      "parents": [
+        "nav.engineering"
+      ]
+    },
+    "index.testing": {
+      "name": "软件测试与质量保障",
+      "kind": "navigation",
+      "parents": [
+        "nav.engineering"
+      ]
+    },
+    "index.platform": {
+      "name": "云平台与运行环境",
+      "kind": "navigation",
+      "parents": [
+        "nav.engineering"
+      ]
+    },
+    "index.operations": {
+      "name": "运维排障与容量治理",
+      "kind": "navigation",
+      "parents": [
+        "nav.engineering"
+      ]
+    },
+    "index.general": {
+      "name": "通用方法与业务分析",
+      "kind": "navigation",
+      "parents": [
+        "nav.engineering"
+      ]
+    },
+    "index.php.types": {
+      "name": "PHP 类型、变量与运算",
+      "kind": "navigation",
+      "parents": [
+        "php"
+      ]
+    },
+    "index.php.objects": {
+      "name": "PHP 对象、函数与语言机制",
+      "kind": "navigation",
+      "parents": [
+        "php"
+      ]
+    },
+    "index.php.memory": {
+      "name": "PHP 内存与垃圾回收",
+      "kind": "navigation",
+      "parents": [
+        "php"
+      ]
+    },
+    "index.php.async": {
+      "name": "PHP 协程与异步",
+      "kind": "navigation",
+      "parents": [
+        "php"
+      ]
+    },
+    "index.php.runtime": {
+      "name": "PHP 请求生命周期与运行环境",
+      "kind": "navigation",
+      "parents": [
+        "php"
+      ]
+    },
+    "index.go.types": {
+      "name": "Go 类型与集合",
+      "kind": "navigation",
+      "parents": [
+        "go"
+      ]
+    },
+    "index.go.concurrency": {
+      "name": "Go 并发与协程",
+      "kind": "navigation",
+      "parents": [
+        "go"
+      ]
+    },
+    "index.go.memory": {
+      "name": "Go 内存与 GC",
+      "kind": "navigation",
+      "parents": [
+        "go"
+      ]
+    },
+    "index.go.runtime": {
+      "name": "Go 编译、运行与诊断",
+      "kind": "navigation",
+      "parents": [
+        "go"
+      ]
+    },
+    "index.agent.tools": {
+      "name": "工具调用设计细分",
+      "kind": "navigation",
+      "parents": [
+        "agent.tools"
+      ]
+    },
+    "index.agent.evaluation": {
+      "name": "Agent 评估细分",
+      "kind": "navigation",
+      "parents": [
+        "ai.eval"
+      ]
+    },
+    "index.agent.execution": {
+      "name": "Agent 执行与可靠性细分",
+      "kind": "navigation",
+      "parents": [
+        "agent.loop"
+      ]
+    },
+    "index.agent.frameworks": {
+      "name": "Agent 框架具体实现",
+      "kind": "navigation",
+      "parents": [
+        "agent.frameworks"
+      ]
+    },
+    "index.frontend": {
+      "name": "前端基础与工程",
+      "kind": "navigation",
+      "parents": [
+        "nav.frontend"
+      ]
+    },
+    "index.data_platforms": {
+      "name": "数据平台与业务分析工具",
+      "kind": "navigation",
+      "parents": [
+        "nav.data"
+      ]
+    },
+    "index.crypto": {
+      "name": "密码学与安全协议",
+      "kind": "navigation",
+      "parents": [
+        "nav.security"
+      ]
+    }
+  },
+  "parents": {
+    "proposed.agent.human_in_loop": [
+      "agent.session_runtime",
+      "security.tool_permissions"
+    ],
+    "proposed.agent.tool_schema": [
+      "agent.tools.selection"
+    ],
+    "proposed.agent.tool_description": [
+      "agent.tools.selection"
+    ],
+    "proposed.agent.tool_choice": [
+      "agent.tools.selection"
+    ],
+    "proposed.agent.structured_output": [
+      "agent.tools"
+    ],
+    "proposed.structured_output_repair": [
+      "proposed.agent.structured_output"
+    ],
+    "proposed.agent.self_correction": [
+      "agent.reflection"
+    ],
+    "proposed.reflection.reflexion": [
+      "agent.reflection"
+    ],
+    "proposed.reflection.self_refine": [
+      "agent.reflection"
+    ],
+    "proposed.reflection.critic": [
+      "agent.reflection"
+    ],
+    "proposed.java.thread_pool": [
+      "java.concurrent",
+      "proposed.concurrency.thread_pool"
+    ],
+    "proposed.java.threadpool_configuration": [
+      "proposed.java.thread_pool"
+    ],
+    "proposed.java.threadpool_rejection": [
+      "proposed.java.thread_pool"
+    ],
+    "proposed.llm.finetuning.peft": [
+      "llm.finetuning"
+    ],
+    "proposed.llm.finetuning.lora": [
+      "proposed.llm.finetuning.peft"
+    ],
+    "proposed.llm.qlora": [
+      "proposed.llm.finetuning.lora"
+    ],
+    "proposed.finetuning.lora_alpha": [
+      "proposed.llm.finetuning.lora"
+    ],
+    "proposed.normalization.batchnorm": [
+      "index.ml"
+    ],
+    "proposed.normalization.layernorm": [
+      "index.ml"
+    ],
+    "proposed.normalization.prenorm_postnorm": [
+      "llm.transformer"
+    ],
+    "proposed.normalization.warmup": [
+      "llm.finetuning"
+    ],
+    "proposed.algorithm.lca": [
+      "ds.tree"
+    ],
+    "proposed.algorithm.lru": [
+      "ds.hash",
+      "cache"
+    ],
+    "proposed.ds.bloom_filter": [
+      "ds.hash"
+    ],
+    "proposed.ds.avl_redblack": [
+      "ds.tree"
+    ],
+    "proposed.tree.balanced_bst": [
+      "ds.tree"
+    ],
+    "proposed.attention.flashattention": [
+      "llm.transformer"
+    ],
+    "proposed.attention.multi_head": [
+      "llm.transformer"
+    ],
+    "proposed.llm.chain_of_thought": [
+      "llm.prompt",
+      "agent.planning"
+    ],
+    "proposed.multi_agent.orchestrator_worker": [
+      "agent.multi"
+    ],
+    "proposed.cache.semantic": [
+      "cache",
+      "rag.retrieval"
+    ],
+    "proposed.spring.boot": [
+      "spring"
+    ],
+    "proposed.spring.auto_configuration": [
+      "proposed.spring.boot"
+    ],
+    "proposed.spring.boot_annotations": [
+      "proposed.spring.boot"
+    ],
+    "proposed.spring.starter": [
+      "proposed.spring.boot"
+    ],
+    "proposed.spring.threadpool_starter": [
+      "proposed.spring.starter"
+    ],
+    "proposed.spring.conditional_annotations": [
+      "proposed.spring.auto_configuration"
+    ],
+    "proposed.spring.actuator": [
+      "proposed.spring.boot"
+    ],
+    "proposed.spring.component_import": [
+      "proposed.spring.ioc"
+    ],
+    "proposed.spring.bean_lifecycle": [
+      "proposed.spring.ioc"
+    ],
+    "proposed.spring.circular_dependency": [
+      "proposed.spring.ioc"
+    ],
+    "proposed.redis.big_key": [
+      "redis.hot_key"
+    ],
+    "proposed.redis.sentinel": [
+      "redis.ha"
+    ],
+    "proposed.redis.cluster": [
+      "redis.ha"
+    ],
+    "proposed.redis.sentinel_cluster_selection": [
+      "redis.ha"
+    ],
+    "proposed.redis.replication_consistency": [
+      "redis.ha"
+    ],
+    "proposed.redis.hash_slot": [
+      "proposed.redis.cluster"
+    ],
+    "proposed.redis.rate_limit": [
+      "performance.rate_limit"
+    ],
+    "proposed.redis.ranking": [
+      "redis.sorted_set"
+    ],
+    "proposed.redis.delay_queue": [
+      "mq.delay"
+    ],
+    "proposed.redis.thread_safety": [
+      "redis.performance"
+    ],
+    "proposed.redis.hash_resize": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.scan": [
+      "redis"
+    ],
+    "proposed.redis.word_count": [
+      "redis"
+    ],
+    "proposed.redis.use_cases": [
+      "redis"
+    ],
+    "proposed.mysql.covering_index": [
+      "mysql.index"
+    ],
+    "proposed.mysql.prefix_index": [
+      "mysql.index"
+    ],
+    "proposed.mysql.index_merge": [
+      "mysql.index"
+    ],
+    "proposed.mysql.implicit_conversion": [
+      "mysql.index.invalid"
+    ],
+    "proposed.mysql.redo_log": [
+      "mysql.log"
+    ],
+    "proposed.mysql.undo_log": [
+      "mysql.log"
+    ],
+    "proposed.mysql.binlog": [
+      "mysql.log"
+    ],
+    "proposed.mysql.two_phase_commit": [
+      "mysql.log"
+    ],
+    "proposed.mysql.deep_pagination": [
+      "db.sql"
+    ],
+    "proposed.mysql.row_table_lock": [
+      "mysql.lock"
+    ],
+    "proposed.database.acid": [
+      "db"
+    ],
+    "proposed.database.isolation_levels": [
+      "db"
+    ],
+    "proposed.database.clustered_index": [
+      "db"
+    ],
+    "proposed.network.tls": [
+      "network",
+      "index.crypto"
+    ],
+    "proposed.agent.trajectory_eval": [
+      "index.agent.evaluation"
+    ],
+    "proposed.agent.evaluation": [
+      "index.agent.evaluation"
+    ],
+    "proposed.agent.repeat_call_detection": [
+      "agent.stop_conditions"
+    ],
+    "proposed.agent.unbounded_loop": [
+      "agent.stop_conditions"
+    ],
+    "proposed.agent.while_true_loop": [
+      "agent.loop"
+    ],
+    "proposed.agent.replanning": [
+      "agent.planning"
+    ],
+    "proposed.agent.task_decomposition": [
+      "agent.planning"
+    ],
+    "proposed.agent.sandbox": [
+      "agent.harness"
+    ],
+    "proposed.agent.parallel_tool_calls": [
+      "agent.tools"
+    ],
+    "proposed.agent.concurrent_tools": [
+      "agent.tools"
+    ],
+    "proposed.agent.low_code_platform": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.platform_comparison": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework_comparison": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.system_prompt": [
+      "llm.prompt"
+    ],
+    "proposed.agent.goal_drift": [
+      "agent.planning"
+    ],
+    "proposed.agent.tool_granularity": [
+      "agent.tools"
+    ],
+    "proposed.agent.tool_vs_subagent": [
+      "agent.tools",
+      "agent.multi"
+    ],
+    "proposed.agent.subagent": [
+      "agent.multi"
+    ],
+    "proposed.agent.subagent_boundary": [
+      "proposed.agent.subagent"
+    ],
+    "proposed.agent.subagent_hierarchy": [
+      "proposed.agent.subagent"
+    ],
+    "proposed.agent.subagent_value": [
+      "proposed.agent.subagent"
+    ],
+    "proposed.mcp.security": [
+      "mcp",
+      "security.tool_permissions"
+    ],
+    "proposed.mcp.local_security": [
+      "proposed.mcp.security"
+    ],
+    "proposed.model.clip": [
+      "multimodal.fusion"
+    ],
+    "proposed.model.clip_variants": [
+      "proposed.model.clip"
+    ],
+    "proposed.workflow.state_machine": [
+      "data.workflow"
+    ],
+    "proposed.os.zero_copy": [
+      "os.io"
+    ],
+    "proposed.memory.physical_virtual": [
+      "os.memory"
+    ],
+    "proposed.memory.physical_virtual_address": [
+      "os.memory"
+    ],
+    "proposed.memory.virtual_addressing": [
+      "os.memory"
+    ],
+    "proposed.memory.injection_policy": [
+      "agent.memory"
+    ],
+    "proposed.memory.overlay_loading": [
+      "agent.memory"
+    ],
+    "proposed.memory.retention": [
+      "agent.memory"
+    ],
+    "proposed.memory.retrieval_trigger": [
+      "agent.memory.retrieve"
+    ],
+    "proposed.memory.temporal_decay": [
+      "agent.memory.retrieve"
+    ],
+    "proposed.memory.overload": [
+      "agent.memory"
+    ],
+    "proposed.jvm.class_loading": [
+      "jvm.memory"
+    ],
+    "proposed.jvm.class_lifecycle": [
+      "proposed.jvm.class_loading"
+    ],
+    "proposed.jvm.cms": [
+      "java.gc_collectors"
+    ],
+    "proposed.jvm.g1": [
+      "java.gc_collectors"
+    ],
+    "proposed.jvm.g1_full_gc": [
+      "proposed.jvm.g1"
+    ],
+    "proposed.jvm.gc_log": [
+      "java.gc_collectors"
+    ],
+    "proposed.java.gc.zgc": [
+      "java.gc_collectors"
+    ],
+    "proposed.java.volatile": [
+      "java.jmm"
+    ],
+    "proposed.java.aqs": [
+      "java.locks"
+    ],
+    "proposed.java.lock_escalation": [
+      "java.synchronized"
+    ],
+    "proposed.java.hashmap_treeification": [
+      "java.collections"
+    ],
+    "proposed.java.concurrent_hashmap_versions": [
+      "java.collections"
+    ],
+    "proposed.solid.srp": [
+      "proposed.design.solid"
+    ],
+    "proposed.solid.ocp": [
+      "proposed.design.solid"
+    ],
+    "proposed.solid.lsp": [
+      "proposed.design.solid"
+    ],
+    "proposed.design.dip": [
+      "proposed.design.solid"
+    ],
+    "proposed.design.isp": [
+      "proposed.design.solid"
+    ],
+    "proposed.solid.dip_ocp": [
+      "proposed.design.solid"
+    ],
+    "proposed.solid.lsp_ocp": [
+      "proposed.design.solid"
+    ],
+    "proposed.solid.srp_ocp": [
+      "proposed.design.solid"
+    ],
+    "proposed.redis.string_encoding": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.hash_encoding": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.list_encoding": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.set_encoding": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.zset_encoding": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.sds": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.intset": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.listpack": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.hyperloglog": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.geo": [
+      "redis.data_structures"
+    ],
+    "proposed.redis.ziplist_cascade": [
+      "redis.data_structures"
+    ],
+    "proposed.agent.framework.langchain": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework.langgraph": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework.dify": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework.lazyllm": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework.cline": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework.openclaw": [
+      "agent.frameworks"
+    ],
+    "proposed.agent.framework.hermes": [
+      "agent.frameworks"
+    ],
+    "proposed.go.channel": [
+      "index.go.types"
+    ],
+    "proposed.go.empty_struct": [
+      "index.go.types"
+    ],
+    "proposed.go.generics": [
+      "index.go.types"
+    ],
+    "proposed.go.interface_implicit": [
+      "index.go.types"
+    ],
+    "proposed.go.interface_nil": [
+      "index.go.types"
+    ],
+    "proposed.go.json_interface": [
+      "index.go.types"
+    ],
+    "proposed.go.map": [
+      "index.go.types"
+    ],
+    "proposed.go.map_concurrency": [
+      "proposed.go.map"
+    ],
+    "proposed.go.map_iteration": [
+      "proposed.go.map"
+    ],
+    "proposed.go.map_slice_panic": [
+      "proposed.go.map"
+    ],
+    "proposed.go.method_set": [
+      "index.go.types"
+    ],
+    "proposed.go.range_semantics": [
+      "index.go.types"
+    ],
+    "proposed.go.reflection": [
+      "index.go.types"
+    ],
+    "proposed.go.short_declaration": [
+      "index.go.types"
+    ],
+    "proposed.go.slice": [
+      "index.go.types"
+    ],
+    "proposed.go.slice_aliasing": [
+      "proposed.go.slice"
+    ],
+    "proposed.go.slice_growth": [
+      "proposed.go.slice"
+    ],
+    "proposed.go.string_byte_slice": [
+      "index.go.types"
+    ],
+    "proposed.go.string_immutability": [
+      "index.go.types"
+    ],
+    "proposed.go.string_rune": [
+      "index.go.types"
+    ],
+    "proposed.go.type_assertion": [
+      "index.go.types"
+    ],
+    "proposed.go.value_reference_types": [
+      "index.go.types"
+    ],
+    "proposed.go.zero_value": [
+      "index.go.types"
+    ],
+    "proposed.go.embedding": [
+      "index.go.types"
+    ],
+    "proposed.go.context": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.context_cancellation": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.goroutine": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.goroutine_diagnostics": [
+      "proposed.go.goroutine"
+    ],
+    "proposed.go.goroutine_leak": [
+      "proposed.go.goroutine"
+    ],
+    "proposed.go.goroutine_lifecycle": [
+      "proposed.go.goroutine"
+    ],
+    "proposed.go.gmp": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.mutex": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.mutex_reentrancy": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.rwmutex": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.select": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.sync_pool": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.ticker_leak": [
+      "index.go.concurrency"
+    ],
+    "proposed.go.escape_analysis": [
+      "index.go.memory"
+    ],
+    "proposed.go.gc": [
+      "index.go.memory"
+    ],
+    "proposed.go.gc_lazy_sweep": [
+      "proposed.go.gc"
+    ],
+    "proposed.go.gc_tricolor": [
+      "proposed.go.gc"
+    ],
+    "proposed.go.gc_trigger": [
+      "proposed.go.gc"
+    ],
+    "proposed.go.gogc": [
+      "proposed.go.gc"
+    ],
+    "proposed.go.mcache": [
+      "index.go.memory"
+    ],
+    "proposed.go.memory_allocator": [
+      "index.go.memory"
+    ],
+    "proposed.go.stw": [
+      "proposed.go.gc"
+    ],
+    "proposed.go.write_barrier": [
+      "proposed.go.gc"
+    ],
+    "proposed.go.ai_use_cases": [
+      "index.go.runtime"
+    ],
+    "proposed.go.compilation": [
+      "index.go.runtime"
+    ],
+    "proposed.go.defer": [
+      "index.go.runtime"
+    ],
+    "proposed.go.defer_argument_evaluation": [
+      "index.go.runtime"
+    ],
+    "proposed.go.defer_loop": [
+      "index.go.runtime"
+    ],
+    "proposed.go.defer_return": [
+      "index.go.runtime"
+    ],
+    "proposed.go.error_handling": [
+      "index.go.runtime"
+    ],
+    "proposed.go.initialization_order": [
+      "index.go.runtime"
+    ],
+    "proposed.go.language_features": [
+      "index.go.runtime"
+    ],
+    "proposed.go.net_http": [
+      "index.go.runtime"
+    ],
+    "proposed.go.panic_error_boundary": [
+      "index.go.runtime"
+    ],
+    "proposed.go.panic_recover": [
+      "index.go.runtime"
+    ],
+    "proposed.go.panic_recover_defer": [
+      "index.go.runtime"
+    ],
+    "proposed.go.performance": [
+      "index.go.runtime"
+    ],
+    "proposed.go.pprof": [
+      "index.go.runtime"
+    ],
+    "proposed.go.testing": [
+      "index.go.runtime"
+    ],
+    "proposed.go.time_comparison": [
+      "index.go.runtime"
+    ],
+    "proposed.go.version_features": [
+      "index.go.runtime"
+    ],
+    "proposed.php.array_copy": [
+      "index.php.types"
+    ],
+    "proposed.php.array_key_cast": [
+      "index.php.types"
+    ],
+    "proposed.php.array_merge_union": [
+      "index.php.types"
+    ],
+    "proposed.php.array_sort": [
+      "index.php.types"
+    ],
+    "proposed.php.array_types": [
+      "index.php.types"
+    ],
+    "proposed.php.bcmath": [
+      "index.php.types"
+    ],
+    "proposed.php.boolean_cast": [
+      "index.php.types"
+    ],
+    "proposed.php.foreach_reference": [
+      "index.php.types"
+    ],
+    "proposed.php.heredoc_nowdoc": [
+      "index.php.types"
+    ],
+    "proposed.php.in_array_strict": [
+      "index.php.types"
+    ],
+    "proposed.php.isset_empty": [
+      "index.php.types"
+    ],
+    "proposed.php.loose_comparison_versions": [
+      "index.php.types"
+    ],
+    "proposed.php.loose_strict_comparison": [
+      "index.php.types"
+    ],
+    "proposed.php.match_switch": [
+      "index.php.types"
+    ],
+    "proposed.php.null_coalescing": [
+      "index.php.types"
+    ],
+    "proposed.php.nullsafe": [
+      "index.php.types"
+    ],
+    "proposed.php.reference_performance": [
+      "index.php.types"
+    ],
+    "proposed.php.reference_semantics": [
+      "index.php.types"
+    ],
+    "proposed.php.strict_types": [
+      "index.php.types"
+    ],
+    "proposed.php.string_quotes": [
+      "index.php.types"
+    ],
+    "proposed.php.type_casting": [
+      "index.php.types"
+    ],
+    "proposed.php.type_juggling": [
+      "index.php.types"
+    ],
+    "proposed.php.value_reference_passing": [
+      "index.php.types"
+    ],
+    "proposed.php.zend_string": [
+      "index.php.types"
+    ],
+    "proposed.php.zval": [
+      "index.php.types"
+    ],
+    "proposed.php.zval_version_difference": [
+      "index.php.types"
+    ],
+    "proposed.php.autoload": [
+      "index.php.objects"
+    ],
+    "proposed.php.composer": [
+      "index.php.objects"
+    ],
+    "proposed.php.composer_autoload_optimization": [
+      "index.php.objects"
+    ],
+    "proposed.php.error_exception": [
+      "index.php.objects"
+    ],
+    "proposed.php.error_handler": [
+      "index.php.objects"
+    ],
+    "proposed.php.finally": [
+      "index.php.objects"
+    ],
+    "proposed.php.functional_programming": [
+      "index.php.objects"
+    ],
+    "proposed.php.late_static_binding": [
+      "index.php.objects"
+    ],
+    "proposed.php.laravel_collection": [
+      "index.php.objects"
+    ],
+    "proposed.php.magic_methods": [
+      "index.php.objects"
+    ],
+    "proposed.php.named_arguments": [
+      "index.php.objects"
+    ],
+    "proposed.php.name_resolution": [
+      "index.php.objects"
+    ],
+    "proposed.php.namespace": [
+      "index.php.objects"
+    ],
+    "proposed.php.object_copy": [
+      "index.php.objects"
+    ],
+    "proposed.php.object_handle_semantics": [
+      "index.php.objects"
+    ],
+    "proposed.php.psr4_autoload": [
+      "index.php.objects"
+    ],
+    "proposed.php.serialization_copy": [
+      "index.php.objects"
+    ],
+    "proposed.php.static_keyword": [
+      "index.php.objects"
+    ],
+    "proposed.php.static_return_type": [
+      "index.php.objects"
+    ],
+    "proposed.php.throwable_catch": [
+      "index.php.objects"
+    ],
+    "proposed.php.trait_conflict": [
+      "index.php.objects"
+    ],
+    "proposed.php.trait_interface": [
+      "index.php.objects"
+    ],
+    "proposed.php.trait_precedence": [
+      "index.php.objects"
+    ],
+    "proposed.php.trait_property": [
+      "index.php.objects"
+    ],
+    "proposed.php.use_statement_scope": [
+      "index.php.objects"
+    ],
+    "proposed.php.circular_reference": [
+      "index.php.memory"
+    ],
+    "proposed.php.garbage_collection": [
+      "index.php.memory"
+    ],
+    "proposed.php.gc_disable": [
+      "index.php.memory"
+    ],
+    "proposed.php.gc_trigger": [
+      "index.php.memory"
+    ],
+    "proposed.php.long_running_gc": [
+      "index.php.memory"
+    ],
+    "proposed.php.weak_reference": [
+      "index.php.memory"
+    ],
+    "proposed.php.concurrency_model": [
+      "index.php.async"
+    ],
+    "proposed.php.curl_multi": [
+      "index.php.async"
+    ],
+    "proposed.php.fiber": [
+      "index.php.async"
+    ],
+    "proposed.php.fiber_scheduler": [
+      "index.php.async"
+    ],
+    "proposed.php.fiber_stack": [
+      "index.php.async"
+    ],
+    "proposed.php.generator": [
+      "index.php.async"
+    ],
+    "proposed.php.generator_yield": [
+      "index.php.async"
+    ],
+    "proposed.php.revolt_event_loop": [
+      "index.php.async"
+    ],
+    "proposed.php.swoole_connection_pool": [
+      "index.php.async"
+    ],
+    "proposed.php.swoole_coroutine": [
+      "index.php.async"
+    ],
+    "proposed.php.swoole_frame_decode": [
+      "index.php.async"
+    ],
+    "proposed.php.swoole_hook": [
+      "index.php.async"
+    ],
+    "proposed.php.fpm": [
+      "index.php.runtime"
+    ],
+    "proposed.php.fpm_reload_restart": [
+      "index.php.runtime"
+    ],
+    "proposed.php.fpm_request_isolation": [
+      "index.php.runtime"
+    ],
+    "proposed.php.jit": [
+      "index.php.runtime"
+    ],
+    "proposed.php.jit_configuration": [
+      "index.php.runtime"
+    ],
+    "proposed.php.jit_fpm": [
+      "index.php.runtime"
+    ],
+    "proposed.php.jit_speculative_optimization": [
+      "index.php.runtime"
+    ],
+    "proposed.php.module_globals": [
+      "index.php.runtime"
+    ],
+    "proposed.php.opcache": [
+      "index.php.runtime"
+    ],
+    "proposed.php.persistent_connection": [
+      "index.php.runtime"
+    ],
+    "proposed.php.request_lifecycle": [
+      "index.php.runtime"
+    ],
+    "proposed.php.shutdown_destruct_order": [
+      "index.php.runtime"
+    ],
+    "proposed.php.superglobal_lifecycle": [
+      "index.php.runtime"
+    ],
+    "proposed.php.xdebug": [
+      "index.php.runtime"
+    ],
+    "proposed.database.postgresql": [
+      "db"
+    ],
+    "proposed.database.oracle": [
+      "db"
+    ],
+    "proposed.network.http2": [
+      "network.http"
+    ],
+    "proposed.network.http2_http3": [
+      "network.http"
+    ],
+    "proposed.http2.head_of_line": [
+      "network.http"
+    ],
+    "proposed.network.quic": [
+      "network"
+    ],
+    "proposed.distributed.base_eventual_consistency": [
+      "distributed.transaction"
+    ],
+    "proposed.architecture.circular_dependency": [
+      "index.architecture"
+    ],
+    "proposed.architecture.conway_law": [
+      "index.architecture"
+    ],
+    "proposed.architecture.layered_split_antipattern": [
+      "index.architecture"
+    ],
+    "proposed.architecture.rag_bypass": [
+      "rag"
+    ],
+    "proposed.architecture.full_stack_agent": [
+      "agent"
+    ],
+    "proposed.training.data_parallel": [
+      "llm.parallel_training"
+    ],
+    "proposed.training.tensor_parallel": [
+      "llm.parallel_training"
+    ],
+    "proposed.training.pipeline_parallel": [
+      "llm.parallel_training"
+    ],
+    "proposed.training.nccl": [
+      "llm.parallel_training"
+    ],
+    "proposed.training.communication_bottleneck": [
+      "llm.parallel_training"
+    ],
+    "proposed.training.communication_cost": [
+      "llm.parallel_training"
+    ],
+    "proposed.training.overfitting": [
+      "index.ml"
+    ],
+    "proposed.training.backpropagation": [
+      "index.ml"
+    ],
+    "proposed.training.mixed_precision": [
+      "index.ml"
+    ],
+    "proposed.training.data_augmentation": [
+      "index.ml"
+    ],
+    "proposed.model.mmoe": [
+      "index.ml"
+    ],
+    "proposed.ai.code_generation": [
+      "agent"
+    ],
+    "proposed.ai.coding_agents": [
+      "agent"
+    ],
+    "proposed.ai.batch_inference": [
+      "llm.serving"
+    ],
+    "proposed.llm.quantization": [
+      "llm.serving"
+    ],
+    "proposed.llm.quantization_aware_training": [
+      "proposed.llm.quantization"
+    ],
+    "proposed.llm.inference_optimization": [
+      "llm.serving"
+    ],
+    "proposed.llm.inference_framework": [
+      "llm.serving"
+    ],
+    "proposed.llm.inference_engine": [
+      "llm.serving"
+    ],
+    "proposed.llm.batching": [
+      "llm.serving"
+    ],
+    "proposed.llm.batch_api": [
+      "llm.serving"
+    ],
+    "proposed.llm.prompt_cache": [
+      "llm.kv_cache"
+    ],
+    "proposed.llm.kv_compression": [
+      "llm.kv_cache"
+    ],
+    "proposed.algorithm.binary_search": [
+      "algorithm.search_sort"
+    ],
+    "proposed.algorithm.quicksort": [
+      "algorithm.search_sort"
+    ],
+    "proposed.algorithm.heap_sort": [
+      "algorithm.search_sort"
+    ],
+    "proposed.algorithm.counting_sort": [
+      "algorithm.search_sort"
+    ],
+    "proposed.algorithm.dfs": [
+      "algorithm.graph"
+    ],
+    "proposed.algorithm.shortest_path": [
+      "algorithm.graph"
+    ],
+    "proposed.algorithm.topological_sort": [
+      "algorithm.graph"
+    ],
+    "proposed.algorithm.union_find": [
+      "algorithm.graph"
+    ],
+    "proposed.algorithm.house_robber": [
+      "algorithm.dp"
+    ],
+    "proposed.algorithm.longest_increasing_subsequence": [
+      "algorithm.dp"
+    ],
+    "proposed.algorithm.maximal_square": [
+      "algorithm.dp"
+    ],
+    "proposed.algorithm.perfect_squares": [
+      "algorithm.dp"
+    ],
+    "proposed.langgraph.checkpointer": [
+      "proposed.agent.framework.langgraph",
+      "agent.state"
+    ],
+    "proposed.langgraph.checkpoint": [
+      "proposed.agent.framework.langgraph",
+      "agent.state"
+    ],
+    "proposed.langgraph.streaming": [
+      "proposed.agent.framework.langgraph",
+      "network.streaming"
+    ],
+    "proposed.agent.langgraph_schema": [
+      "proposed.agent.framework.langgraph"
+    ],
+    "proposed.agent.state_reducer": [
+      "proposed.agent.framework.langgraph"
+    ],
+    "proposed.agent.langsmith": [
+      "agent.frameworks",
+      "ai.observability"
+    ]
+  },
+  "names": {
+    "proposed.agent.human_in_loop": "人机协作与人工介入（HITL）",
+    "proposed.algorithm.lca": "最近公共祖先（LCA）",
+    "proposed.attention.flashattention": "FlashAttention",
+    "proposed.llm.chain_of_thought": "思维链（CoT）",
+    "proposed.normalization.batchnorm": "Batch Normalization（BN）",
+    "proposed.normalization.layernorm": "Layer Normalization（LN）",
+    "proposed.spring.auto_configuration": "Spring Boot 自动配置",
+    "proposed.php.match_switch": "PHP match 与 switch",
+    "proposed.go.escape_analysis": "Go 逃逸分析",
+    "proposed.multi_agent.orchestrator_worker": "Orchestrator–Workers 编排模式",
+    "proposed.llm.emergent_ability": "大模型涌现能力",
+    "proposed.cache.semantic": "语义缓存",
+    "proposed.agent.tool_schema": "工具 Schema 设计与参数约束",
+    "proposed.attention.multi_head": "多头注意力（MHA）",
+    "proposed.java.thread_pool": "Java 线程池",
+    "proposed.llm.finetuning.peft": "参数高效微调（PEFT）",
+    "proposed.agent.self_correction": "Agent 自我纠错（Self-correction）",
+    "proposed.reflection.reflexion": "Reflexion 方法",
+    "proposed.redis.sentinel": "Redis 哨兵",
+    "proposed.redis.cluster": "Redis Cluster",
+    "proposed.redis.big_key": "Redis 大 Key",
+    "proposed.redis.hash_slot": "Redis 哈希槽",
+    "proposed.redis.sds": "Redis SDS",
+    "proposed.redis.intset": "Redis IntSet",
+    "proposed.redis.listpack": "Redis ListPack",
+    "proposed.redis.geo": "Redis GEO",
+    "proposed.redis.hyperloglog": "Redis HyperLogLog",
+    "proposed.redis.word_count": "Redis 词频统计应用",
+    "proposed.redis.ranking": "Redis 排行榜应用",
+    "proposed.agent.trajectory_eval": "Agent 任务轨迹评估",
+    "proposed.agent.evaluation": "Agent 综合评估",
+    "proposed.spring.boot": "Spring Boot",
+    "proposed.spring.ioc": "Spring IoC",
+    "proposed.spring.aop": "Spring AOP",
+    "proposed.spring.mvc": "Spring MVC",
+    "proposed.design.solid": "SOLID 设计原则",
+    "proposed.design.dip": "依赖倒置原则（DIP）",
+    "proposed.design.isp": "接口隔离原则（ISP）",
+    "proposed.algorithm.lru": "LRU 缓存算法",
+    "os.io": "I/O 模型与网络 I/O",
+    "distributed.consensus": "分布式共识与 Raft",
+    "java.concurrent": "Java 并发",
+    "go": "Go 语言与后端开发",
+    "cpp": "C / C++",
+    "os.process_thread": "进程、线程、协程与进程间通信"
+  },
+  "prefix_parents": {
+    "activation": "index.ml",
+    "ml": "index.ml",
+    "neural_network": "index.ml",
+    "normalization": "index.ml",
+    "optimizer": "index.ml",
+    "regularization": "index.ml",
+    "reward_model": "index.ml",
+    "cv": "index.ml",
+    "nlp": "index.ml",
+    "recommendation": "index.ml",
+    "recommender": "index.ml",
+    "probability": "index.ml",
+    "tensor": "index.ml",
+    "pytorch": "index.ml",
+    "robotics": "index.robotics",
+    "autonomous_driving": "index.robotics",
+    "ai": "index.ai_product",
+    "company": "index.ai_product",
+    "enterprise": "index.ai_product",
+    "market": "index.ai_product",
+    "organization": "index.ai_product",
+    "research": "index.ai_product",
+    "domain": "index.ai_product",
+    "base_model": "index.ai_product",
+    "assistant": "index.ai_product",
+    "agent": "agent",
+    "deep_agent": "agent",
+    "claude": "agent",
+    "claude_code": "agent",
+    "anthropic": "agent",
+    "subagent": "agent",
+    "framework": "agent.frameworks",
+    "langchain": "proposed.agent.framework.langchain",
+    "langgraph": "proposed.agent.framework.langgraph",
+    "llamaindex": "agent.frameworks",
+    "coze": "agent.frameworks",
+    "dify": "proposed.agent.framework.dify",
+    "coding_harness": "agent.harness",
+    "harness": "agent.harness",
+    "harness_engineering": "agent.harness",
+    "sandbox": "agent.harness",
+    "code_execution": "agent.harness",
+    "tool": "agent.tools",
+    "function_calling": "agent.tools",
+    "tool_call_trace": "agent.tools",
+    "chat_history": "agent.context",
+    "context": "agent.context",
+    "session": "agent.context",
+    "chatbot": "agent.memory",
+    "reflection": "agent.reflection",
+    "reflexion": "agent.reflection",
+    "correction": "agent.reflection",
+    "plan": "agent.planning",
+    "plan_execute": "agent.planning",
+    "loop": "agent.planning",
+    "task": "agent.planning",
+    "multi_agent": "agent.multi",
+    "llm": "llm",
+    "model": "llm",
+    "open_source_llm_architecture": "llm",
+    "language_modeling": "llm",
+    "attention": "llm.transformer",
+    "transformer": "llm.transformer",
+    "position": "llm.position",
+    "long_context": "llm.position",
+    "finetuning": "llm.finetuning",
+    "pretraining": "llm.finetuning",
+    "training": "llm.finetuning",
+    "sft": "llm.finetuning",
+    "deepspeed": "llm.finetuning",
+    "vlm": "llm.finetuning",
+    "alignment": "llm.alignment",
+    "rl": "llm.alignment",
+    "reward": "llm.alignment",
+    "inference": "llm.serving",
+    "kv_cache": "llm.serving",
+    "quantization": "llm.serving",
+    "gpu": "llm.serving",
+    "ollama": "llm.serving",
+    "computation_optimization": "llm.serving",
+    "decoding": "llm.decoding",
+    "generation": "llm.decoding",
+    "prompt": "llm.prompt",
+    "system_prompt_design": "llm.prompt",
+    "system_prompt": "llm.prompt",
+    "summarization": "llm.prompt",
+    "prompt_cache": "llm.prompt",
+    "eval": "ai.eval",
+    "llm_judge": "ai.eval",
+    "experiment": "ai.eval",
+    "token": "ai.cost_attribution",
+    "cost": "ai.cost_attribution",
+    "multimodal": "multimodal",
+    "rag": "rag",
+    "ragflow": "rag",
+    "knowledge_base": "rag",
+    "metadata": "rag",
+    "knowledge_graph": "rag",
+    "ragas": "rag.eval",
+    "graph_rag": "rag.graph",
+    "reranker": "rag.rerank",
+    "search": "rag.retrieval",
+    "vector": "vector_search",
+    "vector_db": "vector_search",
+    "vector_index": "vector_search",
+    "similarity": "vector_search",
+    "embedding": "embedding",
+    "cache": "cache",
+    "cdn": "cache",
+    "conversation": "cache",
+    "redis": "redis",
+    "db": "db",
+    "database": "db",
+    "polyglot_persistence": "db",
+    "mongodb": "db",
+    "postgres": "db",
+    "sql": "db.sql",
+    "query": "db.sql",
+    "mysql": "mysql",
+    "innodb": "mysql",
+    "sharding": "db.sharding",
+    "database_assistant": "data.agent",
+    "text2sql": "data.agent",
+    "data": "nav.data",
+    "workflow": "data.workflow",
+    "analytics": "index.data_platforms",
+    "visualization": "index.data_platforms",
+    "distributed": "distributed",
+    "architecture": "distributed",
+    "consensus": "distributed.consensus",
+    "raft": "distributed.consensus",
+    "blockchain": "distributed.consensus",
+    "zookeeper": "distributed.consensus",
+    "microservice": "distributed.governance",
+    "service": "distributed.governance",
+    "service_mesh": "distributed.governance",
+    "service_registry_selection": "distributed.governance",
+    "eureka": "distributed.governance",
+    "nacos": "distributed.governance",
+    "sentinel": "distributed.governance",
+    "circuit_breaker": "distributed.governance",
+    "degradation": "distributed.governance",
+    "dependency": "distributed.governance",
+    "distributed_lock": "distributed.lock",
+    "rpc": "distributed.rpc",
+    "dubbo": "distributed.rpc",
+    "grpc": "distributed.rpc",
+    "transaction": "distributed.transaction",
+    "consistency": "distributed.transaction",
+    "replica": "distributed.transaction",
+    "migration": "distributed.transaction",
+    "unique_id": "distributed.unique_id",
+    "snowflake": "distributed.unique_id",
+    "mq": "mq",
+    "message": "mq",
+    "delivery": "mq",
+    "consumer": "mq",
+    "queue": "mq",
+    "rabbitmq": "mq.rabbitmq",
+    "kafka": "kafka",
+    "spring": "spring",
+    "dependency_injection": "spring",
+    "web": "web.framework",
+    "api": "web.framework",
+    "gateway": "web.framework",
+    "middleware": "web.framework",
+    "backend": "web.framework",
+    "requirement": "web.framework",
+    "serialization": "web.framework",
+    "protocol": "web.framework",
+    "server": "web.framework",
+    "auth": "auth",
+    "attack": "security.network",
+    "security": "security.network",
+    "frame": "security.network",
+    "buffer": "security.network",
+    "crypto": "index.crypto",
+    "cryptography": "index.crypto",
+    "compliance": "security.ai",
+    "deep_research": "security.ai",
+    "verification": "security.ai",
+    "performance": "performance",
+    "high_concurrency_definition": "performance",
+    "horizontal_scaling": "performance",
+    "capacity": "performance",
+    "latency": "performance",
+    "serverless": "performance",
+    "production": "performance",
+    "incident": "performance",
+    "promotion": "performance",
+    "os": "os",
+    "linux": "os",
+    "unix": "os",
+    "filesystem": "os",
+    "virtual_machine": "os",
+    "virtual_memory": "os",
+    "memory": "os",
+    "resource": "os",
+    "application": "os",
+    "call_stack": "os",
+    "ipc": "os",
+    "thread_communication": "os",
+    "io": "os.io",
+    "epoll": "os.io",
+    "select": "os.io",
+    "reactor_pattern": "os.io",
+    "event_loop_blocking": "os.io",
+    "network": "network",
+    "http": "network.http",
+    "http2": "network",
+    "tcp": "network.tcp",
+    "browser": "network",
+    "concurrency": "index.concurrency",
+    "concurrent": "index.concurrency",
+    "coroutine": "index.concurrency",
+    "lock": "index.concurrency",
+    "cpu_bound_parallelism": "index.concurrency",
+    "thread": "index.concurrency",
+    "language": "index.languages",
+    "compiler": "index.languages",
+    "functional": "index.languages",
+    "dynamic_language": "index.languages",
+    "programming": "index.languages",
+    "closure": "index.languages",
+    "immutable_data": "index.languages",
+    "exception": "index.languages",
+    "c": "index.languages",
+    "c_cpp_memory_allocation": "index.languages",
+    "computer": "nav.fundamentals",
+    "hardware": "nav.fundamentals",
+    "cpu": "nav.fundamentals",
+    "cpp": "cpp",
+    "qt": "cpp",
+    "java": "java",
+    "jvm": "java",
+    "jdk8_jdk21": "java",
+    "jdk_gc_evolution": "java",
+    "gc": "java",
+    "go": "go",
+    "php": "php",
+    "laravel": "php",
+    "python": "python",
+    "async": "python",
+    "js": "js",
+    "ds": "ds",
+    "data_structure": "ds",
+    "tree": "ds",
+    "graph": "ds",
+    "algorithm": "ds",
+    "computational_geometry": "ds",
+    "math": "ds",
+    "time_string_processing": "ds",
+    "frontend": "index.frontend",
+    "css": "index.frontend",
+    "webpack": "index.frontend",
+    "axure": "index.frontend",
+    "graphql": "index.frontend",
+    "vitepress": "index.frontend",
+    "ui": "index.frontend",
+    "vue": "vue",
+    "mobile": "mobile",
+    "android": "mobile",
+    "pattern": "engineering.patterns",
+    "solid": "engineering.patterns",
+    "design": "engineering.patterns",
+    "software": "engineering.patterns",
+    "code": "engineering.quality",
+    "code_editing": "engineering.quality",
+    "git": "engineering.quality",
+    "repository": "engineering.quality",
+    "plugin": "engineering.quality",
+    "configuration": "engineering.quality",
+    "testing": "index.testing",
+    "docker": "engineering.docker",
+    "container": "engineering.docker",
+    "ubuntu": "engineering.docker",
+    "k8s": "engineering.k8s",
+    "observability": "engineering.logs",
+    "apm": "engineering.logs",
+    "release": "engineering.delivery",
+    "deployment": "engineering.delivery",
+    "feature": "engineering.delivery",
+    "artifact": "engineering.delivery",
+    "integration": "engineering.delivery",
+    "file": "engineering.delivery",
+    "request": "engineering.delivery",
+    "storage": "engineering.delivery",
+    "shell": "engineering.shell_git",
+    "debugging": "engineering.shell_git",
+    "ops": "engineering.shell_git",
+    "spark": "spark",
+    "batch": "async.platform",
+    "job": "async.platform",
+    "skill": "skill",
+    "business": "index.general",
+    "concept": "index.general",
+    "course": "index.general",
+    "evidence": "index.general",
+    "report": "index.general",
+    "writing": "index.general",
+    "dialog": "index.general",
+    "intent": "index.general",
+    "plan_fragment": "index.general",
+    "system": "index.architecture",
+    "cloud": "index.platform",
+    "retry": "agent.tools.reliability",
+    "schema": "proposed.agent.structured_output",
+    "structured_output_repair": "agent.structured_output",
+    "ddd": "distributed.ddd_boundary",
+    "disaster_recovery": "index.operations",
+    "elasticsearch": "rag.retrieval",
+    "engineering": "nav.engineering",
+    "game": "index.general",
+    "geo": "ds",
+    "mcp": "mcp",
+    "moe": "llm.moe",
+    "netty": "netty",
+    "numeric": "index.languages",
+    "oop": "index.languages",
+    "rate_limit": "performance.rate_limit",
+    "reasoning": "agent.planning",
+    "stream": "data.workflow"
+  },
+  "quarantine": {
+    "proposed.algorithm.unspecified": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.question.fragment": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.question.unclear": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.comparison.fragment": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.fragment": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.address": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.person_name": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.phone_number": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.price": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.timestamp": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.data.order_number": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。",
+    "proposed.plan.unexecuted": "原题为片段、字段值、题目缺失或执行备注，不能形成可回答的面试题；保留原文待恢复上下文。"
+  },
+  "question_overrides": {
+    "S2502": {
+      "remove": [
+        "spring.transaction"
+      ],
+      "reason": "题干列出 IoC/AOP/循环依赖/Boot/MVC，没有事务考查。"
+    },
+    "S2692": {
+      "remove": [
+        "agent.reflection"
+      ],
+      "reason": "Self-Consistency 不等同于 Reflection；保留 CoT、ReAct、Self-Consistency。"
+    },
+    "S2690": {
+      "remove": [
+        "llm.transformer"
+      ],
+      "reason": "题干仅问 BN 与 LN，未限定 Transformer。"
+    },
+    "S3266": {
+      "remove": [
+        "llm.transformer"
+      ],
+      "reason": "题干只问 BN 机制，不应额外挂 Transformer。"
+    },
+    "S2759": {
+      "remove": [
+        "algorithm.graph"
+      ],
+      "reason": "二叉树集合 LCA 归入树算法，不必额外挂图遍历。"
+    }
+  },
+  "question_semantic_review_evidence": {
+    "description": "模型读取原题与原标签后作出的语义修订；不宣称全部3750题已完成第二遍逐题语义审阅。",
+    "sample_ids": []
+  },
+  "semantic_review_sample_ids": [
+    "S0025",
+    "S0039",
+    "S0043",
+    "S0128",
+    "S0189",
+    "S0207",
+    "S0334",
+    "S0362",
+    "S0372",
+    "S0387",
+    "S0452",
+    "S0457",
+    "S0547",
+    "S0581",
+    "S0681",
+    "S0700",
+    "S0727",
+    "S0743",
+    "S0744",
+    "S0751",
+    "S0759",
+    "S0767",
+    "S0775",
+    "S0779",
+    "S0791",
+    "S0802",
+    "S0807",
+    "S0815",
+    "S0819",
+    "S0820",
+    "S0827",
+    "S0839",
+    "S0843",
+    "S0855",
+    "S0871",
+    "S0887",
+    "S0903",
+    "S0906",
+    "S0912",
+    "S0919",
+    "S0924",
+    "S0933",
+    "S0935",
+    "S0949",
+    "S0951",
+    "S0954",
+    "S0967",
+    "S0983",
+    "S0997",
+    "S0999",
+    "S1005",
+    "S1013",
+    "S1014",
+    "S1015",
+    "S1017",
+    "S1019",
+    "S1031",
+    "S1045",
+    "S1047",
+    "S1048",
+    "S1055",
+    "S1061",
+    "S1063",
+    "S1066",
+    "S1071",
+    "S1077",
+    "S1079",
+    "S1093",
+    "S1094",
+    "S1095",
+    "S1099",
+    "S1109",
+    "S1111",
+    "S1112",
+    "S1114",
+    "S1133",
+    "S1142",
+    "S1149",
+    "S1155",
+    "S1172",
+    "S1176",
+    "S1191",
+    "S1210",
+    "S1215",
+    "S1231",
+    "S1262",
+    "S1271",
+    "S1277",
+    "S1291",
+    "S1292",
+    "S1299",
+    "S1306",
+    "S1307",
+    "S1322",
+    "S1323",
+    "S1324",
+    "S1337",
+    "S1340",
+    "S1347",
+    "S1352",
+    "S1355",
+    "S1367",
+    "S1382",
+    "S1388",
+    "S1392",
+    "S1394",
+    "S1397",
+    "S1399",
+    "S1405",
+    "S1412",
+    "S1427",
+    "S1428",
+    "S1435",
+    "S1442",
+    "S1457",
+    "S1472",
+    "S1487",
+    "S1502",
+    "S1517",
+    "S1532",
+    "S1547",
+    "S1562",
+    "S1577",
+    "S1578",
+    "S1592",
+    "S1607",
+    "S1622",
+    "S1625",
+    "S1637",
+    "S1652",
+    "S1659",
+    "S1667",
+    "S1670",
+    "S1682",
+    "S1689",
+    "S1696",
+    "S1710",
+    "S1733",
+    "S1747",
+    "S1759",
+    "S1765",
+    "S1773",
+    "S1779",
+    "S1780",
+    "S1787",
+    "S1792",
+    "S1794",
+    "S1801",
+    "S1808",
+    "S1811",
+    "S1812",
+    "S1815",
+    "S1822",
+    "S1836",
+    "S1850",
+    "S1864",
+    "S1893",
+    "S1899",
+    "S1920",
+    "S1922",
+    "S1924",
+    "S1931",
+    "S1937",
+    "S1942",
+    "S1957",
+    "S1964",
+    "S1970",
+    "S1983",
+    "S1996",
+    "S1999",
+    "S2009",
+    "S2013",
+    "S2022",
+    "S2026",
+    "S2035",
+    "S2039",
+    "S2046",
+    "S2048",
+    "S2061",
+    "S2078",
+    "S2088",
+    "S2090",
+    "S2091",
+    "S2099",
+    "S2103",
+    "S2112",
+    "S2115",
+    "S2116",
+    "S2137",
+    "S2138",
+    "S2149",
+    "S2153",
+    "S2156",
+    "S2160",
+    "S2171",
+    "S2175",
+    "S2181",
+    "S2216",
+    "S2226",
+    "S2227",
+    "S2236",
+    "S2238",
+    "S2249",
+    "S2258",
+    "S2259",
+    "S2260",
+    "S2267",
+    "S2268",
+    "S2269",
+    "S2271",
+    "S2273",
+    "S2282",
+    "S2289",
+    "S2291",
+    "S2312",
+    "S2314",
+    "S2338",
+    "S2368",
+    "S2369",
+    "S2380",
+    "S2417",
+    "S2428",
+    "S2436",
+    "S2447",
+    "S2458",
+    "S2479",
+    "S2486",
+    "S2502",
+    "S2522",
+    "S2557",
+    "S2562",
+    "S2576",
+    "S2579",
+    "S2614",
+    "S2617",
+    "S2627",
+    "S2632",
+    "S2636",
+    "S2637",
+    "S2659",
+    "S2669",
+    "S2679",
+    "S2690",
+    "S2692",
+    "S2702",
+    "S2703",
+    "S2725",
+    "S2752",
+    "S2759",
+    "S2779",
+    "S2829",
+    "S2842",
+    "S2848",
+    "S2850",
+    "S2858",
+    "S2876",
+    "S2882",
+    "S2886",
+    "S2890",
+    "S2923",
+    "S2927",
+    "S2942",
+    "S2949",
+    "S2956",
+    "S2982",
+    "S2988",
+    "S2996",
+    "S3011",
+    "S3045",
+    "S3056",
+    "S3074",
+    "S3084",
+    "S3093",
+    "S3094",
+    "S3099",
+    "S3108",
+    "S3119",
+    "S3124",
+    "S3152",
+    "S3157",
+    "S3160",
+    "S3167",
+    "S3168",
+    "S3176",
+    "S3182",
+    "S3189",
+    "S3204",
+    "S3207",
+    "S3209",
+    "S3212",
+    "S3214",
+    "S3217",
+    "S3224",
+    "S3236",
+    "S3240",
+    "S3242",
+    "S3252",
+    "S3266",
+    "S3274",
+    "S3282",
+    "S3299",
+    "S3309",
+    "S3311",
+    "S3399",
+    "S3415",
+    "S3426",
+    "S3428",
+    "S3437",
+    "S3448",
+    "S3458",
+    "S3467",
+    "S3468",
+    "S3469",
+    "S3509",
+    "S3516",
+    "S3517",
+    "S3526",
+    "S3528",
+    "S3543",
+    "S3553",
+    "S3560",
+    "S3585",
+    "S3587",
+    "S3616",
+    "S3642",
+    "S3669",
+    "S3677",
+    "S3679",
+    "S3682",
+    "S3686",
+    "S3687",
+    "S3697",
+    "S3701",
+    "S3707"
+  ],
+  "question_quarantine": {
+    "S0128": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0334": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0387": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0727": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0743": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0744": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0759": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0775": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0779": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0791": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0807": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0820": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0827": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0839": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0843": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0855": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0871": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0887": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0903": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0919": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0935": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0949": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0951": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0967": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0983": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S0999": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1013": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1015": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1017": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1031": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1047": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1048": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1061": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1063": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1077": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1079": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1095": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1109": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1111": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1142": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1149": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1172": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1176": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1210": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1231": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1262": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1277": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1292": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1299": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1307": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1323": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1324": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1347": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1367": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1382": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1405": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1435": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1457": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1502": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1517": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1532": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1547": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1562": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1577": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1592": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1607": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1622": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1637": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1652": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1659": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1667": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1682": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1696": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1710": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1733": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1747": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1780": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1794": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1808": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1822": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1836": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1850": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1864": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1899": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1920": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1922": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1931": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1957": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1964": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1970": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1983": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S1996": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2009": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2013": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2022": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2026": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2035": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2039": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2048": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2061": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2078": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2091": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2116": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2138": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2149": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2156": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2160": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2171": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2175": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2227": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2238": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2249": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2282": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2417": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2428": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2458": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2557": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2617": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2627": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2636": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2637": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2927": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S2949": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3099": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3209": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3467": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3509": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3516": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3517": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3526": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3543": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3553": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3587": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3616": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3669": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3677": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。",
+    "S3687": "原题为标题、界面说明、资料导航、面经叙述或指代缺失；需恢复上下文，不直接作为可回答题召回。"
+  }
+}

@@ -1,0 +1,61 @@
+name: MGKG offline artifacts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/scripts/build_annotation_graph_v2.py'
+      - 'backend/scripts/render_annotation_graph_v2.py'
+      - 'backend/tests/test_build_annotation_graph_v2.py'
+      - 'backend/tests/test_graph_preview_runtime.cjs'
+      - 'skills/annotate-interview-questions/**'
+      - 'docs/graph-demo/**'
+      - '.github/workflows/mgkg-artifacts.yml'
+  pull_request:
+    paths:
+      - 'backend/scripts/*annotation_graph_v2.py'
+      - 'backend/tests/test_build_annotation_graph_v2.py'
+      - 'backend/tests/test_graph_preview_runtime.cjs'
+      - 'skills/annotate-interview-questions/**'
+      - 'docs/graph-demo/**'
+      - '.github/workflows/mgkg-artifacts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify graph builder and annotation contract
+        run: |
+          python -m unittest discover -s backend/tests -p test_build_annotation_graph_v2.py
+          python -m unittest discover -s skills/annotate-interview-questions/scripts -p test_validate_annotations.py
+      - name: Verify published files and extract graph
+        working-directory: docs/graph-demo
+        run: |
+          sha256sum -c SHA256SUMS
+          python -m zipfile -t mgkg-9000-v3.zip
+          python -m zipfile -e mgkg-9000-v3.zip /tmp/deepask-graph
+      - name: Verify snapshot manifest and reproducible HTML
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json
+          root = Path('/tmp/deepask-graph/mgkg-9000-v3')
+          manifest = json.loads((root / 'graph_manifest.json').read_text())
+          for name, expected in manifest['output_sha256'].items():
+              assert hashlib.sha256((root / name).read_bytes()).hexdigest() == expected, name
+          PY
+          python backend/scripts/render_annotation_graph_v2.py --graph /tmp/deepask-graph/mgkg-9000-v3 --out /tmp/deepask-graph/rebuilt.html
+          cmp docs/graph-demo/index.html /tmp/deepask-graph/rebuilt.html
+      - name: Verify viewer interactions without network
+        run: node backend/tests/test_graph_preview_runtime.cjs docs/graph-demo/index.html
