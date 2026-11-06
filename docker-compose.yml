@@ -38,6 +38,7 @@ services:
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs
+      - ./docs/graph-demo/mgkg-9000-v3.zip:/app/docs/graph-demo/mgkg-9000-v3.zip:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/ready', timeout=3)"]
       interval: 15s

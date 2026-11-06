@@ -31,13 +31,26 @@ class BaguMixin:
         occupied_blobs = [str(t) for t in (occupied or []) if str(t).strip()]
 
         pool_n = max(n * 10, 24)
-        candidates = kr.pick_bagu_questions(
-            roles=roles or None,
-            company=company_id,
-            skills=skills or None,
-            asked_norms=asked,
-            n=pool_n,
-        )
+        graph_runtime = getattr(self, "_graph_runtime", None)
+        domain_ids = list(getattr(self, "_graph_domain_concept_ids", None) or [])
+        if graph_runtime is not None and domain_ids:
+            # 项目图链路已经解析过同一份简历知识点；八股从这些知识点的
+            # MG 叶子题池随机取，避免再次用岗位/关键词平铺召回。
+            candidates = graph_runtime.retrieve_bagu(
+                domain_concept_ids=domain_ids,
+                count=pool_n,
+                asked_norms=asked,
+                exclude_question_ids=getattr(self, "_graph_project_question_ids", set()),
+                roles=roles,
+            )
+        else:
+            candidates = kr.pick_bagu_questions(
+                roles=roles or None,
+                company=company_id,
+                skills=skills or None,
+                asked_norms=asked,
+                n=pool_n,
+            )
         candidates = [
             h
             for h in candidates

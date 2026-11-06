@@ -57,6 +57,7 @@ def _project_chain_user(
     asked: set[str],
     company: str | None,
     retrieval,
+    prepared_material: tuple[list[dict], list[dict]] | None = None,
 ) -> tuple[str, str] | None:
     """准备单个项目的 LLM user prompt；无项目名则跳过。"""
     name = str(p.get("name") or "").strip()
@@ -68,67 +69,70 @@ def _project_chain_user(
 
     role_hits: list[dict] = []
     scene_hits: list[dict] = []
-    if roles:
-        role_hits += retrieval.search_questions(
-            roles=roles,
-            category="project",
-            asked_norms=asked,
-            top_n=6,
-            min_score=10,
-        )
-        role_hits += retrieval.search_questions(
-            roles=roles, asked_norms=asked, top_n=6, min_score=10
-        )
-        role_hits = retrieval.sanitize_hits(
-            role_hits, roles=roles, company=company, require_role=True
-        )
-        if scene_tags or tech:
-            company_scene: list[dict] = []
-            if company:
-                company_scene = retrieval.search_questions(
+    if prepared_material is not None:
+        role_hits, scene_hits = prepared_material
+    else:
+        if roles:
+            role_hits += retrieval.search_questions(
+                roles=roles,
+                category="project",
+                asked_norms=asked,
+                top_n=6,
+                min_score=10,
+            )
+            role_hits += retrieval.search_questions(
+                roles=roles, asked_norms=asked, top_n=6, min_score=10
+            )
+            role_hits = retrieval.sanitize_hits(
+                role_hits, roles=roles, company=company, require_role=True
+            )
+            if scene_tags or tech:
+                company_scene: list[dict] = []
+                if company:
+                    company_scene = retrieval.search_questions(
+                        roles=roles,
+                        company=company,
+                        skills=tech,
+                        scenes=scene_tags,
+                        category="project",
+                        asked_norms=asked,
+                        top_n=5,
+                        min_score=10,
+                    )
+                untagged_scene = retrieval.search_questions(
                     roles=roles,
-                    company=company,
                     skills=tech,
                     scenes=scene_tags,
                     category="project",
                     asked_norms=asked,
-                    top_n=5,
-                    min_score=10,
+                    top_n=6,
+                    min_score=15,
                 )
-            untagged_scene = retrieval.search_questions(
-                roles=roles,
-                skills=tech,
-                scenes=scene_tags,
-                category="project",
-                asked_norms=asked,
-                top_n=6,
-                min_score=15,
-            )
-            proj_hits = retrieval.search_projects(
-                name, tech, scene_tags, top_n=5, asked_norms=asked
-            )
-            proj_hits = retrieval.sanitize_hits(
-                proj_hits, roles=roles, company=company, require_role=True
-            )
-            if hasattr(retrieval, "merge_company_and_untagged"):
-                scene_hits = retrieval.merge_company_and_untagged(
-                    company_scene,
-                    untagged_scene,
-                    company=company,
-                    limit=8,
-                    extra=proj_hits,
+                proj_hits = retrieval.search_projects(
+                    name, tech, scene_tags, top_n=5, asked_norms=asked
                 )
-            else:
-                scene_hits = list(company_scene) + [
-                    h for h in untagged_scene if not h.get("company")
-                ] + list(proj_hits)
-            scene_hits = retrieval.sanitize_hits(
-                scene_hits, roles=roles, company=company, require_role=True
+                proj_hits = retrieval.sanitize_hits(
+                    proj_hits, roles=roles, company=company, require_role=True
+                )
+                if hasattr(retrieval, "merge_company_and_untagged"):
+                    scene_hits = retrieval.merge_company_and_untagged(
+                        company_scene,
+                        untagged_scene,
+                        company=company,
+                        limit=8,
+                        extra=proj_hits,
+                    )
+                else:
+                    scene_hits = list(company_scene) + [
+                        h for h in untagged_scene if not h.get("company")
+                    ] + list(proj_hits)
+                scene_hits = retrieval.sanitize_hits(
+                    scene_hits, roles=roles, company=company, require_role=True
+                )
+        elif scene_tags or tech:
+            scene_hits += retrieval.search_projects(
+                name, tech, scene_tags, top_n=4, asked_norms=asked
             )
-    elif scene_tags or tech:
-        scene_hits += retrieval.search_projects(
-            name, tech, scene_tags, top_n=4, asked_norms=asked
-        )
 
     role_lines = _dedupe_lines(role_hits, 6)
     scene_lines = _dedupe_lines(scene_hits, 6)
@@ -157,6 +161,8 @@ def build_project_chains(
     asked_norms: set[str] | None = None,
     company: str | None = None,
     session_id: int | None = None,
+    project_material: list[dict] | None = None,
+    role_material: list[dict] | None = None,
 ) -> list[dict]:
     """对简历每个项目（≤3 个）各生成一条完整拷打链。失败跳过单项目，不阻塞面试。"""
     projects = profile.get("projects") or []
@@ -173,7 +179,12 @@ def build_project_chains(
 
     asked = asked_norms or set()
     prepared: list[tuple[str, str]] = []
-    for p in projects[:3]:
+    for index, p in enumerate(projects[:3]):
+        prepared_material = None
+        if project_material is not None:
+            prepared_material = (list(role_material or []), [
+                hit for hit in project_material if hit.get("graph_project_id") == f"p{index + 1}"
+            ])
         item = _project_chain_user(
             p,
             target_role=target_role,
@@ -181,6 +192,7 @@ def build_project_chains(
             asked=asked,
             company=company,
             retrieval=retrieval,
+            prepared_material=prepared_material,
         )
         if item:
             prepared.append(item)

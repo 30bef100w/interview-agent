@@ -36,6 +36,7 @@ class RetrievalMixin:
         """
         from app.services import knowledge_retrieval as kr
         from app.services import project_cross as pc
+        from app.services.create_timing_log import step as trace_step
         from app.services.job_roles import (
             company_display_name,
             infer_roles,
@@ -70,6 +71,10 @@ class RetrievalMixin:
         role_pool = max(32, role_limit * 2)
         scene_pool = max(32, scene_limit * 2)
         _t = time.perf_counter
+        self._graph_runtime = None
+        self._graph_retrieval_meta = {}
+        self._graph_domain_concept_ids = []
+        self._graph_project_question_ids = set()
 
         # —— A 路：岗位（有企业时：企业原题 + 无企业标签 双路合并）——
         role_hits: list[dict] = []
@@ -172,12 +177,63 @@ class RetrievalMixin:
         scene_roles = roles if roles else None
         # —— B 路：技术点 + 场景（岗位硬卡；LLM 从简历闭集勾选）——
         scene_hits: list[dict] = []
-        b_scenes, b_skills = self._select_b_lane_query(
-            state, roles, timings=timings
-        )
+        b_scenes: list[str] = []
+        b_skills: list[str] = []
+        graph_used = False
+        # 图检索作为项目路由的主实现，岗位路 A 仍保留。图快照、种子解析
+        # 或模型调用出错时只记录降级并继续旧 B 路，不能阻塞面试创建。
+        from app.config import settings
+        from app.services.session_guard_log import log_guard
+
+        if settings.graph_retrieval_enabled and (profile.get("projects") or []):
+            try:
+                from app.services.graph_retrieval_runtime import GraphRetrievalRuntime
+
+                t_graph = _t()
+                graph_runtime = GraphRetrievalRuntime(self.llm)
+                graph_result = graph_runtime.retrieve_projects(
+                    profile,
+                    company=company_id,
+                    asked_norms=asked_norms,
+                    seed=state.session_id,
+                    roles=roles,
+                    target_role=state.target_role,
+                    focus=state.practice_focus,
+                    job_description=state.job_description,
+                    material_limit=scene_limit or 16,
+                )
+                scene_hits = list(graph_result.get("hits") or [])
+                if not scene_limit:
+                    # 没有旧 B 路标签时，图项目题仍要进入规划素材；保留
+                    # 岗位路并给图路一个小的独立展示预算。
+                    scene_limit = min(16, max(4, role_limit // 2))
+                self._graph_retrieval_meta = {k: v for k, v in graph_result.items() if k != "hits"}
+                self._graph_runtime = graph_runtime
+                self._graph_domain_concept_ids = list(graph_result.get("domain_concept_ids") or [])
+                self._graph_project_question_ids = set(graph_result.get("selected_question_ids") or [])
+                graph_used = True
+                if timings is not None:
+                    timings["graph_retrieval_s"] = _t() - t_graph
+                    timings["graph_retrieval_projects_n"] = float(len(graph_result.get("projects") or []))
+                    timings["graph_retrieval_hits_n"] = float(len(scene_hits))
+            except Exception as exc:  # noqa: BLE001
+                scene_hits = []
+                self._graph_retrieval_meta = {"error": type(exc).__name__}
+                self._graph_runtime = None
+                self._graph_domain_concept_ids = []
+                self._graph_project_question_ids = set()
+                log_guard(
+                    state.session_id,
+                    "graph_retrieval_degraded",
+                    reason=type(exc).__name__,
+                )
+        if not graph_used:
+            b_scenes, b_skills = self._select_b_lane_query(
+                state, roles, timings=timings
+            )
         b_skill_arg = b_skills or None
         b_scene_arg = b_scenes or None
-        if b_scenes or b_skills:
+        if not graph_used and (b_scenes or b_skills):
             if company_id:
                 company_scene = kr.retrieve(
                     roles=scene_roles,
@@ -272,7 +328,7 @@ class RetrievalMixin:
                 company=company_id,
                 require_role=bool(roles),
             )
-        if roles and scene_hits:
+        if roles and scene_hits and not graph_used:
             t_llm = _t()
             scene_hits = self._filter_hits_by_llm(
                 roles, scene_hits, session_id=state.session_id, lane="scene_filter"
@@ -295,6 +351,7 @@ class RetrievalMixin:
             timings["retrieval_scene_hits_n"] = float(len(scene_hits))
             timings["b_lane_skills_n"] = float(len(b_skills))
             timings["b_lane_scenes_n"] = float(len(b_scenes))
+            timings["graph_retrieval_enabled"] = 1.0 if graph_used else 0.0
 
         # 供规划后回填「企业原题」徽标（前端展示名）——岗位路 + 场景路里的企业题
         self._enterprise_hits = [
@@ -317,6 +374,11 @@ class RetrievalMixin:
             role_limit=role_limit,
             scene_limit=scene_limit,
         )
+        state.retrieval_diagnostics = dict(self._graph_retrieval_meta)
+        state.retrieval_diagnostics["backend"] = "mgkg" if graph_used else "legacy"
+        if graph_used:
+            trace_step(state.session_id, "graph_retrieval", projects=len(graph_result.get("projects") or []),
+                       hits=len(scene_hits), duration_s=round(_t() - t_graph, 3))
 
         # 拷打链：与题单分开；每简历项目各生成一条完整链（失败跳过单项目）
         from app.services.create_timing_log import step as trace_step
@@ -331,6 +393,7 @@ class RetrievalMixin:
             asked_norms=asked_norms,
             company=company_id,
             session_id=state.session_id,
+            **({"project_material": scene_hits, "role_material": role_hits} if graph_used else {}),
         )
         if timings is not None:
             timings["project_chains_s"] = _t() - t_chains

@@ -711,7 +711,11 @@ def format_hits(
             original = ""
         prefix = f"  [{', '.join(tag)}] " if tag else "  "
         ans = (h.get("answer") or "").strip()
-        lines.append(f"{i}. {original}{h['question']}")
+        graph_context = ""
+        if h.get("graph_project_id"):
+            kind = "场景直接关联题" if h.get("graph_direct_scene") else "知识扩展题"
+            graph_context = f"【项目：{h.get('graph_project_name') or h['graph_project_id']}·{kind}】"
+        lines.append(f"{i}. {graph_context}{original}{h['question']}")
         if ans:
             lines.append(f"{prefix}要点：{ans[:120]}")
     return "\n".join(lines)

@@ -1,0 +1,515 @@
+{
+  "version": "2026-11-06.four-arm-v3",
+  "purpose": "24个手工构造开发需求×2随机种子×4组；语义排序和盲评由分离的模型代理执行",
+  "graph": "data/graph_offline/2026-11-05-mgkg-9000-v3",
+  "include_drafts": false,
+  "seeds": [
+    42,
+    137
+  ],
+  "config": {
+    "final_limit": 10,
+    "kg_candidate_limit": 300,
+    "mg_candidate_limit": 200,
+    "kg_final_quota": 60,
+    "mg_final_quota": 40
+  },
+  "judgment": {
+    "2": "直接覆盖查询中明确的场景或技术需求，可直接用于该项目或专题面试。通用技术题能够明确覆盖需求也算2，无需出现项目名。",
+    "1": "辅助相关：仅相邻技术、通用背景或宽泛架构，未直接覆盖明确需求。",
+    "0": "无关、误义，或缺少上下文无法判断。不要由一个相同名词就判相关。",
+    "input": "只看查询、题干、原始答案前800字和原始上下文引用。完全隐藏标签、路径、排序、检索来源和文件名。相同需求题目对跨臂跨种子只评一次。"
+  },
+  "queries": [
+    {
+      "id": "enterprise_qa",
+      "slice": "project",
+      "text": "企业文档知识问答项目：文档解析分块、检索重排、回答引用及权限控制都需要面试准备。",
+      "role": "agent_dev",
+      "skills": [
+        "RAG",
+        "文档",
+        "权限"
+      ],
+      "legacy_scenes": [
+        "AI 应用/对话机器人",
+        "AI/RAG/Agent"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.enterprise_chatbot"
+      ],
+      "concept_ids": [
+        "concept:rag"
+      ]
+    },
+    {
+      "id": "customer_service",
+      "slice": "project",
+      "text": "智能客服项目：从知识库回答问题，识别意图并调用业务工具，工具出错要能恢复。",
+      "role": "agent_dev",
+      "skills": [
+        "RAG",
+        "工具调用",
+        "客服"
+      ],
+      "legacy_scenes": [
+        "AI 应用/对话机器人",
+        "AI/RAG/Agent"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.customer_service"
+      ],
+      "concept_ids": [
+        "concept:rag",
+        "concept:agent.tools"
+      ]
+    },
+    {
+      "id": "research_report",
+      "slice": "project",
+      "text": "自动调研报告Agent项目：规划检索任务、采集网页、整合多来源证据，生成可追溯报告。",
+      "role": "agent_dev",
+      "skills": [
+        "Agent",
+        "搜索",
+        "报告"
+      ],
+      "legacy_scenes": [
+        "AI 应用/对话机器人"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.research_report"
+      ],
+      "concept_ids": [
+        "concept:agent.planning",
+        "concept:data.crawling"
+      ]
+    },
+    {
+      "id": "chatbi",
+      "slice": "project",
+      "text": "电商数据问数项目：自然语言理解数据库结构并生成SQL，需要检查执行正确性和数据权限。",
+      "role": "agent_dev",
+      "skills": [
+        "Text2SQL",
+        "SQL",
+        "问数"
+      ],
+      "legacy_scenes": [
+        "电商/交易",
+        "AI/RAG/Agent"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.ecommerce_chatbi"
+      ],
+      "concept_ids": [
+        "concept:data.agent",
+        "concept:data.sql_generation",
+        "concept:data.text2sql_eval"
+      ]
+    },
+    {
+      "id": "ai_interview",
+      "slice": "project",
+      "text": "AI模拟面试项目：根据简历与回答追问，管理面试状态、记忆和面试官Agent协作。",
+      "role": "agent_dev",
+      "skills": [
+        "面试",
+        "Agent",
+        "记忆"
+      ],
+      "legacy_scenes": [
+        "招聘/求职平台",
+        "AI 应用/对话机器人"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.ai_interview"
+      ],
+      "concept_ids": [
+        "concept:agent.memory",
+        "concept:agent.multi"
+      ]
+    },
+    {
+      "id": "short_url",
+      "slice": "project",
+      "text": "短链接项目：短码生成和碰撞处理，高并发跳转时的缓存与唯一ID设计。",
+      "role": "java_backend",
+      "skills": [
+        "短链接",
+        "缓存",
+        "唯一ID"
+      ],
+      "legacy_scenes": [
+        "高并发",
+        "缓存"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.short_url"
+      ],
+      "concept_ids": [
+        "concept:cache",
+        "concept:distributed.unique_id"
+      ]
+    },
+    {
+      "id": "local_life",
+      "slice": "missing_scene_questions",
+      "text": "本地生活商户优惠券项目：高并发秒杀、库存防超卖及缓存访问。需要同场景问题和通用技术补充。",
+      "role": "java_backend",
+      "skills": [
+        "Redis",
+        "秒杀",
+        "缓存"
+      ],
+      "legacy_scenes": [
+        "外卖/本地生活",
+        "高并发",
+        "缓存"
+      ],
+      "scene_ids": [
+        "scene:business:local_life"
+      ],
+      "concept_ids": [
+        "concept:cache",
+        "concept:performance.seckill",
+        "concept:performance.inventory"
+      ]
+    },
+    {
+      "id": "coding_agent",
+      "slice": "project",
+      "text": "AI编程助手项目：模型选择工具修改代码、执行命令，需要工具权限控制和出错恢复。",
+      "role": "agent_dev",
+      "skills": [
+        "工具调用",
+        "权限",
+        "编码"
+      ],
+      "legacy_scenes": [
+        "AI 应用/对话机器人",
+        "权限/安全"
+      ],
+      "scene_ids": [
+        "scene:template:coding_agent"
+      ],
+      "concept_ids": [
+        "concept:agent.tools",
+        "concept:security.tool_permissions"
+      ]
+    },
+    {
+      "id": "rag_rerank_focus",
+      "slice": "focused",
+      "text": "只练RAG重排序：reranker、排序融合以及重排成本评估。",
+      "role": "agent_dev",
+      "skills": [
+        "rerank",
+        "重排序",
+        "RRF"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:rag.rerank"
+      ]
+    },
+    {
+      "id": "memory_governance",
+      "slice": "focused",
+      "text": "只练Agent记忆写入更新、去重、冲突旧记忆处理和遗忘。",
+      "role": "agent_dev",
+      "skills": [
+        "记忆更新",
+        "记忆冲突",
+        "遗忘"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:agent.memory.write",
+        "concept:agent.memory.retrieve"
+      ]
+    },
+    {
+      "id": "redis_lock",
+      "slice": "focused",
+      "text": "只练Redis分布式锁：业务超时续期、锁所有权、防止误释放。",
+      "role": "java_backend",
+      "skills": [
+        "分布式锁",
+        "看门狗",
+        "续期"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:distributed.lock.redis"
+      ]
+    },
+    {
+      "id": "react_hooks",
+      "slice": "focused",
+      "text": "只练React Hooks的依赖、闭包旧状态和清理逻辑。",
+      "role": "web_frontend",
+      "skills": [
+        "Hooks",
+        "useEffect",
+        "闭包"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:react.hooks"
+      ]
+    },
+    {
+      "id": "medical_qa",
+      "slice": "project",
+      "text": "医疗健康知识问答项目：检索可靠医学资料，回答必须有证据，不确定或冲突时应拒答。",
+      "role": "agent_dev",
+      "skills": [
+        "RAG",
+        "证据",
+        "医疗"
+      ],
+      "legacy_scenes": [
+        "AI/RAG/Agent"
+      ],
+      "scene_ids": [
+        "scene:template:medical_qa_agent"
+      ],
+      "concept_ids": [
+        "concept:rag.conflict",
+        "concept:rag.context"
+      ]
+    },
+    {
+      "id": "travel_planning",
+      "slice": "project",
+      "text": "旅行规划助手：根据预算和行程约束规划任务，调用外部工具，遇到工具失败或计划失效时重新规划。",
+      "role": "agent_dev",
+      "skills": [
+        "规划",
+        "工具调用",
+        "旅行"
+      ],
+      "legacy_scenes": [
+        "AI 应用/对话机器人"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.travel_planning"
+      ],
+      "concept_ids": [
+        "concept:agent.planning",
+        "concept:agent.tools.reliability"
+      ]
+    },
+    {
+      "id": "data_analysis",
+      "slice": "project",
+      "text": "自然语言数据分析助手：把用户问题拆成可执行的数据处理步骤，生成和校验SQL，并保持多轮问数上下文。",
+      "role": "agent_dev",
+      "skills": [
+        "SQL",
+        "数据分析",
+        "多轮"
+      ],
+      "legacy_scenes": [
+        "AI/RAG/Agent"
+      ],
+      "scene_ids": [
+        "scene:template:data_analysis_agent"
+      ],
+      "concept_ids": [
+        "concept:data.workflow",
+        "concept:data.sql_generation",
+        "concept:agent.context"
+      ]
+    },
+    {
+      "id": "trading_agent",
+      "slice": "project",
+      "text": "交易与风控Agent平台：分析市场信息并调用交易工具，重点准备风险权限、执行前校验及失败重试的副作用。",
+      "role": "agent_dev",
+      "skills": [
+        "风控",
+        "工具调用",
+        "权限"
+      ],
+      "legacy_scenes": [
+        "AI/RAG/Agent",
+        "权限/安全"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.trading_agent_platform"
+      ],
+      "concept_ids": [
+        "concept:agent.tool_policy",
+        "concept:agent.tools.side_effects"
+      ]
+    },
+    {
+      "id": "video_tasks",
+      "slice": "project",
+      "text": "视频生成任务平台：提交生成任务后异步执行和轮询进度，处理超时重试以及不同模型服务的接入。",
+      "role": "agent_dev",
+      "skills": [
+        "视频生成",
+        "异步",
+        "模型"
+      ],
+      "legacy_scenes": [
+        "AI 应用/对话机器人"
+      ],
+      "scene_ids": [
+        "scene:candidate:proposed.scene.video_generation_platform"
+      ],
+      "concept_ids": [
+        "concept:async.platform",
+        "concept:llm.gateway"
+      ]
+    },
+    {
+      "id": "im_delivery",
+      "slice": "project",
+      "text": "即时通讯项目：长连接与心跳保持在线，断线重连时保证消息不丢和不重复消费。",
+      "role": "java_backend",
+      "skills": [
+        "长连接",
+        "心跳",
+        "消息"
+      ],
+      "legacy_scenes": [
+        "即时通讯"
+      ],
+      "scene_ids": [
+        "scene:business:im"
+      ],
+      "concept_ids": [
+        "concept:network.streaming",
+        "concept:mq.delivery",
+        "concept:distributed.idempotency"
+      ]
+    },
+    {
+      "id": "state_recovery",
+      "slice": "focused",
+      "text": "只练有状态Agent执行中断后的恢复：checkpoint持久化、恢复位置与重复执行控制。",
+      "role": "agent_dev",
+      "skills": [
+        "checkpoint",
+        "恢复",
+        "状态"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:agent.state",
+        "concept:agent.session_runtime"
+      ]
+    },
+    {
+      "id": "mcp_permissions",
+      "slice": "focused",
+      "text": "只练MCP服务接入与工具权限：协议连接、鉴权、危险调用的执行前确认和审计。",
+      "role": "agent_dev",
+      "skills": [
+        "MCP",
+        "权限",
+        "鉴权"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:mcp",
+        "concept:security.tool_permissions"
+      ]
+    },
+    {
+      "id": "document_parsing",
+      "slice": "focused",
+      "text": "只练RAG文档入库：PDF和OCR、表格解析、分块时保留结构及标题关系。",
+      "role": "agent_dev",
+      "skills": [
+        "PDF",
+        "OCR",
+        "分块"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:rag.parsing",
+        "concept:rag.preprocessing"
+      ]
+    },
+    {
+      "id": "rag_evaluation",
+      "slice": "focused",
+      "text": "只练RAG效果评测：检索与生成分开衡量，构建测试集，用LLM评审并校准评审偏差。",
+      "role": "agent_dev",
+      "skills": [
+        "RAGAS",
+        "评测",
+        "LLM judge"
+      ],
+      "legacy_scenes": [
+        "评估/对齐"
+      ],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:rag.eval",
+        "concept:ai.eval.judge"
+      ]
+    },
+    {
+      "id": "mysql_index",
+      "slice": "focused",
+      "text": "只练MySQL联合索引最左前缀、覆盖索引与回表的行为和优化。",
+      "role": "java_backend",
+      "skills": [
+        "联合索引",
+        "最左前缀",
+        "覆盖索引",
+        "回表"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:mysql.index.composite",
+        "concept:mysql.index.lookup"
+      ]
+    },
+    {
+      "id": "voice_interrupt",
+      "slice": "focused",
+      "text": "实时语音助手：语音转文字流式输入、用户插话时打断当前回答，维护语音交互状态。",
+      "role": "agent_dev",
+      "skills": [
+        "ASR",
+        "打断",
+        "语音"
+      ],
+      "legacy_scenes": [],
+      "scene_ids": [],
+      "concept_ids": [
+        "concept:agent.voice_runtime",
+        "concept:multimodal.asr"
+      ]
+    }
+  ],
+  "latency_repeats": 5,
+  "rerank_shortlist": 30,
+  "limitations": [
+    "受控手工种子评测，不衡量简历解析/种子匹配；开发需求，非独立真实用户测试集。",
+    "原始标签组复用线上B路评分组件，含原始标签、岗位、原文关键词等；不是线上完整多路+LLM流水线。",
+    "细标签组用同一图数据的TESTS/REQUIRES/HAS_QUESTION平铺索引，不遍历HAS_SUBTOPIC和INVOLVES。",
+    "草稿节点不参与。两组图检索完全共享召回候选、去重、30题短名单以及最终6:4双路配额，只替换排序。",
+    "语义重排只对30题短名单排序，不能挽救未进入短名单的题目；最终配额和至少1道直接场景题可能限制排序收益。",
+    "判定不是标签或关键词命中构造的gold；全新独立模型代理评审，仍有同模型家族相关偏差，无人工金标准。",
+    "答案截断到800字；必要上下文为既有context_refs的正文引用，排除来源路径。",
+    "P@10固定分母10，返回不足扣分；nDCG理想序列取所有臂共同判断池，属于不完整池化nDCG，不能据此计算全库Recall。",
+    "本地延迟不含图加载和模型；子agent耗时含排队、读文件、推理、工具和写文件，报告批次墙钟及摊销，不当作API请求p95。",
+    "扩大需求并不保证各组分数不同；如实报告相等结果。"
+  ]
+}

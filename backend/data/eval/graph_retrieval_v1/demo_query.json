@@ -1,0 +1,32 @@
+{
+  "company": "bytedance",
+  "config": {
+    "kg_candidate_limit": 300,
+    "mg_candidate_limit": 200,
+    "final_limit": 100,
+    "kg_final_quota": 60,
+    "mg_final_quota": 40,
+    "max_depth": 2,
+    "max_children_per_node": 6,
+    "max_nodes_per_branch": 20,
+    "max_concept_nodes": 200,
+    "questions_per_turn": 5,
+    "max_question_checks": 10000
+  },
+  "projects": [
+    {
+      "project_id": "customer-service-demo",
+      "project_text": "演示假设：基于Agent和RAG开发智能客服，使用文档检索回答用户咨询。",
+      "focus": "检索和工具调用的可靠性",
+      "scene_ids": ["scene:candidate:proposed.scene.customer_service"],
+      "concept_ids": ["concept:agent", "concept:rag"]
+    }
+  ],
+  "bagu": {
+    "domain_concept_ids": ["concept:agent"],
+    "count": 5
+  },
+  "asked_question_ids": [],
+  "exclude_question_ids": [],
+  "history": {}
+}

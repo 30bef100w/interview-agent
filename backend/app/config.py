@@ -22,6 +22,23 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     public_origin: str = ""  # 可选：单个对外域名，自动并入 CORS
 
+    # 主链路默认使用MG/KG，异常回退旧检索；false可立即回滚。
+    graph_retrieval_enabled: bool = True
+    graph_rerank_enabled: bool = True
+    graph_rerank_shortlist: int = 30
+    graph_snapshot_path: str = "docs/graph-demo/mgkg-9000-v3.zip"
+    graph_include_drafts: bool = False
+    graph_max_projects: int = 3
+    graph_max_scene_seeds: int = 2
+    graph_max_concept_seeds: int = 6
+    graph_seed_catalog_chars: int = 512000
+    graph_kg_candidate_limit: int = 300
+    graph_mg_candidate_limit: int = 200
+    graph_final_limit: int = 100
+    graph_kg_final_quota: int = 60
+    graph_mg_final_quota: int = 40
+    graph_max_depth: int = 2
+
     # 错标审核队列（可选 RocketMQ）
     rocketmq_namesrv: str = ""
     rocketmq_tag_mismatch_topic: str = ""

@@ -44,6 +44,10 @@ class InterviewEngine(
         self._plan_role_explicit = False
         self._proj_q_role_cache: dict[str, bool] = {}
         self._askable_capacity: dict = {}
+        self._graph_retrieval_meta: dict = {}
+        self._graph_runtime = None
+        self._graph_domain_concept_ids: list[str] = []
+        self._graph_project_question_ids: set[str] = set()
 
     # ---------- 创建会话：开场白 + 路由 + 规划（题签）→ 面试计划就绪 ----------
 

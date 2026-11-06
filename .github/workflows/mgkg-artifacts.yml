@@ -8,6 +8,14 @@ on:
       - 'backend/scripts/render_annotation_graph_v2.py'
       - 'backend/tests/test_build_annotation_graph_v2.py'
       - 'backend/tests/test_graph_preview_runtime.cjs'
+      - 'backend/app/services/graph_retrieval.py'
+      - 'backend/app/services/graph_seed_resolver.py'
+      - 'backend/app/services/graph_retrieval_runtime.py'
+      - 'backend/app/services/graph_reranker.py'
+      - 'backend/scripts/run_graph_retrieval.py'
+      - 'backend/tests/test_graph*.py'
+      - 'backend/tests/test_run_graph_retrieval.py'
+      - 'backend/data/eval/graph_retrieval_v1/**'
       - 'skills/annotate-interview-questions/**'
       - 'docs/graph-demo/**'
       - '.github/workflows/mgkg-artifacts.yml'
@@ -16,6 +24,14 @@ on:
       - 'backend/scripts/*annotation_graph_v2.py'
       - 'backend/tests/test_build_annotation_graph_v2.py'
       - 'backend/tests/test_graph_preview_runtime.cjs'
+      - 'backend/app/services/graph_retrieval.py'
+      - 'backend/app/services/graph_seed_resolver.py'
+      - 'backend/app/services/graph_retrieval_runtime.py'
+      - 'backend/app/services/graph_reranker.py'
+      - 'backend/scripts/run_graph_retrieval.py'
+      - 'backend/tests/test_graph*.py'
+      - 'backend/tests/test_run_graph_retrieval.py'
+      - 'backend/data/eval/graph_retrieval_v1/**'
       - 'skills/annotate-interview-questions/**'
       - 'docs/graph-demo/**'
       - '.github/workflows/mgkg-artifacts.yml'
@@ -39,6 +55,11 @@ jobs:
         run: |
           python -m unittest discover -s backend/tests -p test_build_annotation_graph_v2.py
           python -m unittest discover -s skills/annotate-interview-questions/scripts -p test_validate_annotations.py
+      - name: Verify pure graph retrieval and seed resolution
+        run: |
+          python -m unittest discover -s backend/tests -p 'test_graph*.py'
+          python -m unittest discover -s backend/tests -p test_run_graph_retrieval.py
+          python backend/scripts/run_graph_retrieval.py --input backend/data/eval/graph_retrieval_v1/demo_query.json --out /tmp/deepask-graph-retrieval.json --seed 42
       - name: Verify published files and extract graph
         working-directory: docs/graph-demo
         run: |
