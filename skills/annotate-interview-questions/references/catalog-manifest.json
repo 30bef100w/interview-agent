@@ -1,0 +1,14 @@
+{
+  "registry_version": "2026-11-06.graph-v3-export",
+  "concepts": 2346,
+  "states": {
+    "active": 263,
+    "draft": 2083
+  },
+  "explicit_legacy_id_count": 90,
+  "graph_sha256": {
+    "nodes.jsonl": "85936d29040c89d4b960712926f4da1dd741dd87db096d2587bf3f27e581dc1d",
+    "edges.jsonl": "67b57184fb9be82026a6c9038fd93001b415a0b39f3c40946f03237fdcd0b3ab"
+  },
+  "note": "正式和草稿身份保留；导出不是批准草稿，标注复用仍需判断语义。"
+}

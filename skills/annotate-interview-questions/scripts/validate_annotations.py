@@ -20,12 +20,12 @@ def nonempty(value):
 
 
 def read_json(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    return json.loads(Path(path).read_text(encoding="utf-8-sig"))
 
 
 def read_lines(path):
     values = []
-    for number, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
+    for number, line in enumerate(Path(path).read_text(encoding="utf-8-sig").splitlines(), 1):
         if line.strip():
             value = json.loads(line)
             require(isinstance(value, dict), f"{path}:{number}: expected object")

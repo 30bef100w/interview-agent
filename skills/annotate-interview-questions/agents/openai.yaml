@@ -1,4 +1,4 @@
 interface:
   display_name: "深问题库语义标注"
   short_description: "对照现有知识索引逐题判断考点、依赖与项目归属，输出可供脚本建图的明确标注"
-  default_prompt: "使用 $annotate-interview-questions，按当前知识索引复核指定范围的题目，输出语义标注和节点变更清单。"
+  default_prompt: "使用 $annotate-interview-questions，按分配的task.json逐题语义初标，复用知识索引与场景定义，输出标注并检查范围和原文引用。"

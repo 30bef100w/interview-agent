@@ -1,0 +1,23 @@
+{
+  "skills_validated": [
+    "annotate-interview-questions",
+    "review-interview-annotations"
+  ],
+  "unit_tests_passed": 31,
+  "partition_coverage": {
+    "original": 45033,
+    "existing_unchanged": 9000,
+    "pending": 36033,
+    "tasks": 361
+  },
+  "portable_smoke_test": {
+    "raw_questions_read": 8,
+    "initial_outputs": 8,
+    "reviewed_outputs": 0,
+    "isolated_temp_only": true,
+    "actual_codearts_execution": false
+  },
+  "formal_tasks_new_annotations": 0,
+  "formal_tasks_new_reviews": 0,
+  "explicit_legacy_concept_ids": 90
+}

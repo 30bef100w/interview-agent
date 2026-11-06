@@ -1,0 +1,4 @@
+interface:
+  display_name: "深问题库标后复核"
+  short_description: "逐题复核考点、场景与源证据，保留初标并输出可核查的修改和覆盖记录"
+  default_prompt: "使用 $review-interview-annotations，按分配的task.json重新读题复核本批标注，修正错误并执行覆盖与引文检查。"
