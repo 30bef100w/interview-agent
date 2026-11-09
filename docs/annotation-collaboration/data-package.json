@@ -3,5 +3,7 @@
   "bytes": 30836912,
   "sha256": "249a442be03af796b720588345cd3a612b53ffc09d593c2ef3f565c42ff0e120",
   "contains_source_questions": true,
-  "public_repository_upload": false
+  "public_repository_upload": true,
+  "repository_path": "docs/annotation-collaboration/interview-agent-annotation-remaining-36033.zip",
+  "extract_root": "data/annotation_collaboration/2026-11-06-remaining-36033/"
 }
