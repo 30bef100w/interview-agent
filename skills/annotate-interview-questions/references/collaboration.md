@@ -4,7 +4,25 @@
 
 从仓库根目录运行。需要Python 3.10+，所有协作脚本只依赖标准库。先检查可用的`python3`/`python`/`py -3`版本，选择符合要求的命令；下文以`python3`为例，不假定原作者电脑的解释器路径。
 
-用户会给完整协作数据包及任务编号，例如`B0001`。完整解压到仓库的`data/annotation_collaboration/2026-11-06-remaining-36033/`；不得只复制单个task.json。已有9,000条按源索引和原字段核对后排除，剩余36,033条分361批，前360批每批100条，最后一批33条。plan中初始`semantic_annotation_completed=false`说明准备流程没有做语义标注，后续进度按实际输出和复核记录统计，不改原计划伪造进度。不可把准备数据量报告成完成量。
+仓库地址：https://github.com/30bef100w/interview-agent ，数据包直链：https://github.com/30bef100w/interview-agent/raw/refs/heads/main/docs/annotation-collaboration/interview-agent-annotation-remaining-36033.zip 。包在仓库`docs/annotation-collaboration/`内，克隆即包含。自助拉取与执行提示词见仓库`docs/annotation-collaboration/AI-PROMPT.md`。
+
+默认分配`M01`等5,000题宏批次，范围固定在仓库`docs/annotation-collaboration/macro-plan.json`，共8个，最后一个1,033题。宏批次下的100题任务仅作内部校验与断点，不需要用户逐个分配或确认。也兼容只分配单个`B0001`的任务。完整解压到仓库的`data/annotation_collaboration/2026-11-06-remaining-36033/`；不得只复制单个task.json。已有9,000条按源索引和原字段核对后排除，剩余36,033条分361个内部单元，前360个各100条，最后一个33条。plan中初始`semantic_annotation_completed=false`说明准备流程没有做语义标注，后续进度按实际输出和复核记录统计，不改原计划伪造进度。不可把准备数据量报告成完成量。
+
+## 5,000题连续执行与恢复
+
+收到宏批次后运行（把M01换成分配编号）：
+
+```bash
+python3 skills/annotate-interview-questions/scripts/macro_progress.py --macro M01 --stage initial
+```
+
+从`next_task`继续，先修已有输出的错误或补齐部分记录，再做后续任务。每次实际读25–50题、按源顺序追加输出；每完成100题运行下文manifest/check，不得使用`--allow-partial`完成验收。完成后主动进入宏批次的下一个内部单元，不以“本批已完成，是否继续”结束。所有内部单元完成后报告宏批次实际进度。
+
+新批仍需查之前已完成单元的节点/场景提案，防止宏批内部重复建同义项。共享索引保持固定，各单元按协议记录本批所需提案、证据和场景定义；不能直接复制别批的题号或证据。不要把前一批提案不经验证直接当正式已批准节点。
+
+进度不可仅靠聊天记忆。每次完成内部单元，将进度写到数据包`macro-progress/M01.initial.json`，另外记录本宏批新增提案的路径和未解决事项；进度由实际文件核对，脚本不会替AI生成语义标签。平台达到上下文/工具/回合硬限制时，保存当前已完成前缀与续做命令，如实说明中断。无需主动请求每100题继续，但提示词无法绕过平台硬限制或保证自动发起新回合。
+
+复核作为独立阶段使用同一宏范围和标后复核skill，先完成实际独立读题判断，再运行`macro_progress.py --macro M01 --stage reviewed`。初标和复核进度分别计算，不把初标脚本通过当语义复核完成。
 
 每批目录`tasks/Bxxxx/`包含：
 
@@ -68,4 +86,4 @@ python3 skills/annotate-interview-questions/scripts/check_collaboration.py check
 
 报告分别列：计划条数、初标条数、实际复核条数、修改条数、labeled/needs_context/not_question条数、尚未解决事项。小标题或没有答案不等于缺上下文；能确认到宽主题就标宽主题。没有足够对象的套话才待上下文，页面噪声判非题目。不要为了零待处理而脑补。
 
-协作者只处理自己被分配的批次。数据目录有意被.gitignore排除，源题库默认不进公开仓库；输出打包给分配者，别用git add -f上传全库。共享skill/工具改进可提交协作分支，注明影响范围。推送冲突时禁止force覆盖他人；先核对各自批次，由分配者协调共享索引的变更。
+协作者只处理自己被分配的宏批次或单个批次。用户已授权发布的36,033条协作输入ZIP位于仓库`docs/annotation-collaboration/`；解压的`data/`仍被.gitignore排除，输出按分配宏范围打包交付。不要把其他全库文件或其他人的结果一起强制提交。共享skill/工具改进可提交协作分支，注明影响范围。推送冲突时禁止force覆盖他人；先核对各自批次，由分配者协调共享索引的变更。

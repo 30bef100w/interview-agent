@@ -9,7 +9,7 @@ description: 对深问现有面试题库进行AI逐题语义标注或复核，�
 
 ## 协作者与华为云码道入口
 
-本skill可由能读写文件、运行Python的AI执行，不依赖Codex专属工具。用户给出`task.json`或要求协作标注时，**先读[固定批次工作流](references/collaboration.md)**，用任务内的源数据、知识索引与场景库；不要去找原作者电脑上的绝对路径。未指定批次时先读取数据包的`plan.json`并确认自己获分配的任务，不能擅自处理其他人的目录。新初标写`review_stage=initial`；只有实际重新读题完成第二次判断才声明review。
+本skill可由能读写文件、运行Python的AI执行，不依赖Codex专属工具。用户给出`task.json`或要求协作标注时，**先读[固定批次工作流](references/collaboration.md)**，用任务内的源数据、知识索引与场景库；不要去找原作者电脑上的绝对路径。用户分配`M01`等宏批次时，以仓库`docs/annotation-collaboration/macro-plan.json`固定的范围连续执行，每宏批5,000题（最后一宏批1,033题），不因内部100题单元结束而停下来询问继续。先运行`scripts/macro_progress.py --macro M01`定位未完成任务，按真实输出恢复；详细下载与续做指令见仓库`docs/annotation-collaboration/AI-PROMPT.md`。未指定批次时先读取数据包的`plan.json`并确认自己获分配的任务，不能擅自处理其他人的目录。新初标写`review_stage=initial`；只有实际重新读题完成第二次判断才声明review。
 
 协作模式维护任务内场景副本，下面常规流程中的共享references路径只作规则依据；不要让并行协作者直接覆盖共享库。具体副本与汇总规则以固定批次工作流为准。
 
