@@ -37,5 +37,5 @@ class LLMUsage(Base):
     cost_yuan: Mapped[float] = mapped_column(Float, default=0.0)
     used_platform_key: Mapped[int] = mapped_column(Integer, default=0)  # 1=走平台 Key
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
     )

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { api } from "@/lib/api";
+import { PageHeading, formatTime as fmtTime } from "@/components/admin/AdminUI";
+import s from "../admin.module.css";
 
 type SystemLogItem = {
   id: number;
@@ -14,14 +16,6 @@ type SystemLogItem = {
   user_id: number | null;
   created_at: string;
 };
-
-function fmtTime(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function AdminLogsPage() {
   const [logs, setLogs] = useState<SystemLogItem[]>([]);
@@ -43,11 +37,8 @@ export default function AdminLogsPage() {
   }, [load]);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-50">系统日志</h1>
-        <p className="mt-1 text-sm text-zinc-500">错误、告警与管理员操作审计（共 {total} 条）</p>
-      </div>
+    <div className={s.page}>
+      <PageHeading title="系统日志" description={`追踪错误、告警与管理员操作 · 共 ${total} 条记录`} />
 
       <div className="mt-4 flex flex-wrap gap-2">
         {["", "error", "warning", "info"].map((lv) => (
@@ -60,8 +51,8 @@ export default function AdminLogsPage() {
             }}
             className={`rounded-lg px-3 py-1.5 text-xs ${
               level === lv
-                ? "bg-zinc-100 font-medium text-zinc-900"
-                : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                ? "bg-violet-600 font-medium text-white"
+                : "bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-800"
             }`}
           >
             {lv || "全部"}
@@ -70,14 +61,14 @@ export default function AdminLogsPage() {
       </div>
 
       {error && (
-        <div className="mt-3 rounded-lg border border-red-900/60 bg-red-950/50 px-3 py-2 text-sm text-red-300">
+        <div className="mt-3 rounded-lg border border-red-200/60 bg-red-50/50 px-3 py-2 text-sm text-red-600">
           {error}
         </div>
       )}
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-zinc-800">
+      <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-zinc-800 bg-zinc-900 text-xs text-zinc-500">
+          <thead className="border-b border-slate-200 bg-white text-xs text-slate-500">
             <tr>
               <th className="px-3 py-2.5 font-medium">时间</th>
               <th className="px-3 py-2.5 font-medium">级别</th>
@@ -90,33 +81,33 @@ export default function AdminLogsPage() {
             {logs.map((row) => (
               <tr
                 key={row.id}
-                className="cursor-pointer border-b border-zinc-800/80 last:border-0 hover:bg-zinc-900/80"
+                className="cursor-pointer border-b border-slate-200/80 last:border-0 hover:bg-slate-50"
                 onClick={() => setSelected(row)}
               >
-                <td className="whitespace-nowrap px-3 py-2.5 text-xs text-zinc-500">
+                <td className="whitespace-nowrap px-3 py-2.5 text-xs text-slate-500">
                   {fmtTime(row.created_at)}
                 </td>
                 <td className="px-3 py-2.5">
                   <span
                     className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                       row.level === "error"
-                        ? "bg-red-950 text-red-300"
+                        ? "bg-red-50 text-red-600"
                         : row.level === "warning"
-                          ? "bg-amber-950 text-amber-300"
-                          : "bg-zinc-800 text-zinc-300"
+                          ? "bg-amber-50 text-amber-700"
+                          : "bg-slate-100 text-slate-700"
                     }`}
                   >
                     {row.level}
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-xs text-zinc-400">{row.source || "—"}</td>
-                <td className="px-3 py-2.5 font-mono text-xs text-zinc-400">{row.path || "—"}</td>
-                <td className="max-w-md truncate px-3 py-2.5 text-zinc-200">{row.message}</td>
+                <td className="px-3 py-2.5 text-xs text-slate-600">{row.source || "—"}</td>
+                <td className="px-3 py-2.5 font-mono text-xs text-slate-600">{row.path || "—"}</td>
+                <td className="max-w-md truncate px-3 py-2.5 text-slate-800">{row.message}</td>
               </tr>
             ))}
             {logs.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-10 text-center text-zinc-500">
+                <td colSpan={5} className="px-3 py-10 text-center text-slate-500">
                   暂无日志
                 </td>
               </tr>
@@ -127,30 +118,30 @@ export default function AdminLogsPage() {
 
       {selected && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 p-4"
           onClick={() => setSelected(null)}
         >
           <div
-            className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl"
+            className="max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl border border-slate-200 bg-white p-5 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-zinc-50">{selected.message}</div>
-                <div className="mt-1 text-xs text-zinc-500">
+                <div className="text-sm font-semibold text-slate-900">{selected.message}</div>
+                <div className="mt-1 text-xs text-slate-500">
                   {fmtTime(selected.created_at)} · {selected.path} · {selected.source}
                   {selected.user_id != null ? ` · user#${selected.user_id}` : ""}
                 </div>
               </div>
               <button
                 type="button"
-                className="text-sm text-zinc-500 hover:text-zinc-200"
+                className="text-sm text-slate-500 hover:text-slate-800"
                 onClick={() => setSelected(null)}
               >
                 关闭
               </button>
             </div>
-            <pre className="mt-4 overflow-x-auto rounded-lg bg-black p-4 text-xs leading-relaxed text-zinc-300">
+            <pre className="mt-4 overflow-x-auto rounded-lg bg-slate-100 p-4 text-xs leading-relaxed text-slate-700">
               {selected.detail || "（无详情）"}
             </pre>
           </div>

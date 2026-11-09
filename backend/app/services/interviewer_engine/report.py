@@ -25,7 +25,9 @@ class ReportMixin:
         with trace_node("finish_interview", session_id=state.session_id):
             try:
                 report = self.llm.chat_json(FINAL_REPORT_SYSTEM, self._report_user(state))
+                generation_status = "success"
             except Exception:
+                generation_status = "fallback"
                 logger.exception(
                     "finish_interview json failed session=%s", state.session_id
                 )
@@ -39,6 +41,8 @@ class ReportMixin:
                     "suggestions": ["请到网页打开本场报告或历史记录。"],
                 }
             report = self._sanitize_report(state, report)
+            # 由引擎结果决定，不能信任模型自行返回的成功标志。
+            report["generation_status"] = generation_status
         return state, report
 
     # ---------- 反问回答 → 终评（兼容旧会话） ----------

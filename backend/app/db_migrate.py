@@ -18,6 +18,8 @@ def _table_columns(conn, table: str) -> set[str]:
 
 def _add_column(conn, table: str, column: str, ddl: str) -> None:
     cols = _table_columns(conn, table)
+    if not cols:
+        return  # 表由 create_all 创建；兼容仅有部分旧表的升级环境。
     if column not in cols:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
 
@@ -59,6 +61,13 @@ def ensure_schema() -> None:
             "stored_path VARCHAR(512) DEFAULT ''",
         )
         _add_column(conn, "users", "is_admin", "is_admin INTEGER DEFAULT 0")
+        _add_column(conn, "users", "is_test", "is_test INTEGER DEFAULT 0 NOT NULL")
+        _add_column(conn, "score_reports", "generation_status", "generation_status VARCHAR(16) DEFAULT 'unknown' NOT NULL")
+        # create_all 不为已有表补索引；日期筛选避免扫描整张事实表。
+        for table, column in (("users", "created_at"), ("interview_sessions", "started_at"),
+                              ("answers", "created_at"), ("llm_usages", "created_at")):
+            if column in _table_columns(conn, table):
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} ON {table} ({column})"))
         _add_column(conn, "users", "platform_quota", "platform_quota INTEGER DEFAULT 3")
         _add_column(conn, "users", "last_active_at", "last_active_at TIMESTAMP")
         _add_column(conn, "users", "is_disabled", "is_disabled INTEGER DEFAULT 0")

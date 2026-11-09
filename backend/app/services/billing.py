@@ -101,7 +101,15 @@ def grant_platform_quota(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="delta 不能为 0"
         )
-    user.platform_quota = max(0, int(user.platform_quota or 0) + int(delta))
+    changed = db.execute(
+        update(User)
+        .where(User.id == user.id, User.platform_quota + int(delta) >= 0)
+        .values(platform_quota=User.platform_quota + int(delta))
+        .execution_options(synchronize_session=False)
+    )
+    if changed.rowcount != 1:
+        raise HTTPException(status_code=400, detail="扣减额度超过剩余额度")
+    db.refresh(user)
     db.add(
         QuotaGrant(
             admin_id=admin.id,

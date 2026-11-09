@@ -414,7 +414,6 @@ def test_register_login_and_admin_password_reset_roundtrip(world, monkeypatch):
     factory, _, (uid, _, _), _ = world
     client = client_for(world, monkeypatch)
     client.app.include_router(admin.router)
-    monkeypatch.setattr(admin, "_audit", lambda *a, **kw: None)
     res = client.post("/api/auth/register", json={"username": "new-user", "password": "first-password"})
     assert res.status_code == 201, res.text
     old_token = res.json()["access_token"]

@@ -111,8 +111,9 @@ class OpenAiLlm:
                     temperature=0.5,
                 )
                 self._record(resp.usage)
+                parsed = _parse_json(resp.choices[0].message.content or "")
                 self._record_llm_metric((time.perf_counter() - t0) * 1000)
-                return _parse_json(resp.choices[0].message.content or "")
+                return parsed
             except Exception as e:  # noqa: BLE001
                 self._record_llm_metric((time.perf_counter() - t0) * 1000, error=True)
                 self._on_llm_error(e)

@@ -833,6 +833,7 @@ def get_create_progress(
 
 def _fallback_score_report() -> dict:
     return {
+        "generation_status": "fallback",
         "summary": "终评模型输出异常，面试过程已保存。可稍后在网页查看本场记录。",
         "overall_score": None,
         "dimension_scores": {},
@@ -862,9 +863,11 @@ def _close_with_report(session: InterviewSession, db: Session, state, engine):
         select(ScoreReport).where(ScoreReport.session_id == session.id)
     ).first()
     if existing is None:
-        db.add(ScoreReport(session_id=session.id, report_json=payload))
+        db.add(ScoreReport(session_id=session.id, report_json=payload,
+                           generation_status=report.get("generation_status", "unknown")))
     else:
         existing.report_json = payload
+        existing.generation_status = report.get("generation_status", "unknown")
     return state, report, "面试结束，报告已生成。"
 
 

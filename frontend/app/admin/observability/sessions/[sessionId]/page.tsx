@@ -30,14 +30,14 @@ export default function AdminSessionTracePage() {
     <div className="space-y-4 p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-100">会话 Trace #{sessionId}</h1>
-          <p className="mt-1 text-sm text-zinc-400">
+          <h1 className="text-xl font-semibold text-slate-900">会话 Trace #{sessionId}</h1>
+          <p className="mt-1 text-sm text-slate-600">
             规划 / 引擎节点 / 门禁事件合并时间线（仅运维可见）
           </p>
         </div>
         <Link
           href="/admin/observability"
-          className="text-sm text-sky-400 hover:text-sky-300"
+          className="text-sm text-sky-600 hover:text-sky-700"
         >
           ← 返回可观测性
         </Link>
@@ -46,7 +46,7 @@ export default function AdminSessionTracePage() {
       {error ? <ErrorBanner message={error} onRetry={load} /> : null}
 
       {!trace ? (
-        <p className="text-sm text-zinc-500">加载中…</p>
+        <p className="text-sm text-slate-500">加载中…</p>
       ) : (
         <TraceTimeline
           trace={trace}

@@ -22,7 +22,7 @@ class InterviewSession(Base):
     rounds_used: Mapped[int] = mapped_column(Integer, default=0)
     state_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # InterviewState 全量持久化
     started_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     parent_session_id: Mapped[int | None] = mapped_column(
@@ -76,7 +76,7 @@ class Answer(Base):
     content: Mapped[str] = mapped_column(Text)
     score_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
     )
 
 
@@ -88,6 +88,7 @@ class ScoreReport(Base):
         ForeignKey("interview_sessions.id"), unique=True, index=True
     )
     report_json: Mapped[str] = mapped_column(Text)
+    generation_status: Mapped[str] = mapped_column(String(16), default="unknown", server_default="unknown")
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:admin": "next dev --webpack --hostname 127.0.0.1 --port 57362",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

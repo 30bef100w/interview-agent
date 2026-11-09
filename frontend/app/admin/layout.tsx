@@ -1,113 +1,91 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-
+import { useEffect, useState, type ReactNode } from "react";
+import { AdminIcon, type IconName } from "@/components/admin/AdminUI";
 import { ToastProvider } from "@/components/Toast";
 import { ApiError, api, clearToken, getToken } from "@/lib/api";
+import { startLocalAdminPreview } from "@/lib/admin-preview";
+import s from "./admin.module.css";
 
-const NAV = [
-  { href: "/admin", label: "概览", exact: true },
-  { href: "/admin/users", label: "用户管理" },
-  { href: "/admin/logs", label: "系统日志" },
-  { href: "/admin/observability", label: "可观测性" },
-  { href: "/admin/tag-mismatches", label: "错标审核" },
+const NAV: { href: string; label: string; icon: IconName; group: string }[] = [
+  { href: "/admin", label: "运营概览", icon: "overview", group: "工作空间" },
+  { href: "/admin/users", label: "用户管理", icon: "users", group: "工作空间" },
+  { href: "/admin/sessions", label: "面试会话", icon: "sessions", group: "工作空间" },
+  { href: "/admin/usage", label: "用量与成本", icon: "usage", group: "工作空间" },
+  { href: "/admin/observability", label: "运行监控", icon: "activity", group: "质量与监控" },
+  { href: "/admin/logs", label: "系统日志", icon: "logs", group: "质量与监控" },
+  { href: "/admin/tag-mismatches", label: "题库审核", icon: "review", group: "质量与监控" },
 ];
+
+function NavigationProgress() {
+  const { pending } = useLinkStatus();
+  return <span className={s.navigationProgress} role="status" aria-live="polite">{pending ? "加载中…" : ""}</span>;
+}
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [ready, setReady] = useState(false);
+  const [preview, setPreview] = useState(false);
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+  const current = NAV.find(item => item.href === pathname) || NAV.find(item => item.href !== "/admin" && pathname.startsWith(item.href)) || NAV[0];
 
   useEffect(() => {
+    let active = true;
     setError("");
     setReady(false);
-    if (!getToken()) {
-      router.replace("/login");
-      return;
-    }
-    let active = true;
-    const token = getToken();
-    api<{ username: string; is_admin?: boolean }>("/api/auth/me")
-      .then((me) => {
-        if (!active || getToken() !== token) return;
-        if (!me.is_admin) {
-          router.replace("/dashboard");
+    async function connect() {
+      try {
+        await startLocalAdminPreview();
+        if (!active) return;
+        if (!getToken()) {
+          if (active) router.replace("/login");
           return;
         }
-        setUsername(me.username);
-        setReady(true);
-      })
-      .catch((err) => {
-        if (!active || getToken() !== token) return;
-        if (err instanceof ApiError && [401, 403].includes(err.status)) {
+        let me;
+        try {
+          me = await api<{ username: string; is_admin?: boolean }>("/api/auth/me");
+        } catch (err) {
+          if (!(err instanceof ApiError) || ![401, 403].includes(err.status)) throw err;
           clearToken();
-          router.replace("/login");
-        } else setError(err instanceof Error ? err.message : "权限校验暂时失败");
-      });
+          if (!await startLocalAdminPreview()) {
+            if (active) router.replace("/login");
+            return;
+          }
+          me = await api<{ username: string; is_admin?: boolean }>("/api/auth/me");
+        }
+        if (!active) return;
+        if (!me.is_admin) { router.replace("/dashboard"); return; }
+        setUsername(me.username);
+        setPreview(sessionStorage.getItem("deepask-local-preview") === "1");
+        setReady(true);
+      } catch (err) {
+        if (active) setError(err instanceof Error ? err.message : "后台连接暂时失败");
+      }
+    }
+    void connect();
     return () => { active = false; };
   }, [router, retry]);
 
-  if (!ready) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-sm text-zinc-400">
-        {error ? (
-          <div className="text-center">
-            <p>{error}</p>
-            <button type="button" className="mt-3 underline" onClick={() => setRetry(value => value + 1)}>重试权限校验</button>
-          </div>
-        ) : "校验管理员权限…"}
-      </div>
-    );
-  }
+  if (!ready) return <div className={s.connecting}><div className={s.brandMark}>问</div><strong>{error || "正在打开深问运营平台…"}</strong>{error ? <button className={s.button} onClick={() => setRetry(n => n + 1)}>重新连接</button> : <p>连接工作空间</p>}</div>;
 
-  return (
-    <ToastProvider>
-      <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
-        <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r border-zinc-800 bg-zinc-900/80 px-3 py-5">
-          <div className="px-2">
-            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-zinc-500">
-              Ops Console
-            </div>
-            <div className="mt-1 text-sm font-semibold text-zinc-100">face-agent 运维</div>
-          </div>
-          <nav className="mt-6 flex flex-col gap-0.5">
-            {NAV.map((item) => {
-              const active = item.exact
-                ? pathname === item.href
-                : pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`rounded-lg px-3 py-2 text-sm transition-colors ${
-                    active
-                      ? "bg-zinc-800 font-medium text-white"
-                      : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <div className="mt-auto space-y-1 border-t border-zinc-800 px-2 pt-4">
-            <div className="truncate text-xs text-zinc-500">{username}</div>
-            <Link
-              href="/dashboard"
-              className="block text-sm text-zinc-400 transition-colors hover:text-zinc-100"
-            >
-              ← 返回用户端
-            </Link>
-          </div>
-        </aside>
-        <main className="min-w-0 flex-1 overflow-auto">{children}</main>
-      </div>
-    </ToastProvider>
-  );
+  return <ToastProvider><div className={s.shell}>
+    <aside className={s.sidebar}>
+      <Link href="/admin" className={s.brand}><span className={s.brandMark}>问</span><span><strong>深问<span className={s.brandEnglish}>DeepAsk</span></strong><small>运营工作空间</small></span></Link>
+      <div className={s.workspace}><span className={s.workspaceAvatar}>D</span><span><strong>深问运营平台</strong><small>{preview ? "本地预览环境" : "管理工作空间"}</small></span></div>
+      <nav aria-label="运营导航" className={s.nav}>
+        {["工作空间", "质量与监控"].map(group => <div className={s.navGroup} key={group}><div className={s.navLabel}>{group}</div>{NAV.filter(item => item.group === group).map(item => <Link key={item.href} href={item.href} aria-current={current.href === item.href ? "page" : undefined} className={`${s.navItem} ${current.href === item.href ? s.navActive : ""}`}><AdminIcon name={item.icon} /><span>{item.label}</span><NavigationProgress />{current.href === item.href && <span className={s.activeDot} />}</Link>)}</div>)}
+      </nav>
+      <div className={s.sidebarBottom}><Link href="/dashboard" className={s.returnLink}><AdminIcon name="external" /><span>打开用户端</span><span>↗</span></Link><div className={s.profile}><span className={s.avatar}>{username.slice(0, 1).toUpperCase()}</span><span><strong>{preview ? "本地预览" : username}</strong><small>{preview ? "自动连接 · 无需手动登录" : "管理员"}</small></span><span className={s.onlineDot} /></div></div>
+    </aside>
+    <div className={s.main}>
+      <header className={s.topbar}><div className={s.breadcrumb}><span>工作空间</span><span>/</span><strong>{current.label}</strong></div><div className={s.topbarRight}><span className={s.environment}><i />{preview ? "本地预览" : "管理后台"}</span><span className={s.headerDivider} /><span className={s.headerAvatar}>{username.slice(0, 1).toUpperCase()}</span></div></header>
+      <main className={s.content}>{children}</main>
+      <footer className={s.footer}><span>深问 DeepAsk · 让每次面试练习更进一步</span><span>运营工作空间</span></footer>
+    </div>
+  </div></ToastProvider>;
 }
