@@ -129,3 +129,48 @@ def test_graph_bagu_enters_existing_bank_question_flow(engine_setup, monkeypatch
     assert len(items) == 1
     assert items[0]['from_bank'] is True
     assert items[0]['bank_question'].startswith('智能体工具执行')
+
+
+def test_empty_graph_result_really_falls_back_instead_of_disabling_legacy(engine_setup, monkeypatch):
+    from app.services.graph_retrieval_runtime import GraphRetrievalRuntime
+    engine, state, calls = engine_setup
+    monkeypatch.setattr(GraphRetrievalRuntime, 'retrieve_projects', lambda *a, **kw: {'hits': [], 'projects': []})
+    monkeypatch.setattr(engine, '_select_b_lane_query', lambda *a, **kw: (['商户服务'], ['Agent']))
+    monkeypatch.setattr(kr, 'search_projects', lambda *a, **kw: [])
+    engine._plan_retrieval(state, set())
+    assert state.retrieval_diagnostics['backend'] == 'legacy'
+    assert any(call.get('lane') == 'b' for call in calls)
+    assert engine._graph_runtime is None
+
+
+@pytest.mark.parametrize('failure', ['empty', 'error'])
+def test_empty_or_failed_graph_bagu_falls_back_and_excludes_project_questions(engine_setup, monkeypatch, failure):
+    engine, state, _ = engine_setup
+    engine._plan_retrieval(state, set())
+    def graph_bagu(**kwargs):
+        if failure == 'error': raise ValueError('unavailable leaf pool')
+        return []
+    monkeypatch.setattr(engine._graph_runtime, 'retrieve_bagu', graph_bagu)
+    captured = []
+    question = '智能体工具重试次数与退避策略如何设置？'
+    def legacy(**kwargs):
+        captured.append(kwargs)
+        return [{'question': question, 'answer': '指数退避', 'roles': ['agent_dev']}]
+    monkeypatch.setattr(kr, 'pick_bagu_questions', legacy)
+    monkeypatch.setattr(engine, '_select_bagu_with_llm',
+                        lambda rows, n, *a: [(rows[0], rows[0]['question'], '重试与退避', '指数退避')])
+    result = engine._bagu_from_bank(1)
+    assert result[0]['bank_question'] == question
+    for qid in engine._graph_project_question_ids:
+        assert kr._norm(engine._graph_runtime.graph.nodes[qid]['name']) in captured[0]['asked_norms']
+
+
+def test_general_material_is_only_added_to_separate_planner_section(engine_setup, monkeypatch):
+    from app.services.graph_retrieval_runtime import GraphRetrievalRuntime
+    engine, state, _ = engine_setup
+    question = '如果与同事发生冲突，你会怎么处理？'
+    monkeypatch.setattr(GraphRetrievalRuntime, 'retrieve_general', lambda *a, **kw: [{'question': question}])
+    engine._plan_retrieval(state, set())
+    assert '仅供HR题规划' in engine._planner_user(state)
+    assert question in engine._planner_user(state)
+    assert all(row['question'] != question for row in state.retrieved_questions)

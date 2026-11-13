@@ -51,6 +51,24 @@ docker compose up -d --build
 
 存活检查：`curl http://localhost/api/health`；数据库和会话表结构就绪检查：`curl http://localhost/api/ready`。
 
+图检索默认使用镜像内的 `graph/mgkg-45033-active-v1.zip`，无需另挂旧的9,000题ZIP，
+也不放在会被持久卷覆盖的 `/app/data` 下。已有服务器若在 `.env` 设置了旧路径，需改为：
+
+```env
+GRAPH_SNAPSHOT_PATH=graph/mgkg-45033-active-v1.zip
+GRAPH_INCLUDE_DRAFTS=false
+```
+
+首次部署可先运行 `docker compose build` 和
+`docker compose run --rm --no-deps backend python scripts/check_graph_release.py`。
+更新脚本会在重启前执行同样的预检，核对生效路径、文件哈希、active状态和种子目录预算。
+生产不接受无运行清单的离线图或 `GRAPH_INCLUDE_DRAFTS=true`。需要回滚图链路时设置
+`GRAPH_RETRIEVAL_ENABLED=false`，使用原检索链路；不应把全量草稿图直接替换进去。
+
+运行快照从45,033条离线数据中筛出23,005道有active图关系的题和8道确认过的通用行为题；
+尚未复核的draft关系没有转正，完整离线图仍保留。检索没有合格项目题时会回退原场景检索，
+八股叶子池为空或异常时会回退原有岗位/技能题池。
+
 管理员授权不再依赖用户名配置：先注册普通账号，核验用户 ID 后，在受信任服务器运行
 `docker compose exec backend python -m app.manage_admin --user-id 123`（替换为实际 ID）。
 已有数据库的管理员标记会保留；`--revoke` 可撤销指定用户的管理员身份。
@@ -94,7 +112,15 @@ docker compose down -v   # 同时删除数据库卷（慎用）
 
 ## 7. HTTPS
 
-当前 Nginx 仅 HTTP。上线 HTTPS 可在前面加 Caddy / 云厂商负载均衡，或使用 certbot 扩展 `deploy/nginx.conf`。
+默认 Compose 保留 HTTP 开发/初次部署入口。`deeplyask.online` 生产服务器已启用 HTTPS：
+
+- `deploy/nginx.https.conf`：TLS 1.2/1.3、HTTP 跳转、ACME 验证、流式响应和 WSS 转发。
+- `deploy/docker-compose.https.yml`：生产覆盖配置模板，服务器安装为根目录 `docker-compose.override.yml`，挂载证书、开放 443 并限制容器日志大小。
+- `deploy/ops/`：证书续期重载钩子、每日备份、定时健康检查及 systemd 单元。
+
+HTTPS 配置依赖已签发的 `/etc/letsencrypt/live/deeplyask.online/` 证书和云防火墙 TCP 443 规则；不能直接用于没有证书的新服务器。不要将证书私钥、`.env` 或生产备份提交到 Git。
+
+已部署状态、验证记录和维护命令见 [2026-11-09 运维记录](OPS-2026-11-09.md)。
 
 ## 8. 运维与排障
 

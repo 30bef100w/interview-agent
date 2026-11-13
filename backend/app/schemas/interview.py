@@ -14,6 +14,9 @@ class PerQuestion:
     turns: list = field(default_factory=list)
     pending_asked_text: str = ""
     pending_reference_answer: str = ""
+    # 追问官本轮决策的结构化反馈：用于评估召回题与拷打链的实际使用情况。
+    followup_events: list = field(default_factory=list)
+    pending_followup_feedback: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -41,6 +44,12 @@ class InterviewState:
     avoid_topics: list = field(default_factory=list)  # 去重：历史主题/题干摘要
     project_chains: list = field(default_factory=list)  # 拷打链（面试规划师生成）
     retrieved_material: str = ""  # 检索命中的相关题（注入规划官/追问官）
+    # 规划官可读的文本之外，保留原始召回题目结构，执行阶段同时注入追问官。
+    retrieved_questions: list = field(default_factory=list)
+    # 已有 TG 网络按本场场景/知识点正向召回的追问节点。
+    tg_material: list = field(default_factory=list)
+    tg_last_probe_id: str = ""
+    tg_last_project: str = ""
     create_timings: dict = field(default_factory=dict)  # 创建会话各阶段耗时（秒）
     retrieval_diagnostics: dict = field(default_factory=dict)  # 图种子/回退/真实阶段耗时
 
@@ -70,6 +79,10 @@ class InterviewState:
             avoid_topics=list(d.get("avoid_topics") or []),
             project_chains=list(d.get("project_chains") or []),
             retrieved_material=str(d.get("retrieved_material") or ""),
+            retrieved_questions=list(d.get("retrieved_questions") or []),
+            tg_material=list(d.get("tg_material") or []),
+            tg_last_probe_id=str(d.get("tg_last_probe_id") or ""),
+            tg_last_project=str(d.get("tg_last_project") or ""),
             create_timings=dict(d.get("create_timings") or {}),
             retrieval_diagnostics=dict(d.get("retrieval_diagnostics") or {}),
         )

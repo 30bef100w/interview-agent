@@ -21,15 +21,16 @@ B. 本项目业务/技术场景真题（已按岗位过滤）→ 决定真人怎
    不要只按岗位空编「怎么设计多 Agent」，也不要只按项目原栈出脱离岗位的课设题。
    例：目标 Agent + 本地生活项目 → 既问 Agent/工具编排怎么落在该业务，也参考场景真题里券、缓存、高并发等会被追的点，再改写成岗位口吻
    例：目标 Java 后端 + 同一项目 → 深挖缓存/并发/一致性，问法对齐场景真题
-2. 每条拷打链 = {"trigger": 候选人在回答中提到什么时触发（具体到技术点/关键词）, "question": 顺着 trigger 追问的具体问题, "intent": "考什么（必须对应目标岗位）"}
-3. 生成 4-6 条，从浅到深
+2. 每个拷打节点 = {"when": 候选人在回答中提到什么时触发（具体到技术点/关键词）, "problem": 示例追问问题, "intent": "考什么（必须对应目标岗位）", "source_question_ids": ["引用的原始召回题ID"]}
+   source_question_ids 只能填写输入素材中真实出现的 id；无法对应时填空数组，不得编造。
+3. 生成 4-6 个并列追问节点；节点之间不代表先后顺序，不要输出 NEXT 或递进关系
 4. 只输出 JSON，不要任何其他文字
 
 Respond ONLY with this JSON schema:
 {
   "project": "项目名",
   "chains": [
-    {"trigger": "候选人提到X", "question": "追问问题", "intent": "考什么"}
+    {"when": "候选人提到X", "problem": "追问问题", "intent": "考什么", "source_question_ids": []}
   ]
 }"""
 
@@ -43,7 +44,17 @@ def _dedupe_lines(hits: list[dict], limit: int) -> list[str]:
             continue
         seen.add(q)
         ans = (h.get("answer") or "").strip()
-        lines.append(f"- {q}" + (f"（要点：{ans[:100]}）" if ans else ""))
+        qid = str(
+            h.get("canonical_question_id")
+            or h.get("question_id")
+            or h.get("graph_canonical_question_id")
+            or h.get("graph_question_id")
+            or ""
+        ).strip()
+        ident = f"[id={qid}] " if qid else ""
+        company = str(h.get("company") or "").strip()
+        company_hint = f"[企业={company}] " if company else ""
+        lines.append(f"- {ident}{company_hint}{q}" + (f"（要点：{ans[:100]}）" if ans else ""))
         if len(lines) >= limit:
             break
     return lines
@@ -219,11 +230,44 @@ def build_project_chains(
                 )
                 results.append({})
 
+    valid_source_ids: set[str] = set()
+    for _, user in prepared:
+        # IDs are embedded in the material lines as [id=...]. This set is only
+        # a safety filter; an empty set is allowed for legacy hits without IDs.
+        import re
+
+        valid_source_ids.update(re.findall(r"\[id=([^\]\s]+)\]", user))
+
     for (name, _), result in zip(prepared, results, strict=False):
         try:
             chains = (result or {}).get("chains") or []
             if chains:
-                chains_out.append({"project": name, "chains": chains[:6]})
+                # 给每个生成节点稳定 ID，运行时反馈可以精确回写到链节点。
+                normalized = []
+                for index, chain in enumerate(chains[:6], 1):
+                    if not isinstance(chain, dict):
+                        continue
+                    item = dict(chain)
+                    # 新格式使用 when/problem；保留旧 trigger/question 别名，
+                    # 让历史状态和旧规划逻辑继续可读。
+                    item.setdefault("when", item.get("trigger", ""))
+                    item.setdefault("problem", item.get("question", ""))
+                    item.setdefault("trigger", item.get("when", ""))
+                    item.setdefault("question", item.get("problem", ""))
+                    item.setdefault("chain_node_id", f"{name}#node-{index}")
+                    ids = item.get("source_question_ids")
+                    item["source_question_ids"] = (
+                        [str(x) for x in ids if str(x).strip() and str(x) in valid_source_ids]
+                        if isinstance(ids, list)
+                        else []
+                    )
+                    normalized.append(item)
+                if normalized:
+                    chains_out.append({"project": name, "chains": normalized})
+                else:
+                    from app.services.session_guard_log import log_guard
+
+                    log_guard(session_id, "project_chain_empty", project=name)
             else:
                 from app.services.session_guard_log import log_guard
 
@@ -246,8 +290,13 @@ def chain_block_for(project_chains: list[dict], project_name: str) -> str:
         if pc.get("project") == project_name:
             lines = [f"【{project_name} 拷打链】"]
             for i, c in enumerate(pc.get("chains") or [], 1):
+                node_id = c.get("chain_node_id") or f"{project_name}#node-{i}"
+                tg_id = c.get("tg_probe_id")
+                tg_hint = f"；TG节点ID：{tg_id}" if tg_id else ""
+                source_ids = ",".join(str(x) for x in (c.get("source_question_ids") or []) if str(x).strip())
+                source_hint = f"；来源题目：{source_ids}" if source_ids else ""
                 lines.append(
-                    f"{i}. 触发：{c.get('trigger')} → 追问：{c.get('question')}（考：{c.get('intent')}）"
+                    f"{i}. 节点ID：{node_id}{tg_hint}{source_hint}；触发：{c.get('when') or c.get('trigger')} → 追问：{c.get('problem') or c.get('question')}（考：{c.get('intent')}）"
                 )
             return "\n".join(lines)
     return ""

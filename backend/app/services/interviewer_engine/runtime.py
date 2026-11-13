@@ -99,6 +99,69 @@ class RuntimeMixin:
         pq["strengths"] = strengths
         pq["weaknesses"] = weaknesses
 
+        # 追问来源反馈：原始召回题、拷打链和临时发挥必须分开统计。
+        # 这是模型的运行时判断，不直接等同于“链质量”，后续由多次会话汇总治理。
+        source = str(judge.get("source") or "none").strip().lower()
+        if source not in {"chain", "retrieved", "free", "none"}:
+            source = "none"
+        chain_node_id = str(judge.get("chain_node_id") or "").strip()
+        retrieved_question_id = str(judge.get("retrieved_question_id") or "").strip()
+        valid_chain_nodes = {
+            str(node.get("chain_node_id") or f"{pc.get('project')}#node-{i}")
+            for pc in (state.project_chains or [])
+            for i, node in enumerate(pc.get("chains") or [], 1)
+            if isinstance(node, dict)
+        }
+        valid_tg_nodes = {
+            str(node.get("id") or node.get("probe_id"))
+            for material in (state.tg_material or [])
+            for node in (material.get("nodes") or [])
+            if node.get("id") or node.get("probe_id")
+        }
+        valid_chain_nodes |= valid_tg_nodes
+        chain_project = ""
+        if chain_node_id:
+            for pc in (state.project_chains or []):
+                if any(
+                    str(node.get("chain_node_id") or f"{pc.get('project')}#node-{i}") == chain_node_id
+                    for i, node in enumerate(pc.get("chains") or [], 1)
+                    if isinstance(node, dict)
+                ):
+                    chain_project = str(pc.get("project") or "")
+                    break
+        valid_retrieved_ids = {
+            str(item.get("canonical_question_id") or item.get("question_id"))
+            for item in (state.retrieved_questions or [])
+            if item.get("canonical_question_id") or item.get("question_id")
+        }
+        # 不接受模型编造的来源 ID，避免把无法审计的追问计入 TG 命中统计。
+        if source == "chain" and chain_node_id not in valid_chain_nodes:
+            source, chain_node_id = "free", ""
+        if source == "retrieved" and retrieved_question_id not in valid_retrieved_ids:
+            source, retrieved_question_id = "free", ""
+        chain_triggered = bool(judge.get("chain_triggered", False))
+        probe_id = ""
+        if source != "chain":
+            chain_triggered = False
+            chain_node_id = ""
+            chain_project = ""
+        if source != "retrieved":
+            retrieved_question_id = ""
+        followup_feedback = {
+            "qid": qid,
+            "source": source,
+            "chain_triggered": chain_triggered,
+            "chain_node_id": chain_node_id,
+            "chain_project": chain_project,
+            "retrieved_question_id": retrieved_question_id,
+            "trigger_evidence": str(judge.get("trigger_evidence") or "").strip()[:500],
+            "needs_follow_up": bool(judge.get("needs_follow_up", False)),
+            "follow_up_question": str(judge.get("follow_up_question") or "").strip()[:500],
+            "answer_excerpt": clipped[:500],
+            "applied": False,
+        }
+        pq.setdefault("followup_events", []).append(followup_feedback)
+
         needs_follow = bool(judge.get("needs_follow_up", False))
         # 跳过/敷衍不作答：引擎强制不追问，避免纠缠空答
         if is_non_answer(pq.get("answers")) or is_non_answer([answer]):
@@ -106,6 +169,7 @@ class RuntimeMixin:
             from app.services.session_guard_log import log_guard
 
             log_guard(state.session_id, "non_answer_no_followup", qid=qid)
+        followup_feedback["needs_follow_up"] = needs_follow
         fq = str(judge.get("follow_up_question", "")).strip() if needs_follow else ""
         if fq:
             prior_qs = [
@@ -125,6 +189,7 @@ class RuntimeMixin:
                 )
                 fq = ""
                 needs_follow = False
+                followup_feedback["needs_follow_up"] = False
         if (
             needs_follow
             and fq
@@ -136,6 +201,46 @@ class RuntimeMixin:
             pq["pending_reference_answer"] = self._usable_reference(
                 judge.get("follow_up_reference_answer"), q, fq
             )
+            pq["pending_followup_feedback"] = followup_feedback
+            followup_feedback["applied"] = True
+            if source == "chain" and chain_triggered:
+                # 只有自然触发且实际采用了链节点，才把本次节点写入 TG
+                # 的真实顺序。生成阶段不会臆造 OBSERVED_NEXT 边。
+                probe_id = chain_node_id if chain_node_id in valid_tg_nodes else ""
+                if not probe_id:
+                    for pc in (state.project_chains or []):
+                        for node in pc.get("chains") or []:
+                            if str(node.get("chain_node_id") or "") == chain_node_id:
+                                probe_id = str(node.get("tg_probe_id") or "")
+                                break
+                        if probe_id:
+                            break
+            if not chain_project:
+                for material in (state.tg_material or []):
+                    if any(
+                        str(node.get("id") or node.get("probe_id")) == chain_node_id
+                        for node in (material.get("nodes") or [])
+                    ):
+                        chain_project = str(material.get("project") or material.get("project_id") or "")
+                        break
+            if probe_id:
+                try:
+                    from app.services.tg_graph import TraceGraphStore
+
+                    if TraceGraphStore().record_trigger(
+                        probe_id,
+                        session_id=state.session_id,
+                        previous_probe_id=(
+                            state.tg_last_probe_id
+                            if state.tg_last_project == chain_project
+                            else None
+                        ),
+                    ):
+                        state.tg_last_probe_id = probe_id
+                        state.tg_last_project = chain_project
+                except Exception:  # noqa: BLE001
+                    # TG 统计不能阻塞面试主流程。
+                    pass
             self._stream_interviewer_message(fq)
             state.history.append({"role": "interviewer", "text": fq})
             return state, fq
@@ -208,10 +313,12 @@ class RuntimeMixin:
                 "weaknesses": list(weaknesses or []),
                 "reference_answer": ref,
                 "is_followup": len(turns) > 0,
+                "followup_feedback": dict(pq.get("pending_followup_feedback") or {}),
             }
         )
         pq["pending_asked_text"] = ""
         pq["pending_reference_answer"] = ""
+        pq["pending_followup_feedback"] = {}
 
     def _stream_interviewer_message(self, text: str) -> None:
         if not text:
@@ -291,6 +398,8 @@ class RuntimeMixin:
                     chain_block_for([pc], pc["project"])
                     for pc in state.project_chains
                 )
+        if state.tg_material:
+            chain_block += "\n\n【历史 TG 拷打网络节点（仅当回答自然触发时参考）】\n" + self._tg_material_block(state)
         user = (
             self._ctx_block(state)
             + "\n\n【候选人近期表现评估】\n"

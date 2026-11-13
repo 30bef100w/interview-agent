@@ -9,7 +9,57 @@ from app.schemas.interview import InterviewState
 from .guards import _is_suspect_pure_backend_project_blob
 
 
+class EmptyGraphResult(ValueError):
+    """No eligible graph material; the original retrieval route must run."""
+
+
 class RetrievalMixin:
+    @staticmethod
+    def _compact_retrieved_questions(
+        role_hits: list[dict], scene_hits: list[dict]
+    ) -> list[dict]:
+        """保留原始召回题的可审计结构，供执行阶段追问官参考。
+
+        ``retrieved_material`` 是给规划官看的文本；执行阶段还需要知道题目
+        来自哪一路、题目 ID 和原始答案要点，否则无法区分“直接用了召回题”
+        和“沿拷打链追问”。这里按 canonical/question_id 去重，但合并来源路。
+        """
+        out: list[dict] = []
+        by_key: dict[str, dict] = {}
+        for lane, hits in (("role", role_hits), ("scene", scene_hits)):
+            for hit in hits:
+                question = str(hit.get("question") or "").strip()
+                if not question:
+                    continue
+                key = str(
+                    hit.get("canonical_question_id")
+                    or hit.get("question_id")
+                    or hit.get("normalized_question")
+                    or question
+                )
+                item = by_key.get(key)
+                if item is None:
+                    item = {
+                        "question_id": hit.get("question_id") or key,
+                        "canonical_question_id": hit.get("canonical_question_id") or key,
+                        "question": question,
+                        "answer": str(hit.get("answer") or "")[:500],
+                        "company": hit.get("company"),
+                        "roles": list(hit.get("roles") or [])[:5],
+                        "business_scene": list(hit.get("business_scene") or [])[:5],
+                        "tech_scene": list(hit.get("tech_scene") or [])[:5],
+                        "source_file": hit.get("source_file"),
+                        "graph_project_id": hit.get("graph_project_id"),
+                        "graph_project_name": hit.get("graph_project_name"),
+                        "graph_direct_scene": bool(hit.get("graph_direct_scene")),
+                        "source_lanes": [],
+                    }
+                    by_key[key] = item
+                    out.append(item)
+                if lane not in item["source_lanes"]:
+                    item["source_lanes"].append(lane)
+        return out
+
     def _plan_retrieval(
         self,
         state: InterviewState,
@@ -75,6 +125,9 @@ class RetrievalMixin:
         self._graph_retrieval_meta = {}
         self._graph_domain_concept_ids = []
         self._graph_project_question_ids = set()
+        self._graph_general_hits = []
+        state.tg_material = []
+        tg_store = None
 
         # —— A 路：岗位（有企业时：企业原题 + 无企业标签 双路合并）——
         role_hits: list[dict] = []
@@ -203,6 +256,8 @@ class RetrievalMixin:
                     material_limit=scene_limit or 16,
                 )
                 scene_hits = list(graph_result.get("hits") or [])
+                if not scene_hits:
+                    raise EmptyGraphResult("graph returned no eligible project questions")
                 if not scene_limit:
                     # 没有旧 B 路标签时，图项目题仍要进入规划素材；保留
                     # 岗位路并给图路一个小的独立展示预算。
@@ -211,17 +266,50 @@ class RetrievalMixin:
                 self._graph_runtime = graph_runtime
                 self._graph_domain_concept_ids = list(graph_result.get("domain_concept_ids") or [])
                 self._graph_project_question_ids = set(graph_result.get("selected_question_ids") or [])
+                self._graph_general_hits = graph_runtime.retrieve_general(
+                    count=4, asked_norms=asked_norms, seed=state.session_id, company=company_id,
+                )
                 graph_used = True
+                if settings.tg_retrieval_enabled:
+                    from app.services.tg_graph import TraceGraphStore
+
+                    tg_store = TraceGraphStore()
+                    for project_meta in graph_result.get("projects") or []:
+                        scene_ids = list(project_meta.get("scene_ids") or [])
+                        concept_ids = list(project_meta.get("concept_ids") or [])
+                        if not scene_ids and not concept_ids:
+                            continue
+                        material = tg_store.retrieve(
+                            scene_anchor_ids=scene_ids,
+                            concept_anchor_ids=concept_ids,
+                            company_scope=company_id,
+                            max_depth=settings.tg_max_depth,
+                            max_nodes=settings.tg_max_nodes,
+                            session_id=state.session_id,
+                        )
+                        if material.get("nodes"):
+                            state.tg_material.append({
+                                "project_id": project_meta.get("project_id"),
+                                "project": project_meta.get("project_name") or project_meta.get("project_id"),
+                                "scene_anchor_ids": scene_ids,
+                                "concept_anchor_ids": concept_ids,
+                                "nodes": material["nodes"],
+                                "paths": material["paths"],
+                                "chains": material.get("chains") or [],
+                            })
                 if timings is not None:
                     timings["graph_retrieval_s"] = _t() - t_graph
                     timings["graph_retrieval_projects_n"] = float(len(graph_result.get("projects") or []))
                     timings["graph_retrieval_hits_n"] = float(len(scene_hits))
             except Exception as exc:  # noqa: BLE001
+                graph_used = False
                 scene_hits = []
                 self._graph_retrieval_meta = {"error": type(exc).__name__}
                 self._graph_runtime = None
                 self._graph_domain_concept_ids = []
                 self._graph_project_question_ids = set()
+                self._graph_general_hits = []
+                state.tg_material = []
                 log_guard(
                     state.session_id,
                     "graph_retrieval_degraded",
@@ -374,6 +462,11 @@ class RetrievalMixin:
             role_limit=role_limit,
             scene_limit=scene_limit,
         )
+        # 文本素材继续供规划官使用；结构化原题同时保存，供执行阶段追问官
+        # 和后续 TG 命中反馈使用。
+        state.retrieved_questions = self._compact_retrieved_questions(
+            role_hits, scene_hits
+        )
         state.retrieval_diagnostics = dict(self._graph_retrieval_meta)
         state.retrieval_diagnostics["backend"] = "mgkg" if graph_used else "legacy"
         if graph_used:
@@ -395,6 +488,34 @@ class RetrievalMixin:
             session_id=state.session_id,
             **({"project_material": scene_hits, "role_material": role_hits} if graph_used else {}),
         )
+        # 生成链通过轻量字段校验后直接写入 TG；节点按 intent/problem/when
+        # 复用。此时只建立“锚点挂载”，真实顺序边在面试触发时写入。
+        if tg_store is not None and state.project_chains:
+            project_meta_by_name = {
+                str(item.get("project_name") or item.get("project_id")): item
+                for item in (self._graph_retrieval_meta.get("projects") or [])
+            }
+            for chain in state.project_chains:
+                meta = project_meta_by_name.get(str(chain.get("project") or ""), {})
+                stored = tg_store.ingest_chain(
+                    chain,
+                    scene_anchor_ids=meta.get("scene_ids") or [],
+                    concept_anchor_ids=meta.get("concept_ids") or [],
+                    company_scope=company_id,
+                    session_id=state.session_id,
+                )
+                by_key = {
+                    (item.get("intent"), item.get("problem"), item.get("when")): item.get("probe_id")
+                    for item in stored.get("nodes") or []
+                }
+                for node in chain.get("chains") or []:
+                    key = (
+                        node.get("intent"),
+                        node.get("problem") or node.get("question"),
+                        node.get("when") or node.get("trigger"),
+                    )
+                    if key in by_key:
+                        node["tg_probe_id"] = by_key[key]
         if timings is not None:
             timings["project_chains_s"] = _t() - t_chains
             timings["project_chains_n"] = float(len(state.project_chains or []))

@@ -30,9 +30,13 @@ def uses_platform_key(db: Session, user_id: int) -> bool:
     setting = db.scalars(
         select(UserLlmSetting).where(UserLlmSetting.user_id == user_id)
     ).first()
-    if setting is None:
+    if setting is None or setting.is_default:
         return True
-    if setting.is_default or not (setting.api_key_encrypted or "").strip():
+    # 自定义 OpenAI 兼容接口可能是本地无鉴权服务；是否填写 Key
+    # 不能决定它是否使用平台额度。
+    if setting.provider == "custom":
+        return False
+    if not (setting.api_key_encrypted or "").strip():
         return True
     return False
 

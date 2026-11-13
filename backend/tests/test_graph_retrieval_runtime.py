@@ -77,6 +77,33 @@ class RuntimeTests(unittest.TestCase):
         })
         self.assertEqual(len(projects), 3)
 
+    def test_production_rejects_explicit_draft_override(self):
+        with patch.object(self.module.settings, "is_production", True, create=True):
+            with self.assertRaisesRegex(ValueError, "cannot enable draft"):
+                self.module.GraphRetrievalRuntime(None, snapshot="unused.zip", include_drafts=True)
+
+    def test_production_rejects_unverified_legacy_snapshot(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "nodes.jsonl").write_text("")
+            (root / "edges.jsonl").write_text("")
+            with patch.object(self.module.settings, "is_production", True, create=True):
+                with self.assertRaisesRegex(ValueError, "verified runtime release"):
+                    self.module.GraphRetrievalRuntime(None, snapshot=root)
+
+    def test_content_dedup_keeps_company_sources_and_target_match(self):
+        common = {"question": "如何保证订单接口的幂等性？", "answer": "幂等键",
+                  "channels": ["mg"], "direct_scene": False, "paths": [], "companies": []}
+        rows = [{**common, "canonical_question_id": "q1", "source_question_ids": ["q1"],
+                 "company": "alibaba", "company_match": False},
+                {**common, "canonical_question_id": "q2", "source_question_ids": ["q2"],
+                 "company": "meituan", "company_match": True}]
+        result = self.module.deduplicate(rows)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["companies"], ["alibaba", "meituan"])
+        self.assertTrue(result[0]["company_match"])
+        self.assertEqual(result[0]["source_question_ids"], ["q1", "q2"])
+
 
 class PipelineTests(unittest.TestCase):
     @classmethod
@@ -164,6 +191,26 @@ class PipelineTests(unittest.TestCase):
                 def chat_json(self, system, user): return {"ranking": ranking}
             with self.subTest(ranking=ranking), self.assertRaises(ValueError):
                 rerank(rows, Model(), project_text="示例")
+
+    def test_general_pool_is_explicit_and_kept_out_of_project_and_bagu_recall(self):
+        from app.services.graph_retrieval import GraphIndex, GraphRetriever
+        runtime = self.build_runtime()
+        nodes = list(runtime.graph.nodes.values()) + [
+            {"id": "hr1", "name": "请介绍一次团队冲突以及你如何处理。", "node_type": "Question",
+             "properties": {"general_pool_kind": "behavioral"}},
+            {"id": "hr2", "name": "你的职业规划是什么？", "node_type": "Question",
+             "properties": {"general_pool_kind": "behavioral"}},
+            {"id": "unapproved", "name": "未知技术问题是什么？", "node_type": "Question"},
+        ]
+        edges = [{"src_id": a, "relation": r, "dst_id": b, "state": state}
+                 for (a, r, b), state in runtime.graph.edge_states.items()]
+        runtime.graph = GraphIndex(nodes, edges)
+        runtime.retriever = GraphRetriever(runtime.graph)
+        general = runtime.retrieve_general(count=10, asked_norms=["你的职业规划是什么？"], seed=42)
+        self.assertEqual([h["graph_question_id"] for h in general], ["hr1"])
+        self.assertEqual(runtime.retrieve_general(count=0), [])
+        bag = runtime.retrieve_bagu(domain_concept_ids=["concept:tools"], count=50, seed=42)
+        self.assertFalse({h["graph_question_id"] for h in bag} & {"hr1", "hr2", "unapproved"})
 
 
 if __name__ == "__main__":

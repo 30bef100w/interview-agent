@@ -84,7 +84,8 @@ def _engine_for(
         cfg = resolve_llm_config("deepseek", "deepseek-chat", "", use_default=True)
     else:
         cfg = resolve_llm_config(
-            setting.provider, setting.model, setting.api_key_encrypted, bool(setting.is_default)
+            setting.provider, setting.model, setting.api_key_encrypted, bool(setting.is_default),
+            getattr(setting, "custom_base_url", ""), getattr(setting, "custom_model", ""),
         )
     sink = UsageSink(user.id, session_id, db, used_platform_key=platform)
     llm = OpenAiLlm(

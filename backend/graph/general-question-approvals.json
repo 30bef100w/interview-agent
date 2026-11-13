@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "review_scope": "question_text_only",
+  "description": "逐题阅读后确认的通用行为题；仅供HR规划参考，不代表答案已复核。不把其他无边题自动归为HR或八股。",
+  "questions": [
+    {"sample_id": "F001317", "question": "你为什么想加入我们公司？", "kind": "behavioral"},
+    {"sample_id": "F001319", "question": "你最大的优点是什么？", "kind": "behavioral"},
+    {"sample_id": "F001320", "question": "你最大的缺点是什么？", "kind": "behavioral"},
+    {"sample_id": "F001321", "question": "你未来3-5年的职业规划是什么？", "kind": "behavioral"},
+    {"sample_id": "F002259", "question": "如果与同事发生冲突，你会怎么处理？", "kind": "behavioral"},
+    {"sample_id": "F002999", "question": "介绍你一次最失败的一次经历？", "kind": "behavioral"},
+    {"sample_id": "F004048", "question": "当你入职后发现压力过大怎么办", "kind": "behavioral"},
+    {"sample_id": "F009777", "question": "你有没有在压力下妥协做过一个不认同的决策？结果如何？", "kind": "behavioral"}
+  ]
+}

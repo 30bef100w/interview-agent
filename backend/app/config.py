@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     graph_retrieval_enabled: bool = True
     graph_rerank_enabled: bool = True
     graph_rerank_shortlist: int = 30
-    graph_snapshot_path: str = "docs/graph-demo/mgkg-9000-v3.zip"
+    graph_snapshot_path: str = "graph/mgkg-45033-active-v1.zip"
     graph_include_drafts: bool = False
     graph_max_projects: int = 3
     graph_max_scene_seeds: int = 2
@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     graph_kg_final_quota: int = 60
     graph_mg_final_quota: int = 40
     graph_max_depth: int = 2
+
+    # TG：拷打节点按知识点/场景挂载；只有真实触发顺序写入有向边。
+    tg_graph_path: str = "data/tg_graph.json"
+    tg_retrieval_enabled: bool = True
+    tg_max_depth: int = 2
+    tg_max_nodes: int = 12
 
     # 错标审核队列（可选 RocketMQ）
     rocketmq_namesrv: str = ""

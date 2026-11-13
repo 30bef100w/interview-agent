@@ -1,15 +1,14 @@
 "use client";
 
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 import { IconSend } from "@/components/ui";
-import { getToken } from "@/lib/api";
+import { useRecordedTranscription } from "@/hooks/useRecordedTranscription";
+import { useSpeechToText, type SpeechError } from "@/hooks/useSpeechToText";
 import { canUseMicrophone, micBlockedMessage } from "@/lib/mic";
-import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { appendSpeechDraft } from "@/lib/speech-draft";
 
-export type AnswerComposerHandle = {
-  focus: () => void;
-};
+export type AnswerComposerHandle = { focus: () => void };
 
 type Props = {
   value: string;
@@ -20,217 +19,157 @@ type Props = {
   voiceEnabled?: boolean;
 };
 
-const SPEECH_HINT: Record<string, string> = {
-  "not-allowed": "请允许麦克风权限",
-  "no-speech": "未检测到语音，请再试",
-  network: "语音识别网络异常",
-  generic: "语音识别失败",
+const SPEECH_HINT: Record<SpeechError, string> = {
+  "not-allowed": "麦克风权限被拒绝，请在地址栏允许后重试",
+  "no-speech": "未检测到语音，已停止，请重试",
+  "audio-capture": "无法读取麦克风，请检查设备是否被占用",
+  network: "实时识别服务连接失败，可改用“录音转文字”重新录制",
+  "service-not-allowed": "浏览器禁止实时识别，可改用“录音转文字”",
+  unsupported: "浏览器不支持实时识别，请使用“录音转文字”",
+  aborted: "实时识别已中断，请重试",
+  generic: "实时识别失败，可改用“录音转文字”重新录制",
 };
 
 const AnswerComposer = forwardRef<AnswerComposerHandle, Props>(function AnswerComposer(
-  { value, onChange, onSend, disabled = false, sending = false, voiceEnabled = false },
-  ref
+  { value, onChange, onSend, disabled = false, sending = false, voiceEnabled = false }, ref
 ) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const speechActive = useRef(false);
-  const mediaRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const [whisperBusy, setWhisperBusy] = useState(false);
-  const [whisperHint, setWhisperHint] = useState("");
+  const speechBase = useRef("");
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const [microphone, setMicrophone] = useState({ available: false, hint: "正在检查麦克风…" });
+  const micAvailable = microphone.available;
+  useEffect(() => {
+    setMicrophone({ available: canUseMicrophone(), hint: micBlockedMessage() });
+  }, []);
 
-  useImperativeHandle(ref, () => ({
-    focus: () => {
-      textareaRef.current?.focus();
-    },
-  }));
+  useImperativeHandle(ref, () => ({ focus: () => textareaRef.current?.focus() }));
 
-  const { listening, error, start, stop, clearError } = useSpeechToText({
-    onInterim: (live) => {
-      if (speechActive.current) onChange(live);
+  function updateDraft(text: string) {
+    valueRef.current = text;
+    onChange(text);
+  }
+
+  const { supported, listening, stopping, error, start, stop, cancel, clearError } = useSpeechToText({
+    onInterim: text => {
+      if (speechActive.current) updateDraft(appendSpeechDraft(speechBase.current, text));
     },
-    onFinal: (final) => {
-      if (speechActive.current) onChange(final);
+    onFinal: text => {
+      if (speechActive.current) updateDraft(appendSpeechDraft(speechBase.current, text));
+      speechActive.current = false;
     },
   });
+  const recording = useRecordedTranscription(text => updateDraft(appendSpeechDraft(valueRef.current, text)));
+  const voiceBusy = listening || stopping || recording.phase !== "idle";
+  const canSend = !disabled && !sending && !voiceBusy && !!value.trim();
+
+  useEffect(() => {
+    if (disabled || sending || !voiceEnabled) {
+      speechActive.current = false;
+      cancel();
+      recording.cancel();
+    }
+  }, [disabled, sending, voiceEnabled, cancel, recording.cancel]);
+
+  function cancelVoice() {
+    speechActive.current = false;
+    cancel();
+    recording.cancel();
+    recording.clearHint();
+  }
 
   function toggleVoice() {
+    if (disabled || sending || stopping || recording.phase !== "idle") return;
     clearError();
-    setWhisperHint("");
-    if (!canUseMicrophone()) {
-      setWhisperHint(micBlockedMessage());
-      return;
-    }
-    if (listening) {
-      stop();
-      speechActive.current = false;
-      return;
-    }
+    recording.clearHint();
+    if (listening) { stop(); return; }
+    if (!micAvailable || !supported) return;
+    speechBase.current = valueRef.current;
     speechActive.current = true;
-    start();
-  }
-
-  async function startWhisperRecord() {
-    if (whisperBusy || disabled || sending) return;
-    setWhisperHint("");
-    clearError();
-    if (!canUseMicrophone()) {
-      setWhisperHint(micBlockedMessage());
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream, { mimeType: "audio/webm" });
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        if (!blob.size) {
-          setWhisperHint("录音为空");
-          return;
-        }
-        setWhisperBusy(true);
-        try {
-          const fd = new FormData();
-          fd.append("file", blob, "answer.webm");
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE || ""}/api/voice/transcribe?prompt=${encodeURIComponent("技术面试口语回答")}`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${getToken() || ""}`,
-              },
-              body: fd,
-            }
-          );
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error((err as { detail?: string }).detail || "识别失败");
-          }
-          const data = (await res.json()) as { text?: string };
-          const text = (data.text || "").trim();
-          if (!text) {
-            setWhisperHint("未识别到内容");
-            return;
-          }
-          const prefix = value.trim() ? `${value.trim()} ` : "";
-          onChange(prefix + text);
-          setWhisperHint("Whisper 识别完成");
-        } catch (e) {
-          setWhisperHint(e instanceof Error ? e.message : "Whisper 识别失败");
-        } finally {
-          setWhisperBusy(false);
-        }
-      };
-      mediaRef.current = rec;
-      rec.start();
-      setWhisperHint("录音中… 再点一次结束并识别");
-      setTimeout(() => {
-        if (rec.state === "recording") rec.stop();
-      }, 60000);
-    } catch (e) {
-      const name = e instanceof DOMException ? e.name : "";
-      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        setWhisperHint("麦克风权限被拒绝，请在浏览器地址栏允许后重试");
-      } else {
-        setWhisperHint(micBlockedMessage());
-      }
-    }
-  }
-
-  function stopWhisperRecord() {
-    const rec = mediaRef.current;
-    if (rec && rec.state === "recording") rec.stop();
+    if (!start()) speechActive.current = false;
   }
 
   return (
     <div
       className="relative z-20 w-full rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
-      onMouseDown={(e) => {
-        const el = e.target as HTMLElement;
+      onMouseDown={event => {
+        const el = event.target as HTMLElement;
         if (el.closest("button, textarea, a, input")) return;
-        e.preventDefault();
+        event.preventDefault();
         textareaRef.current?.focus();
       }}
     >
       <textarea
         ref={textareaRef}
         value={value}
-        onChange={(e) => {
-          speechActive.current = false;
-          onChange(e.target.value);
+        onChange={event => {
+          // Editing takes ownership of the draft; late speech/upload results must not overwrite it.
+          cancelVoice();
+          updateDraft(event.target.value);
         }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            onSend();
-          }
-          if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-            e.preventDefault();
-            onSend();
+        onKeyDown={event => {
+          if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+          if (event.key === "Enter" && (!event.shiftKey || event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            if (canSend) onSend();
           }
         }}
         rows={3}
         disabled={disabled || sending}
-        placeholder={voiceEnabled ? "输入回答，或点麦克风实时转写 / Whisper 录音识别…" : "输入回答，Enter 发送"}
+        aria-label="回答输入框"
+        placeholder={voiceEnabled ? "输入回答，或点击麦克风说话转文字，确认后发送" : "输入回答，Enter 发送"}
         className="relative z-10 w-full resize-none bg-white text-sm text-zinc-900 caret-zinc-900 outline-none placeholder:text-zinc-400 [transform:translateZ(0)] dark:bg-zinc-900 dark:text-zinc-50 dark:caret-zinc-50"
       />
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="mt-2 flex items-end justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {voiceEnabled ? (
             <>
-              {canUseMicrophone() ? (
-                <button
-                  type="button"
-                  onClick={toggleVoice}
-                  disabled={disabled || sending || whisperBusy}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors disabled:opacity-40 ${
-                    listening ? "animate-pulse bg-red-500" : "bg-sky-600 hover:bg-sky-500"
-                  }`}
-                  title={listening ? "停止实时转写" : "浏览器实时语音（Web Speech）"}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
-                  </svg>
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={toggleVoice}
+                disabled={disabled || sending || stopping || recording.phase !== "idle" || !micAvailable || !supported}
+                className={`flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors disabled:opacity-40 ${
+                  listening ? "animate-pulse bg-red-500" : "bg-sky-600 hover:bg-sky-500"
+                }`}
+                aria-label={listening ? "停止实时转文字" : "开始实时转文字"}
+                aria-pressed={listening}
+                title={!micAvailable ? microphone.hint : !supported ? SPEECH_HINT.unsupported : "实时转文字（可能使用浏览器厂商的在线识别服务）"}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z" />
+                </svg>
+              </button>
               <button
                 type="button"
                 onClick={() => {
-                  if (whisperHint === "录音中… 再点一次结束并识别") stopWhisperRecord();
-                  else startWhisperRecord();
+                  if (recording.phase === "recording") recording.stop();
+                  else { clearError(); void recording.start(); }
                 }}
-                disabled={disabled || sending || listening || !canUseMicrophone()}
-                className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-40 dark:border-zinc-600 dark:text-zinc-300"
-                title={
-                  canUseMicrophone()
-                    ? "服务端 Whisper 识别（对标 Gua 上传转写兜底）"
-                    : micBlockedMessage()
-                }
+                disabled={disabled || sending || listening || stopping || !micAvailable || recording.phase === "requesting" || recording.phase === "transcribing"}
+                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:border-sky-300 hover:text-sky-700 disabled:opacity-40 dark:border-zinc-600 dark:text-zinc-300"
+                title={micAvailable ? "备用方式：录音结束后上传服务器 Whisper 转文字，不是实时识别" : microphone.hint}
               >
-                {whisperBusy ? "识别中…" : "Whisper"}
+                {recording.phase === "recording" ? "停止并转文字" : recording.phase === "transcribing" ? "识别中…" : recording.phase === "requesting" ? "等待麦克风…" : "录音转文字"}
               </button>
-              {listening ? (
-                <span className="animate-pulse text-xs text-red-500">实时转写中…</span>
-              ) : canUseMicrophone() ? (
-                <span className="text-xs text-zinc-400">Web Speech / Whisper 双路径</span>
-              ) : (
-                <span className="text-xs text-amber-600">语音需 HTTPS，当前请用文字输入</span>
-              )}
-              {error ? (
-                <span className="text-xs text-red-500">{SPEECH_HINT[error] || error}</span>
+              {voiceBusy ? (
+                <button type="button" onClick={cancelVoice} className="text-xs text-zinc-500 hover:text-red-500">取消语音</button>
               ) : null}
-              {whisperHint ? <span className="text-xs text-sky-600">{whisperHint}</span> : null}
+              <span role="status" aria-live="polite" className="basis-full text-xs text-zinc-500">
+                {!micAvailable ? microphone.hint : stopping ? "正在收尾，请稍候…" : listening
+                  ? "正在听你说话并转文字… 再点麦克风停止；编辑文字会停止转写（最长 60 秒）"
+                  : recording.hint || (!supported ? SPEECH_HINT.unsupported : "说话转文字 → 确认或修改 → 手动发送")}
+              </span>
+              {error ? <span role="alert" className="basis-full text-xs text-red-500">{SPEECH_HINT[error]}</span> : null}
             </>
           ) : null}
         </div>
         <button
           type="button"
-          onClick={onSend}
-          disabled={disabled || sending || !value.trim()}
-          className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
+          onClick={() => { if (canSend) onSend(); }}
+          disabled={!canSend}
+          title={voiceBusy ? "请先停止语音，确认文字后再发送" : "发送回答"}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-40"
         >
           <IconSend className="h-4 w-4" />
           发送

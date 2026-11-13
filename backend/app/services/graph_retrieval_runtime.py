@@ -7,11 +7,10 @@ from __future__ import annotations
 
 from dataclasses import replace
 from functools import lru_cache
-import json
 from pathlib import Path
+import random
 import re
 import time
-import zipfile
 from typing import Any, Iterable, Mapping
 
 from app.config import settings
@@ -20,24 +19,14 @@ from app.services.graph_retrieval import (
 )
 from app.services.graph_seed_resolver import GraphSeedResolver
 from app.services.graph_reranker import rerank
+from app.services.graph_snapshot import read_snapshot
 
 
-def _read_jsonl(raw: bytes) -> list[dict]:
-    return [json.loads(line) for line in raw.decode("utf-8").splitlines() if line.strip()]
-
-
-def _load_snapshot(path: Path, include_drafts: bool) -> GraphIndex:
-    if path.is_dir():
-        return GraphIndex.from_directory(path, include_drafts=include_drafts)
-    with zipfile.ZipFile(path) as archive:
-        members = [name for name in archive.namelist()
-                   if name == "nodes.jsonl" or name.endswith("/nodes.jsonl")]
-        if len(members) != 1:
-            raise ValueError("graph snapshot must contain exactly one nodes.jsonl")
-        prefix = members[0][:-len("nodes.jsonl")]
-        return GraphIndex(_read_jsonl(archive.read(members[0])),
-                          _read_jsonl(archive.read(prefix + "edges.jsonl")),
-                          include_drafts=include_drafts)
+def _load_snapshot(path: Path, include_drafts: bool, require_release: bool = False) -> GraphIndex:
+    nodes, edges, manifest = read_snapshot(path, require_release=require_release)
+    graph = GraphIndex(nodes, edges, include_drafts=include_drafts)
+    graph.runtime_manifest = manifest
+    return graph
 
 
 def _snapshot_path() -> Path:
@@ -47,17 +36,21 @@ def _snapshot_path() -> Path:
     configured = Path(raw)
     if configured.is_absolute():
         return configured
-    # Source checkout (including cwd=backend), then the backend-only Docker image.
-    root = Path(__file__).resolve().parents[3]
-    source = root / configured
+    # Prefer files bundled with the backend (also valid in the Docker image),
+    # then repository-relative legacy/demo paths. Never depend on process cwd.
+    backend = Path(__file__).resolve().parents[2]
+    bundled = backend / configured
+    if bundled.exists():
+        return bundled
+    source = backend.parent / configured
     if source.exists():
         return source
-    return Path(__file__).resolve().parents[2] / configured
+    return bundled
 
 
 @lru_cache(maxsize=2)
-def _load_cached(path_text: str, include_drafts: bool) -> GraphIndex:
-    return _load_snapshot(Path(path_text), include_drafts)
+def _load_cached(path_text: str, include_drafts: bool, require_release: bool = False) -> GraphIndex:
+    return _load_snapshot(Path(path_text), include_drafts, require_release)
 
 
 def _norm(value) -> str:
@@ -82,6 +75,10 @@ def deduplicate(rows: list[dict]) -> list[dict]:
             old["channels"] = sorted(set(old["channels"]) | set(row["channels"]))
             old["direct_scene"] |= row["direct_scene"]
             old["source_question_ids"] = sorted(set(old["source_question_ids"]) | set(row["source_question_ids"]))
+            old["companies"] = sorted({str(value) for source in (old, row)
+                                       for value in [source.get("company"), *(source.get("companies") or [])]
+                                       if value})
+            old["company_match"] = bool(old.get("company_match") or row.get("company_match"))
             old["paths"] = (old["paths"] + row["paths"])[:12]
             identities[identity] = old
             seen[key] = old
@@ -103,6 +100,20 @@ def select_quota(rows: list[dict], config: GraphRetrievalConfig, has_scene: bool
             for row in rows if row["canonical_question_id"] in assignments]
 
 
+def prioritize_company(rows: list[dict], company: str | None) -> list[dict]:
+    """企业题优先于通用题；只改变候选顺序，不丢弃通用题。"""
+    if not company:
+        return list(rows)
+    return sorted(
+        rows,
+        key=lambda row: (
+            0 if row.get("company_match") else (1 if not row.get("company") else 2),
+            0 if row.get("direct_scene") else 1,
+            -float(row.get("score") or 0),
+        ),
+    )
+
+
 class GraphRetrievalRuntime:
     def __init__(self, llm, *, snapshot: str | Path | None = None,
                  include_drafts: bool | None = None):
@@ -112,7 +123,10 @@ class GraphRetrievalRuntime:
             path = Path(__file__).resolve().parents[3] / path
         self.snapshot = path
         self.include_drafts = settings.graph_include_drafts if include_drafts is None else bool(include_drafts)
-        self.graph = _load_cached(str(path), self.include_drafts)
+        production = bool(getattr(settings, "is_production", False))
+        if production and self.include_drafts:
+            raise ValueError("production graph cannot enable draft retrieval")
+        self.graph = _load_cached(str(path), self.include_drafts, production)
         self.retriever = GraphRetriever(self.graph)
         self.resolver = GraphSeedResolver(
             self.graph, max_scene_seeds=settings.graph_max_scene_seeds,
@@ -177,6 +191,7 @@ class GraphRetrievalRuntime:
             # Preserve the existing target-role boundary before shortlisting.
             rows = [row for row in rows if (not role_set or role_set & set(row.get("roles") or []))
                     and content_key(row) not in seen_content]
+            rows = prioritize_company(rows, company)
             retrieval_ms = (time.perf_counter() - started) * 1000
             has_scene = bool(resolution.query.scene_ids)
             limit = min(cfg.final_limit, per_project + (index < material_limit % max(1, len(projects))))
@@ -195,6 +210,9 @@ class GraphRetrievalRuntime:
             elif settings.graph_rerank_enabled:
                 rank_status = "not_needed"
             rerank_ms = (time.perf_counter() - started) * 1000
+            # LLM 重排只决定同一优先级内的顺序；企业匹配是硬优先级，避免
+            # 重排器因题面语义把目标企业原题挤到普通题之后。
+            shortlist = prioritize_company(shortlist, company)
             selected = select_quota(shortlist, replace(cfg, final_limit=limit), has_scene)
             project_hits = []
             for item in selected:
@@ -222,15 +240,34 @@ class GraphRetrievalRuntime:
                 if offset < len(group): ordered.append(group[offset])
         return {"hits": ordered, "projects": meta, "domain_concept_ids": list(dict.fromkeys(domains)),
                 "snapshot": self.snapshot.name, "include_drafts": self.include_drafts,
+                "release": getattr(self.graph, "runtime_manifest", None),
                 "selected": [{key: h[key] for key in ("graph_project_id", "graph_question_id",
                               "graph_source_question_ids", "graph_channels", "graph_paths", "graph_assigned_lane")}
                              for h in ordered],
                 "selected_question_ids": sorted(seen_ids)}
 
+    def retrieve_general(self, *, count: int = 4, asked_norms: Iterable[str] = (),
+                         seed: int | None = None, company: str | None = None) -> list[dict]:
+        """Approved behavioral references only; never mix these into technical recall."""
+        if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+            raise ValueError("count must be a non-negative integer")
+        asked = {_norm(s) for s in asked_norms}
+        rows = []
+        for qid in self.graph.general_question_ids:
+            if self.retriever._blocked(qid, set(), asked, set()):
+                continue
+            item = _Candidate(self.graph.identity(qid), qid)
+            item.source_question_ids.add(qid)
+            self.retriever._score(item, company, {}, time.time())
+            rows.append(self.retriever._result(item))
+        random.Random(seed).shuffle(rows)
+        rows = prioritize_company(deduplicate(rows), company)
+        return [{**self._to_hit(row), "general_pool_kind": "behavioral"} for row in rows[:count]]
+
     def retrieve_bagu(self, *, domain_concept_ids: Iterable[str], count: int,
                       asked_norms: Iterable[str] = (), asked_question_ids: Iterable[str] = (),
                       exclude_question_ids: Iterable[str] = (), seed: int | None = None,
-                      roles: Iterable[str] = ()) -> list[dict]:
+                      roles: Iterable[str] = (), company: str | None = None) -> list[dict]:
         # Find top technical ancestors once for the BAGU scope. This does not
         # change project BFS or introduce cross-scene traversal.
         domains = set(); seen = set(); pending = list(domain_concept_ids)
@@ -254,4 +291,9 @@ class GraphRetrievalRuntime:
         role_set = set(roles)
         rows = [row for row in result["questions"]
                 if not role_set or role_set & set(row.get("roles") or [])]
-        return [self._to_hit(item) for item in deduplicate(rows)[:count]]
+        rows = deduplicate(rows)
+        if company:
+            # 叶子题池仍然随机抽样，但企业原题先进入候选池；通用题用于补足。
+            rows.sort(key=lambda row: 0 if company in ({row.get("company")} | set(row.get("companies") or []))
+                      else (1 if not row.get("company") and not row.get("companies") else 2))
+        return [self._to_hit(item) for item in rows[:count]]

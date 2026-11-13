@@ -201,6 +201,8 @@ class FeishuInterviewRuntime:
                     setting.model,
                     setting.api_key_encrypted,
                     bool(setting.is_default),
+                    getattr(setting, "custom_base_url", ""),
+                    getattr(setting, "custom_model", ""),
                 )
         return OpenAiLlm(
             provider=cfg["provider"],

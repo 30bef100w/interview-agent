@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import random
 
 from app.prompts.interview import BAGU_SELECT_SYSTEM
 
@@ -33,22 +34,43 @@ class BaguMixin:
         pool_n = max(n * 10, 24)
         graph_runtime = getattr(self, "_graph_runtime", None)
         domain_ids = list(getattr(self, "_graph_domain_concept_ids", None) or [])
+        candidates = []
         if graph_runtime is not None and domain_ids:
             # 项目图链路已经解析过同一份简历知识点；八股从这些知识点的
             # MG 叶子题池随机取，避免再次用岗位/关键词平铺召回。
-            candidates = graph_runtime.retrieve_bagu(
-                domain_concept_ids=domain_ids,
-                count=pool_n,
-                asked_norms=asked,
-                exclude_question_ids=getattr(self, "_graph_project_question_ids", set()),
-                roles=roles,
-            )
-        else:
+            try:
+                candidates = graph_runtime.retrieve_bagu(
+                    domain_concept_ids=domain_ids,
+                    count=pool_n,
+                    asked_norms=asked,
+                    exclude_question_ids=getattr(self, "_graph_project_question_ids", set()),
+                    roles=roles,
+                    company=company_id,
+                )
+            except Exception as exc:  # noqa: BLE001
+                from app.services.session_guard_log import log_guard
+                log_guard(0, "graph_bagu_degraded", reason=type(exc).__name__)
+        candidates = [
+            h for h in candidates
+            if not kr._is_noisy(h) and str(h.get("question") or "").strip()
+            and not self._looks_like_meta_bagu(str(h.get("question") or ""))
+            and not _conflicts_bagu_knowledge(str(h.get("question") or ""), occupied_blobs)
+        ]
+        if not candidates:
+            # Active-only graphs can have no eligible structural leaf. Keep the
+            # original role/skill/category gate instead of silently dropping BAGU.
+            # Also exclude this session's project questions when falling back.
+            excluded_norms = set(asked)
+            if graph_runtime is not None:
+                for qid in getattr(self, "_graph_project_question_ids", set()):
+                    node = graph_runtime.graph.nodes.get(qid)
+                    if node:
+                        excluded_norms.add(kr._norm(node["name"]))
             candidates = kr.pick_bagu_questions(
                 roles=roles or None,
                 company=company_id,
                 skills=skills or None,
-                asked_norms=asked,
+                asked_norms=excluded_norms,
                 n=pool_n,
             )
         candidates = [
@@ -59,13 +81,16 @@ class BaguMixin:
             and not self._looks_like_meta_bagu(str(h.get("question") or ""))
             and not _conflicts_bagu_knowledge(str(h.get("question") or ""), occupied_blobs)
         ]
-        # 标题型条目靠后：完整问句优先进候选前排，减少 LLM/启发式照念标题
-        candidates.sort(
-            key=lambda h: (
-                0 if self._is_spoken_question(str(h.get("question") or "")) else 1,
-                0 if (h.get("answer") or "").strip() else 1,
-            )
-        )
+        # 先按企业优先级分桶，再在每个桶内随机；知识点范围已经由 MG
+        # 叶子题池决定，不再用二次语义排序把题目固定成同一顺序。
+        buckets = [[], [], []]
+        for hit in candidates:
+            priority = 0 if company_id and hit.get("company") == company_id else (1 if not hit.get("company") else 2)
+            buckets[priority].append(hit)
+        rng = random.Random(getattr(self, "_bagu_seed", None))
+        for bucket in buckets:
+            rng.shuffle(bucket)
+        candidates = [hit for bucket in buckets for hit in bucket]
         candidates = self._diversify_bagu_pool(candidates, occupied_blobs, max(n * 5, 10))
         if not candidates:
             return []

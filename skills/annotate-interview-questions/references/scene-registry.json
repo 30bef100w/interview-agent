@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "registry_version": "2026-11-05.scene.v06",
+  "registry_version": "2026-11-12.scene.v08",
   "purpose": "AI标注时查阅的场景定义库；不是生产图快照，也不自动生成图边。",
   "source_graph_snapshot": "data/index_review/2026-11-03",
   "identity_policy": "KG按业务场景或完整应用任务建入口；匹配题干/上下文/简历描述的业务对象与任务，不要求教程或产品名称相同。黑马点评归本地生活服务，苍穹外卖归外卖服务。来源项目名称保留作属性；同项目不按模块拆分，无业务依据不补场景。",
@@ -3102,6 +3102,1233 @@
         ],
         "scope_boundary": "主要任务为餐饮下单配送时归外卖；一般商品网购归电商。出现缓存、Redis或秒杀本身不构成本地生活场景。",
         "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:autonomous_driving",
+      "name": "自动驾驶",
+      "aliases": [
+        "自动驾驶感知",
+        "自动驾驶决策",
+        "车道线检测"
+      ],
+      "scope_type": "business_domain",
+      "definition": "围绕车辆自动驾驶或辅助驾驶构建的业务应用，既包含摄像头等传感器对车道线等道路要素的感知与跟踪，也包含融合感知结果后的路径与行为决策。按同一业务入口处理，感知与决策模块不再各自拆场景。",
+      "match_when": [
+        "题目明确讨论自动驾驶/辅助驾驶的感知、跟踪、规划或决策任务。"
+      ],
+      "exclude_when": [
+        "只问通用图像检测、深度学习模型或控制算法，没有自动驾驶业务对象。",
+        "只问车载芯片、传感器硬件本身，未落到自动驾驶任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017738",
+          "quote": "自动驾驶决策Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "感知系统与决策应用来自同一业务链，按同项目不拆模块合并。",
+        "行业名称本身不足以建立场景关系，必须有题干中的自动驾驶业务对象或任务。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向车辆自动驾驶的完整业务入口，覆盖从环境感知到行为决策的任务链。感知模块输出车道线、障碍物等环境结果，供下游融合、规划与控制使用；决策模块在安全与实时约束下生成驾驶行为。",
+        "participants": [
+          "整车或自动驾驶研发团队",
+          "感知算法工程师",
+          "规划决策工程师",
+          "下游融合与控制模块"
+        ],
+        "typical_workflow": [
+          "传感器采集道路图像或点云",
+          "检测并跟踪车道线、障碍物等要素",
+          "融合环境结果并形成场景理解",
+          "规划路径与行为并输出控制指令"
+        ],
+        "interview_focus": [
+          "感知结果的实时性与稳定性",
+          "感知到决策的接口与下游消费形式",
+          "安全约束与异常场景处理",
+          "端到端链路的延迟与一致性"
+        ],
+        "resume_clues": [
+          "自动驾驶",
+          "辅助驾驶",
+          "车道线检测",
+          "感知融合",
+          "规划决策"
+        ],
+        "scope_boundary": "只出现车道线、目标检测等通用视觉词而没有车辆业务对象时，不应仅凭技术词挂本场景；感知与决策属于同一业务入口，不按模块拆分。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:skill_platform",
+      "name": "Agent Skill 注册评估与演化平台",
+      "aliases": [
+        "Agent技能平台",
+        "Skill平台",
+        "技能注册与评测"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向 Agent 技能（Skill）的工程平台，负责任务技能的目录注册与校验、按需加载、自动评测、元 Agent 生成候选以及分级发布与回滚。",
+      "match_when": [
+        "题目明确讨论 Skill 的注册、加载、评测、演化或发布回滚机制。"
+      ],
+      "exclude_when": [
+        "只问单个 Agent 的工具调用或提示词设计，没有技能平台任务。",
+        "只问通用插件市场或应用商店，未涉及 Agent 技能生命周期。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F009724",
+          "quote": "SuperGODOG__skillforge"
+        },
+        {
+          "sample_id": "F009725",
+          "quote": "SuperGODOG__skillforge"
+        },
+        {
+          "sample_id": "F009726",
+          "quote": "SuperGODOG__skillforge"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "新场景按完整应用任务建立，不复用 coding_agent。",
+        "平台能力与单 Agent 能力边界需在标注时区分。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "把 Agent 能力沉淀为可管理技能资产的平台，核心是技能目录、加载策略、自动评测和版本演化，而不是单个 Agent 的对话效果。",
+        "participants": [
+          "Agent 平台开发者",
+          "技能作者",
+          "评测与运营人员",
+          "元 Agent/自动化流水线"
+        ],
+        "typical_workflow": [
+          "技能提交与目录注册",
+          "按任务或上下文加载技能",
+          "自动评测与候选生成",
+          "分级发布、灰度与回滚"
+        ],
+        "interview_focus": [
+          "技能描述与触发条件设计",
+          "加载时机与上下文预算",
+          "评测集与回归口径",
+          "版本演化与回滚一致性"
+        ],
+        "resume_clues": [
+          "Agent平台",
+          "技能市场",
+          "Skill注册",
+          "技能评测",
+          "技能演化"
+        ],
+        "scope_boundary": "单个 Agent 的工具调用、MCP 接入不等于技能平台；必须有技能资产的管理或生命周期任务。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:low_code_platform",
+      "name": "低代码平台",
+      "aliases": [
+        "低代码",
+        "可视化搭建",
+        "无代码平台"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向业务人员的可视化应用搭建产品，用户以表单、模型和流程配置生成数据表与代码，系统负责元数据建模、代码生成与运行。",
+      "match_when": [
+        "题目明确讨论低代码平台、可视化搭建、表单/模型驱动生成或代码生成器。"
+      ],
+      "exclude_when": [
+        "只问通用后台管理系统或 CRUD 业务，没有搭建平台能力。",
+        "只问代码生成算法本身，没有低代码产品对象。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F009683",
+          "quote": "低代码平台的代码生成器原理与扩展点？"
+        },
+        {
+          "sample_id": "F009684",
+          "quote": "在线表单动态建模的数据表设计？"
+        },
+        {
+          "sample_id": "F009718",
+          "quote": "jeecgboot__JeecgBoot"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "与 admin_system 的边界在于是否提供搭建/生成能力。",
+        "具名开源项目保留为来源属性，不单设项目场景。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "让业务人员通过配置而非手写代码构建应用的平台，涉及元数据建模、表单与流程设计、代码生成和运行时。",
+        "participants": [
+          "业务搭建人员",
+          "平台研发",
+          "实施与运维",
+          "租户管理员"
+        ],
+        "typical_workflow": [
+          "定义数据模型与表单",
+          "配置流程与权限",
+          "生成代码或运行态",
+          "发布、升级与租户隔离"
+        ],
+        "interview_focus": [
+          "元数据模型与动态表单",
+          "代码生成器的扩展点",
+          "多租户与权限边界",
+          "生成物与运行态的一致性"
+        ],
+        "resume_clues": [
+          "低代码平台",
+          "可视化搭建",
+          "表单引擎",
+          "代码生成器",
+          "JeecgBoot"
+        ],
+        "scope_boundary": "通用管理后台不是低代码平台；必须存在“配置生成应用”的平台任务。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:collaboration_office",
+      "name": "企业协作办公套件",
+      "aliases": [
+        "企业协作",
+        "办公套件",
+        "协同办公",
+        "飞书类产品"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向企业员工的协作办公产品，围绕即时消息、文档协作与日程等组织日常工作，并在其中提供 LLM 驱动的写作、润色、总结、检索与智能伙伴能力。",
+      "match_when": [
+        "题目明确讨论企业协作办公产品中的功能落地、用户体验或价值验证。"
+      ],
+      "exclude_when": [
+        "只问即时通讯协议或文档存储技术，没有协作办公产品任务。",
+        "只问单个 WPS 客户端功能，未涉及协作办公套件。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F018179",
+          "quote": "在企业协作与飞书的场景下，你认为LLM最有潜力颠覆或显著提升效率的具体场景有哪些？请举2-3个例子，并说明为什么。"
+        },
+        {
+          "sample_id": "F018180",
+          "quote": "飞书内有大语言模型驱动的AI智能伙伴，如果要为这个智能伙伴设计一套数据评估体系和评测集，你会考虑哪些核心维度和指标？为什么这些维度重要？"
+        },
+        {
+          "sample_id": "F018182",
+          "quote": "如果让你为飞书设计一个全新的、基于LLM的创新功能，你会从哪个用户痛点切入？这个功能的初步构想是什么？如何验证它的价值？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "场景是业务套件入口，不按消息/文档/日程模块拆分。",
+        "具名产品保留为来源属性。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "把消息、文档、日程和智能助手整合到企业日常工作流的产品，关注协作体验与 LLM 能力的实际落地。",
+        "participants": [
+          "企业员工",
+          "产品与运营",
+          "协作平台研发",
+          "智能助手团队"
+        ],
+        "typical_workflow": [
+          "在消息与文档中组织工作",
+          "调用 LLM 完成写作、总结或检索",
+          "评估功能效果与用户价值",
+          "迭代权限、合规与体验"
+        ],
+        "interview_focus": [
+          "协作场景中的 LLM 功能选型",
+          "评测体系与核心指标",
+          "用户痛点与价值验证",
+          "权限、合规与数据边界"
+        ],
+        "resume_clues": [
+          "企业协作",
+          "协同办公",
+          "办公套件",
+          "飞书",
+          "智能伙伴"
+        ],
+        "scope_boundary": "WPS 是具体办公客户端项目，与本业务套件场景不互相替代；只问单机文档功能时不挂本场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:aiops",
+      "name": "智能运维告警诊断",
+      "aliases": [
+        "AIOps",
+        "智能运维",
+        "告警诊断Agent"
+      ],
+      "scope_type": "business_domain",
+      "definition": "以线上告警为入口，自动关联 Kubernetes 资源状态、日志与监控指标，分析告警类型与严重程度、定位根因并给出修复建议的 AI 运维应用。",
+      "match_when": [
+        "题目明确讨论告警诊断、根因定位或运维处置建议。"
+      ],
+      "exclude_when": [
+        "只问 Kubernetes 原理、日志采集或监控指标本身，没有告警诊断任务。",
+        "只问安全威胁检测与响应，归安全运营而非 AIOps。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017733",
+          "quote": "智能运维（AIOps）Agent"
+        },
+        {
+          "sample_id": "F022391",
+          "quote": "智能运维 Agent"
+        },
+        {
+          "sample_id": "F022392",
+          "quote": "智能运维 Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "与 security_operations 的边界是运维故障 vs 安全威胁。",
+        "工具与技术栈不作为独立场景。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向生产环境告警的智能诊断应用，核心是多源证据汇聚后的故障定位与处置建议。",
+        "participants": [
+          "运维工程师",
+          "SRE",
+          "告警平台研发",
+          "值班与应急团队"
+        ],
+        "typical_workflow": [
+          "接收并归类告警",
+          "关联资源、日志与指标",
+          "分析根因并生成建议",
+          "推送处置并复盘"
+        ],
+        "interview_focus": [
+          "多源证据关联与置信度",
+          "告警降噪与严重程度判断",
+          "根因定位的可解释性",
+          "处置建议的安全边界"
+        ],
+        "resume_clues": [
+          "AIOps",
+          "智能运维",
+          "告警诊断",
+          "根因定位"
+        ],
+        "scope_boundary": "K8s、日志、监控是可能的技术手段，不是场景本身；必须有告警诊断业务任务。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:logistics_supply_chain",
+      "name": "物流与供应链服务",
+      "aliases": [
+        "物流服务",
+        "供应链服务",
+        "仓配运输"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向物流与供应链服务企业的业务场景：围绕仓配、运输与末端配送等物流服务模式，讨论市场定位、行业机会与挑战、事业部资源整合以及业务发展规划。",
+      "match_when": [
+        "题目明确讨论物流企业的业务模式、市场定位、行业机会或组织协同。"
+      ],
+      "exclude_when": [
+        "只问供应链优化算法、库存模型或补货策略，归供应链优化应用。",
+        "只问外卖配送履约，归外卖服务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F031648",
+          "quote": "京东物流的业务模式和市场定位"
+        },
+        {
+          "sample_id": "F031649",
+          "quote": "京东物流面临的主要市场机会和挑战"
+        },
+        {
+          "sample_id": "F031654",
+          "quote": "京东物流应该如何打通各个事业部"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "与 scene:business:supply_chain 保持独立。",
+        "具名物流企业保留为来源属性。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "物流企业的业务认知与经营场景，关注仓配、运输、末端配送的服务模式与组织协同，而非具体算法实现。",
+        "participants": [
+          "物流企业管理者",
+          "业务规划与运营",
+          "仓配与运输团队",
+          "事业部协同方"
+        ],
+        "typical_workflow": [
+          "分析物流服务模式与市场定位",
+          "识别行业机会与挑战",
+          "整合仓配运输资源",
+          "制定业务发展规划"
+        ],
+        "interview_focus": [
+          "业务模式与市场定位",
+          "行业机会与竞争挑战",
+          "事业部资源整合",
+          "服务网络与成本效率"
+        ],
+        "resume_clues": [
+          "物流",
+          "供应链服务",
+          "仓配",
+          "运输",
+          "末端配送"
+        ],
+        "scope_boundary": "供应链优化应用与物流企业业务认知是两个不同任务入口，不因名称都含供应链而合并。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:document_review",
+      "name": "企业业务文档审查",
+      "aliases": [
+        "文档审查",
+        "合同审查Agent",
+        "业务文档审查"
+      ],
+      "scope_type": "business_domain",
+      "definition": "为企业法务、合规或业务人员审查合同等业务文档的 Agent 产品，核心任务包括字段抽取、条款判断、风险分级、审查结论汇总与人工复核。",
+      "match_when": [
+        "题目明确讨论合同等业务文档的字段抽取、条款判断或审查流程。"
+      ],
+      "exclude_when": [
+        "只问通用文本分类或信息抽取，没有文档审查业务任务。",
+        "只问面向用户的法律咨询，归法律咨询场景。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017214",
+          "quote": "在合同字段抽取中，哪些字段应该用规则，哪些应该用 LLM？"
+        },
+        {
+          "sample_id": "F017218",
+          "quote": "业务文档审查 Agent 与 Coding Agent 在处理流程上有什么本质区别？"
+        },
+        {
+          "sample_id": "F017219",
+          "quote": "如何处理合同中「合理期限」「明显的安全标志」「必要时」等模糊逻辑条款？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按完整应用任务建立，不按字段或条款模块拆分。",
+        "法律从业者工具另设 legal_assistant。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向企业法务与合规的文档审查应用，规则与 LLM 按字段和条款分工，强调原文引用、风险分级和人工复核。",
+        "participants": [
+          "企业法务",
+          "合规人员",
+          "业务审查人员",
+          "人工复核岗"
+        ],
+        "typical_workflow": [
+          "导入合同或业务文档",
+          "抽取字段并判断条款",
+          "分级风险并汇总结论",
+          "人工复核与留痕"
+        ],
+        "interview_focus": [
+          "规则与 LLM 的分工边界",
+          "模糊条款的判断与引用",
+          "风险分级与审查顺序",
+          "人工复核与审计留痕"
+        ],
+        "resume_clues": [
+          "文档审查",
+          "合同审查",
+          "字段抽取",
+          "条款判断",
+          "合规"
+        ],
+        "scope_boundary": "与法律咨询、法律助手是不同任务入口；本场景聚焦企业文档审查而非对外咨询或案例检索。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:scientific_discovery",
+      "name": "科学发现应用",
+      "aliases": [
+        "AI for Science",
+        "科学发现Agent",
+        "科研发现"
+      ],
+      "scope_type": "business_domain",
+      "definition": "把模型能力用于科学问题求解的辅助应用，例如蛋白质结构预测或材料筛选，强调领域知识与实验验证。",
+      "match_when": [
+        "题目明确讨论 AI 用于科学问题求解、蛋白质/材料等科研发现任务。"
+      ],
+      "exclude_when": [
+        "只问通用机器学习训练或模型架构，没有科学发现问题。",
+        "只问文献调研与综述组织，归科研辅助场景。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017744",
+          "quote": "科学发现Agent"
+        },
+        {
+          "sample_id": "F024453",
+          "quote": "AI for Science在工业界有哪些落地应用？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "新场景按科学发现任务建立。",
+        "通用模型训练题不挂本场景。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向科学问题求解的 AI 应用，强调领域知识、实验验证与发现过程的辅助定位。",
+        "participants": [
+          "科研人员",
+          "领域专家",
+          "算法与工程团队",
+          "实验验证方"
+        ],
+        "typical_workflow": [
+          "定义科学问题与数据",
+          "选择模型与领域知识",
+          "生成候选并筛选",
+          "实验验证与迭代"
+        ],
+        "interview_focus": [
+          "领域知识与模型结合",
+          "候选生成与筛选口径",
+          "实验验证与可复现性",
+          "发现结果的可信度"
+        ],
+        "resume_clues": [
+          "AI for Science",
+          "科学发现",
+          "蛋白质结构",
+          "材料筛选"
+        ],
+        "scope_boundary": "与科研辅助、自动调研报告的边界是“求解科学问题” vs “支持研究流程”。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:medical_diagnosis",
+      "name": "医疗诊断辅助",
+      "aliases": [
+        "医疗诊断",
+        "辅助诊断",
+        "鉴别诊断"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向医生或患者提供疾病判断、鉴别诊断和检查建议的医疗辅助应用，需要证据溯源、风险提示与明确的辅助定位。",
+      "match_when": [
+        "题目明确讨论疾病判断、鉴别诊断或检查建议。"
+      ],
+      "exclude_when": [
+        "只问医疗健康知识问答，归医疗问答助手。",
+        "只问通用 RAG 或知识库检索，没有诊断任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017726",
+          "quote": "医疗诊断Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "不将通用问答能力直接视为诊断场景。",
+        "证据与风险提示是本场景必要边界。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向医疗诊断环节的辅助应用，输出疾病判断、鉴别诊断与检查建议，并强调证据与风险边界。",
+        "participants": [
+          "临床医生",
+          "患者",
+          "医学知识工程团队",
+          "合规与风控"
+        ],
+        "typical_workflow": [
+          "采集症状、病史与检查信息",
+          "生成鉴别诊断候选",
+          "给出检查或处置建议",
+          "提示证据来源与风险"
+        ],
+        "interview_focus": [
+          "诊断建议的证据溯源",
+          "风险提示与辅助定位",
+          "鉴别诊断的覆盖与排序",
+          "合规与责任边界"
+        ],
+        "resume_clues": [
+          "医疗诊断",
+          "辅助诊断",
+          "鉴别诊断",
+          "检查建议"
+        ],
+        "scope_boundary": "与医疗健康问答助手不同：本场景输出诊断建议，后者提供健康知识问答。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:legal_assistant",
+      "name": "法律助手",
+      "aliases": [
+        "法律助手",
+        "法律从业者工具",
+        "案例检索"
+      ],
+      "scope_type": "business_domain",
+      "definition": "为法律从业者或当事人提供合同条款审查、法条与案例检索、风险提示等辅助的法律应用，答案需可溯源到法规或判例。",
+      "match_when": [
+        "题目明确讨论法律从业者的合同审查、法条检索或案例检索任务。"
+      ],
+      "exclude_when": [
+        "只问面向普通用户的法律咨询与免责声明，归法律咨询场景。",
+        "只问企业业务文档审查流程，归文档审查场景。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017727",
+          "quote": "法律助手Agent：合同审查和案例检索"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按从业者工具任务建立，不与面向用户的咨询合并。",
+        "引用来源是场景必要边界。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向法律从业者的辅助工具，核心是合同条款审查、法条与案例检索以及可溯源的风险提示。",
+        "participants": [
+          "律师",
+          "法务",
+          "法律研究者",
+          "当事人"
+        ],
+        "typical_workflow": [
+          "输入合同或法律问题",
+          "检索法条与案例",
+          "给出审查或风险提示",
+          "标注法规/判例来源"
+        ],
+        "interview_focus": [
+          "法条与案例检索质量",
+          "合同条款审查边界",
+          "答案可溯源与引用",
+          "风险提示的准确性"
+        ],
+        "resume_clues": [
+          "法律助手",
+          "法条检索",
+          "案例检索",
+          "合同审查"
+        ],
+        "scope_boundary": "与法律咨询、企业文档审查保持独立：本场景面向从业者的检索与审查辅助。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:education_tutor",
+      "name": "教育个性化辅导",
+      "aliases": [
+        "个性化辅导",
+        "教育Agent",
+        "学习辅导"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向学习者按知识水平、历史表现和学习目标提供讲解、练习与反馈的教育辅导产品，核心是因人调整教学内容。",
+      "match_when": [
+        "题目明确讨论个性化讲解、练习生成或学习反馈。"
+      ],
+      "exclude_when": [
+        "只问通用问答或内容生成，没有学习者与教学目标。",
+        "只问考试题库管理，没有辅导交互任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017728",
+          "quote": "教育领域的个性化辅导Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按完整辅导任务建立，不按学科或题型拆分。",
+        "学习者与教学目标缺一不可。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "按学习者水平与目标调整内容的教育辅导应用，关注讲解、练习与反馈的个性化。",
+        "participants": [
+          "学习者",
+          "教师/教研",
+          "产品与算法团队",
+          "家长或机构"
+        ],
+        "typical_workflow": [
+          "评估知识水平与目标",
+          "生成讲解与练习",
+          "收集作答与反馈",
+          "调整后续教学内容"
+        ],
+        "interview_focus": [
+          "学习者建模与内容适配",
+          "练习生成与难度控制",
+          "反馈质量与学习效果",
+          "教育内容的安全边界"
+        ],
+        "resume_clues": [
+          "个性化辅导",
+          "教育Agent",
+          "学习反馈",
+          "练习生成"
+        ],
+        "scope_boundary": "通用内容生成不等同教育辅导；必须存在面向学习者的教学任务。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:research_assistant",
+      "name": "科研辅助",
+      "aliases": [
+        "科研助手",
+        "文献调研",
+        "研究支持"
+      ],
+      "scope_type": "business_domain",
+      "definition": "辅助研究者完成文献调研、综述组织、假设与实验方案设计的研究支持产品，强调证据来源与可复核的研究步骤。",
+      "match_when": [
+        "题目明确讨论文献调研、综述组织或研究方案设计。"
+      ],
+      "exclude_when": [
+        "只问科学问题求解或实验发现，归科学发现应用。",
+        "只问通用报告生成，没有研究支持任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017735",
+          "quote": "科研助手Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按研究支持任务建立。",
+        "证据来源与研究步骤是必要边界。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向研究流程的辅助应用，帮助研究者调研文献、组织综述并设计可复核的研究步骤。",
+        "participants": [
+          "研究者",
+          "研究生",
+          "实验室团队",
+          "科研支持人员"
+        ],
+        "typical_workflow": [
+          "明确研究问题",
+          "检索与整理文献",
+          "组织综述与假设",
+          "设计实验方案并复核"
+        ],
+        "interview_focus": [
+          "文献检索与证据质量",
+          "综述组织与引用",
+          "假设与实验方案的可复核性",
+          "研究步骤的可追溯"
+        ],
+        "resume_clues": [
+          "科研助手",
+          "文献调研",
+          "综述",
+          "研究方案"
+        ],
+        "scope_boundary": "与科学发现、自动调研报告的边界是“支持研究流程” vs “求解科学问题/生成报告”。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:smart_manufacturing",
+      "name": "智能制造",
+      "aliases": [
+        "智能制造",
+        "工厂Agent",
+        "生产排程"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向工厂生产环节的 Agent 应用，围绕生产排程、设备与质量数据完成调度决策和质量检测等制造任务。",
+      "match_when": [
+        "题目明确讨论工厂生产排程、设备调度或质量检测。"
+      ],
+      "exclude_when": [
+        "只问物联网设备接入或嵌入式采集，归物联网业务。",
+        "只问通用优化算法，没有制造业务任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017737",
+          "quote": "智能制造Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按制造业务任务建立，不按设备或算法模块拆分。",
+        "与 IoT 场景的边界是业务任务 vs 设备连接。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向工厂生产环节的智能应用，核心是排程、设备与质量数据驱动的制造决策。",
+        "participants": [
+          "工厂管理者",
+          "生产计划员",
+          "设备与质量工程师",
+          "系统集成方"
+        ],
+        "typical_workflow": [
+          "采集订单、设备与质量数据",
+          "生成生产排程",
+          "执行调度与质量检测",
+          "反馈并调整计划"
+        ],
+        "interview_focus": [
+          "排程约束与优化目标",
+          "设备数据与质量检测",
+          "异常处理与计划调整",
+          "系统集成与实时性"
+        ],
+        "resume_clues": [
+          "智能制造",
+          "生产排程",
+          "设备调度",
+          "质量检测"
+        ],
+        "scope_boundary": "物联网设备接入不等于智能制造；必须有生产制造任务。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:security_operations",
+      "name": "安全运营",
+      "aliases": [
+        "安全运营",
+        "威胁检测",
+        "安全响应"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向企业安全运营的 Agent 应用，围绕威胁检测、告警分析与响应处置，需具备权限约束和可审计的操作记录。",
+      "match_when": [
+        "题目明确讨论威胁检测、安全告警分析或响应处置。"
+      ],
+      "exclude_when": [
+        "只问运维告警诊断与故障根因，归 AIOps。",
+        "只问通用加密算法或网络协议安全，没有安全运营任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017740",
+          "quote": "网络安全Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按安全运营任务建立。",
+        "权限与审计是本场景必要边界。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向企业安全运营的智能应用，核心是威胁检测、告警分析与响应处置，并强调权限与审计。",
+        "participants": [
+          "安全运营团队",
+          "SOC 分析师",
+          "应急响应人员",
+          "合规与审计"
+        ],
+        "typical_workflow": [
+          "采集安全告警与日志",
+          "检测威胁并分析告警",
+          "生成响应处置建议",
+          "执行并保留审计记录"
+        ],
+        "interview_focus": [
+          "威胁检测与误报控制",
+          "告警分析与优先级",
+          "响应动作的权限约束",
+          "操作审计与可追溯"
+        ],
+        "resume_clues": [
+          "安全运营",
+          "威胁检测",
+          "安全告警",
+          "响应处置"
+        ],
+        "scope_boundary": "与 AIOps 的边界是安全威胁 vs 运维故障；通用加密与协议题不挂本场景。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:supply_chain",
+      "name": "供应链优化",
+      "aliases": [
+        "供应链优化",
+        "需求预测",
+        "补货与库存"
+      ],
+      "scope_type": "business_domain",
+      "definition": "围绕需求预测、补货与库存管理等计划任务构建的供应链决策应用，需在服务水平与成本之间权衡。",
+      "match_when": [
+        "题目明确讨论需求预测、补货策略或库存优化。"
+      ],
+      "exclude_when": [
+        "只问物流企业业务模式与市场定位，归物流与供应链服务。",
+        "只问通用预测模型或算法，没有供应链决策任务。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017741",
+          "quote": "供应链优化Agent"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按供应链计划任务建立。",
+        "通用预测算法题不挂本场景。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向供应链计划环节的决策应用，核心是需求预测、补货与库存管理中的服务水平与成本权衡。",
+        "participants": [
+          "供应链计划员",
+          "库存管理",
+          "业务运营",
+          "算法与系统团队"
+        ],
+        "typical_workflow": [
+          "汇总历史需求与业务约束",
+          "预测需求并制定补货计划",
+          "管理库存与服务水平",
+          "评估成本并迭代策略"
+        ],
+        "interview_focus": [
+          "需求预测与不确定性",
+          "补货与库存策略",
+          "服务水平与成本权衡",
+          "计划与执行的闭环"
+        ],
+        "resume_clues": [
+          "供应链优化",
+          "需求预测",
+          "补货",
+          "库存管理"
+        ],
+        "scope_boundary": "与物流与供应链服务的边界是“计划决策应用” vs “物流企业业务认知”。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:news_production",
+      "name": "新闻采编内容生产",
+      "aliases": [
+        "新闻采编",
+        "内容生产系统",
+        "多智能体采编"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向新闻机构或媒体编辑部的图文/视频新闻生产任务：围绕选题策划、素材采集、写稿、事实核查、审核与发布组织多角色协作，强调流程分工与内容质量把关。",
+      "match_when": [
+        "题目明确讨论新闻采编、选题策划、事实核查或发布流程。"
+      ],
+      "exclude_when": [
+        "只问音视频上传、转码或直播，归音视频与直播产品。",
+        "只问个人内容创作助手，归 AI 内容创作助手。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F019554",
+          "quote": "设计一个多智能体新闻采编系统"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按完整采编流程建立，不按选题、写稿、审核模块拆分。",
+        "内容质量把关是场景必要边界。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向新闻机构的完整内容生产流程，强调多角色分工、事实核查与发布前审核。",
+        "participants": [
+          "记者/编辑",
+          "编辑部与审核人",
+          "事实核查人员",
+          "发布与运营"
+        ],
+        "typical_workflow": [
+          "选题策划",
+          "素材采集与写稿",
+          "事实核查与审核",
+          "发布与效果反馈"
+        ],
+        "interview_focus": [
+          "多角色流程分工",
+          "事实核查与内容质量",
+          "审核与发布门槛",
+          "图文/视频生产一致性"
+        ],
+        "resume_clues": [
+          "新闻采编",
+          "编辑部",
+          "选题策划",
+          "事实核查"
+        ],
+        "scope_boundary": "与 media、content_creation_agent 的边界是“机构化新闻生产流程” vs “音视频产品/个人创作助手”。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "scene:business:legal_qa",
+      "name": "法律咨询",
+      "aliases": [
+        "法律咨询",
+        "法律问答",
+        "法律智能助手"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向用户法律咨询需求，结合法律法规与案例知识提供解答或建议的 AI 产品，需要控制咨询范围、标注免责声明并提供人工审核与升级通道。",
+      "match_when": [
+        "题目明确讨论面向用户的法律咨询、解答或建议。"
+      ],
+      "exclude_when": [
+        "只问法律从业者的合同审查与案例检索，归法律助手。",
+        "只问企业业务文档审查流程，归文档审查场景。"
+      ],
+      "tag_policy": "broad_only",
+      "redirect_to": null,
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F017964",
+          "quote": "设计 AI 法律咨询产品"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "new_scene_registered_no_edges",
+      "notes": [
+        "按咨询任务建立。",
+        "范围控制与人工升级是场景必要边界。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": null,
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "面向普通用户的法律咨询产品，核心是范围控制、免责声明与人工审核升级。",
+        "participants": [
+          "普通用户",
+          "法律内容运营",
+          "人工审核人员",
+          "合规团队"
+        ],
+        "typical_workflow": [
+          "用户描述法律问题",
+          "检索法规与案例并生成解答",
+          "标注免责声明与范围",
+          "必要时转人工审核"
+        ],
+        "interview_focus": [
+          "咨询范围与合规边界",
+          "免责声明与风险提示",
+          "人工审核与升级通道",
+          "答案可溯源"
+        ],
+        "resume_clues": [
+          "法律咨询",
+          "法律问答",
+          "法律智能助手",
+          "免责声明"
+        ],
+        "scope_boundary": "与法律助手、文档审查的边界是“面向用户咨询” vs “从业者工具/企业审查”。",
+        "profile_basis": "场景语义说明与典型业务示例；不是对任何源项目已实现能力的断言。"
+      }
+    },
+    {
+      "id": "new:scene:business:logistics",
+      "name": "物流与快递履约服务（临时提案）",
+      "aliases": [
+        "物流",
+        "快递",
+        "仓配",
+        "京东物流"
+      ],
+      "scope_type": "business_domain",
+      "definition": "面向寄件人、收件人与商家的仓配与快递履约业务，覆盖揽收、分拣、干线运输、末端配送、时效与异常件处理，以及物流营销与商家服务。",
+      "match_when": [
+        "题目明确以物流、快递、仓配或某物流企业的业务为对象。"
+      ],
+      "exclude_when": [
+        "泛问订单超时、地图路径或调度算法但没有物流业务语境。",
+        "仅出现配送一词且实际指餐饮外卖。"
+      ],
+      "tag_policy": "redirect",
+      "redirect_to": "scene:business:logistics_supply_chain",
+      "registration_basis": "2026-11-12 collaboration batch scene merge",
+      "evidence": [
+        {
+          "sample_id": "F026759",
+          "quote": "你觉得京东物流有什么需要改进的地方？"
+        }
+      ],
+      "graph_snapshot_present": false,
+      "edge_review_status": "redirected_no_edges",
+      "notes": [
+        "与正式场景“物流与供应链服务”同义，统一到正式 ID；保留为历史映射，不单独建节点。"
+      ],
+      "classification_group": "broad_business",
+      "legacy_name": "物流与快递履约服务",
+      "module_policy": "同一项目的模块、技术、版本不再拆成场景；保留为上下文或知识点。",
+      "detail_profile": {
+        "introduction": "物流与快递履约业务的历史临时入口，语义已并入物流与供应链服务。",
+        "participants": [
+          "寄件人/收件人",
+          "商家",
+          "仓配与快递履约方"
+        ],
+        "typical_workflow": [
+          "揽收",
+          "分拣与干线运输",
+          "末端配送",
+          "时效与异常件处理"
+        ],
+        "interview_focus": [
+          "业务模式与市场定位",
+          "仓配与末端网络",
+          "时效与异常处理"
+        ],
+        "resume_clues": [
+          "物流",
+          "快递",
+          "仓配",
+          "京东物流"
+        ],
+        "scope_boundary": "与餐饮外卖的即时配送区分；本条目仅作历史映射。",
+        "profile_basis": "临时提案定义，2026-11-12 合并入正式场景。"
       }
     }
   ],

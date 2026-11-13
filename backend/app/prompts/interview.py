@@ -89,6 +89,7 @@ BAGU_SELECT_SYSTEM = """你是技术面试官，负责从【候选八股题】�
 5. 若目标岗位是 Java 后端：优先 JVM/集合/并发/Spring/MySQL/Redis 等后端工程题
 6. spoken：必须是面试官会对候选人说的完整口语问句（通常以「？」结尾），例如「epoll 在多线程下怎么保证线程安全？请结合实现说明。」；禁止只输出知识点标题（如「epoll线程安全分析」「堆和栈在操作系统底层的实现」）；禁止保留「Q1:」等目录编号；必须润色成自然问句（可挂钩岗位/简历语境），考点须对应原题，禁止原句搬运
 7. 选出最多 N 道；合格题不够就少选，禁止用垃圾题/标题题凑数；禁止为凑企业徽标选其他岗位题
+   若候选题带企业标签，优先选择目标企业原题；无目标企业原题时再选无企业标签题，其他企业题最后考虑
 8. 【题库条目不重复】不要选同一条/几乎同一题干的候选（换句复述也算同一条）。LangChain 与 LangGraph 只要问法不同、不是同一条目，可以都选；追问官会把单题挖深
 9. 【不与已问撞车】若提供【本场已问/将问】，不要再选与之几乎同一题干的条目；换个角度问同类技术可以
 
@@ -118,13 +119,15 @@ PLANNER_SYSTEM = """你是资深技术面试官，为候选人规划整场面试
    - 目标岗位 AI Agent 开发 → 项目题问工具调用/RAG 如何重构该业务；不要主问 Redis
    - 目标岗位 Java 后端 → 才深入 Redis/JVM/并发等后端工程题
 9. 【防照搬】检索素材与拷打链仅供参考：规划项目题时必须结合简历改写组织语言，严禁原样照搬素材中的题面
-10. original_company：项目题一般为空字符串（八股库真题由系统标注）
-11. 输出 JSON，不要任何其他文字
+10. source_company：如果项目题明确参考了【目标企业原题】素材，填写素材中的企业标识；
+    如果只是通用题或无法确认来源，必须填空字符串。不得凭空猜企业。
+11. original_company：项目题一般为空字符串；系统会根据 source_company 和召回来源校验后写入。
+12. 输出 JSON，不要任何其他文字
 
 Respond ONLY with this JSON schema:
 {
   "questions": [
-    {"type": "project|hr", "topic": "主题", "key_points": "关键问点1,关键问点2,关键问点3", "rubric": "6分:… 8分:… 9分:…", "original_company": ""}
+    {"type": "project|hr", "topic": "主题", "key_points": "关键问点1,关键问点2,关键问点3", "rubric": "6分:… 8分:… 9分:…", "source_company": ""}
   ]
 }"""
 
@@ -140,13 +143,26 @@ FOLLOW_UP_SYSTEM = """你是面试追问官，负责判断候选人的最新回�
 7. 若关键问点已基本覆盖，或继续追问只会重复 → needs_follow_up 必须为 false
 8. 【与已问问题去重】不得复述、改写或近义重复【已问过的问题】列表中的任何一句
 9. 若需要追问：同时给出该追问的完整参考答法 follow_up_reference_answer（原理/步骤/要点/常见坑，约 200-400 字，禁止空壳提纲）；不追问时该字段为空字符串
-10. 输出 JSON，不要任何其他文字
+10. 你会同时看到【原始召回题目】和【项目拷打链】。二者都只是参考材料，不是固定剧本：
+    - 如果直接采用某道原始召回题，source 必须为 "retrieved"；
+    - 如果候选人的回答自然满足拷打链某节点的 trigger，并沿该节点追问，source 必须为 "chain"；
+    - 如果只是根据当前对话临时组织追问，source 为 "free"；
+    - 不追问时 source 为 "none"。
+11. 只有候选人回答实际满足某个拷打链 trigger，才把 chain_triggered 设为 true；
+    不能因为上下文里展示了拷打链就判定命中。若 source=chain，必须返回 chain_node_id；
+    若 source=retrieved，尽量返回 retrieved_question_id。无法确定时填空字符串。
+12. 输出 JSON，不要任何其他文字
 
 Respond ONLY with this JSON schema:
 {
   "needs_follow_up": true/false,
   "follow_up_question": "追问问题（needs_follow_up 为 false 时为空字符串）",
-  "follow_up_reference_answer": "该追问的完整参考答法（不追问时为空字符串）"
+  "follow_up_reference_answer": "该追问的完整参考答法（不追问时为空字符串）",
+  "source": "chain|retrieved|free|none",
+  "chain_triggered": true/false,
+  "chain_node_id": "命中的拷打链节点 ID（没有则为空字符串）",
+  "retrieved_question_id": "直接采用的原始召回题 ID（没有则为空字符串）",
+  "trigger_evidence": "候选人回答中触发链节点或选择该题的证据（没有则为空字符串）"
 }"""
 
 SCORE_SYSTEM = """你是严格考官，对候选人本道题的当场作答独立打分（1-10 分）。

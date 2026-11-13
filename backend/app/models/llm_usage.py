@@ -13,8 +13,10 @@ class UserLlmSetting(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
-    provider: Mapped[str] = mapped_column(String(32), default="deepseek")  # deepseek|zhipu|qwen|doubao|siliconflow
+    provider: Mapped[str] = mapped_column(String(32), default="deepseek")  # deepseek|zhipu|qwen|doubao|siliconflow|custom
     model: Mapped[str] = mapped_column(String(64), default="deepseek-chat")
+    custom_base_url: Mapped[str] = mapped_column(String(512), default="")
+    custom_model: Mapped[str] = mapped_column(String(128), default="")
     api_key_encrypted: Mapped[str] = mapped_column(String(512), default="")
     is_default: Mapped[int] = mapped_column(Integer, default=0)  # 1=使用系统默认 key（未配自己的）
     updated_at: Mapped[datetime] = mapped_column(

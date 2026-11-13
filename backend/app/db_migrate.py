@@ -91,3 +91,5 @@ def ensure_schema() -> None:
                     "ALTER TABLE llm_usages ADD COLUMN used_platform_key INTEGER DEFAULT 0"
                 )
             )
+        _add_column(conn, "user_llm_settings", "custom_base_url", "custom_base_url VARCHAR(512) DEFAULT ''")
+        _add_column(conn, "user_llm_settings", "custom_model", "custom_model VARCHAR(128) DEFAULT ''")

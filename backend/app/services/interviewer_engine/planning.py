@@ -356,6 +356,7 @@ class PlanningMixin:
                 "topic": str(q.get("topic", "")),
                 "text": str(q.get("key_points") or q.get("text") or ""),
                 "rubric": str(q.get("rubric", "")),
+                "source_company": str(q.get("source_company") or "").strip(),
                 "original_company": "",
             }
             if item["type"] == "hr":
@@ -377,6 +378,7 @@ class PlanningMixin:
                         "topic": "职业规划与协作",
                         "text": "职业目标,为什么选这个方向,团队协作与抗压",
                         "rubric": "",
+                        "source_company": "",
                         "original_company": "",
                     }
                 )
@@ -391,6 +393,7 @@ class PlanningMixin:
                     "topic": "项目经历",
                     "text": "你最满意的项目、难点与方案对比",
                     "rubric": "",
+                    "source_company": "",
                     "original_company": "",
                 }
             ]
@@ -623,6 +626,7 @@ class PlanningMixin:
                     "topic": topic or "项目深挖",
                     "text": text,
                     "rubric": str(q.get("rubric") or ""),
+                    "source_company": str(q.get("source_company") or "").strip(),
                     "original_company": "",
                 }
             )
@@ -720,11 +724,31 @@ class PlanningMixin:
             display = company_display_name(state.target_company) or state.target_company.strip()
 
         for q in state.plan:
+            # 只允许规划官声明的企业来源与本场真实召回企业命中一致；
+            # 未被召回素材证明的企业名不能进入最终复盘。
+            declared = str(q.get("source_company") or "").strip()
+            if declared:
+                known = {
+                    str(h.get("company") or "").strip()
+                    for h in hits
+                    if str(h.get("company") or "").strip()
+                }
+                known.add(str(getattr(self, "_plan_company_id", "") or "").strip())
+                known.add(str(display or "").strip())
+                if declared not in known:
+                    q["source_company"] = ""
+                else:
+                    q["source_company"] = display or company_display_name(declared) or declared
+            if q.get("type") != "project":
+                q["source_company"] = ""
             raw = str(q.get("original_company") or "").strip()
             if raw:
                 q["original_company"] = company_display_name(raw) or raw
                 continue
-            if not display or not hits:
+            if q.get("type") == "project" and q.get("source_company"):
+                q["original_company"] = str(q["source_company"])
+                continue
+            if q.get("type") != "project" or not display or not hits:
                 q["original_company"] = ""
                 continue
             blob = f"{q.get('topic') or ''} {q.get('text') or ''}"

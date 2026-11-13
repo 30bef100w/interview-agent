@@ -165,6 +165,23 @@ export default function ChatPage() {
   const refreshSession = useCallback(async () => {
     try {
       const d = await api<SessionInfo>(`/api/interview/session/${sessionId}`);
+      // WebSocket 的 done 事件偶尔可能在问题已经落库后丢失。此时服务端
+      // 快照是最终事实：同一 submission 已确认且没有 pending operation，
+      // 必须关闭前端 loading，否则会一直停留在“准备下一问”。
+      const pending = pendingSubmission.current;
+      if (pending && pending.id === d.last_submission_id && !d.processing) {
+        if (typeTimer.current) {
+          clearInterval(typeTimer.current);
+          typeTimer.current = null;
+        }
+        typeBuf.current = "";
+        pendingDone.current = null;
+        sawToken.current = false;
+        sendingRef.current = false;
+        streamingRef.current = false;
+        setSending(false);
+        setStreaming(false);
+      }
       acceptSnapshot(d);
     } catch {
       setDisconnected(true);
@@ -353,12 +370,14 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!info || info.status !== "active" || info.stage === "FINISHED") return;
-    if (wsConnected && !info.processing) return;
+    // 提交期间即使 WebSocket 仍在线也要保留快照轮询，作为 done 事件
+    // 丢失、代理中断或服务端重连时的最终状态兜底。
+    if (wsConnected && !info.processing && !sending && !streaming) return;
     const id = window.setInterval(() => {
       void refreshSession();
-    }, 20000);
+    }, sending || streaming ? 5000 : 20000);
     return () => window.clearInterval(id);
-  }, [info?.status, info?.stage, info?.processing, refreshSession, wsConnected]);
+  }, [info?.status, info?.stage, info?.processing, refreshSession, wsConnected, sending, streaming]);
 
   useEffect(() => {
     const active = document.activeElement;

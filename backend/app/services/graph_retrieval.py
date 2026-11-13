@@ -121,7 +121,8 @@ class GraphIndex:
             self.edge_states[(src, rel, dst)] = edge.get("state", "active")
             if rel == "HAS_SUBTOPIC":
                 self.structural_children[src].add(dst)
-            if (not include_drafts and edge.get("state") == "draft") or not self.eligible(src) or not self.eligible(dst):
+            allowed_states = {"active", "draft"} if include_drafts else {"active"}
+            if edge.get("state", "active") not in allowed_states or not self.eligible(src) or not self.eligible(dst):
                 continue
             self.outgoing[(src, rel)].append(dst)
             self.incoming[(dst, rel)].append(src)
@@ -164,6 +165,9 @@ class GraphIndex:
         for qid, identity in self.canonical.items():
             self.question_groups[identity].add(qid)
         self._bagu_cache: dict[tuple[str, ...], tuple[tuple[str, ...], dict[str, tuple[str, ...]]]] = {}
+        self.general_question_ids = tuple(nid for nid, n in self.nodes.items()
+                                          if n["node_type"] == "Question" and self.eligible(nid)
+                                          and n.get("properties", {}).get("general_pool_kind") == "behavioral")
 
     @classmethod
     def from_directory(cls, directory: str | Path, *, include_drafts: bool = False,
@@ -177,7 +181,12 @@ class GraphIndex:
 
     def eligible(self, node_id: str) -> bool:
         node = self.nodes.get(node_id)
-        return bool(node and (self.include_drafts or node.get("state", "active") != "draft"))
+        states = {"active", "draft"} if self.include_drafts else {"active"}
+        return bool(node and node.get("state", "active") in states)
+
+    def is_leaf(self, node_id: str) -> bool:
+        return not (self.structural_children.get(node_id) or
+                    self.nodes[node_id].get("properties", {}).get("structural_has_children"))
 
     def typed(self, node_id: str, kind: str) -> bool:
         return self.eligible(node_id) and self.nodes[node_id]["node_type"] == kind
@@ -199,7 +208,7 @@ class GraphIndex:
                 seen.add(node_id)
                 pending.extend(self.outgoing.get((node_id, "HAS_SUBTOPIC"), ()))
                 # A parent with draft children is not a real leaf.
-                if self.structural_children.get(node_id): continue
+                if not self.is_leaf(node_id): continue
                 leaves.append(node_id)
                 for qid in self.incoming.get((node_id, "TESTS"), ()):
                     props = self.nodes[qid].get("properties", {})

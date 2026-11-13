@@ -171,6 +171,8 @@ class ReportMixin:
                             if looks_like_rubric(str(t.get("reference_answer") or ""))
                             else str(t.get("reference_answer") or "")
                         ),
+                        # 追问来源反馈，供 TG 命中统计与链治理使用。
+                        "followup_feedback": dict(t.get("followup_feedback") or {}),
                         "original_company": original if ti == 0 else "",
                         "_answers_raw": [ans] if ans else [],
                     }

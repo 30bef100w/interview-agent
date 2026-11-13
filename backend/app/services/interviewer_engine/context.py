@@ -191,6 +191,13 @@ class ContextMixin:
                 "\n\n【真实面试题多路召回（参考素材，已分区）】\n"
                 + state.retrieved_material
             )
+        general_hits = getattr(self, "_graph_general_hits", [])
+        if general_hits:
+            user += (
+                "\n\n【通用行为题参考池——仅供HR题规划，不属于技术题召回】\n"
+                "仅在本场需要HR题时参考，并结合候选人实际经历改写；不得作为技术考点或项目实现事实。\n"
+                + "\n".join("- " + str(hit.get("question") or "")[:240] for hit in general_hits)
+            )
         if state.project_chains:
             from app.services.project_cross import chain_block_for
 
@@ -246,6 +253,16 @@ class ContextMixin:
                 "【候选人已答内容摘要——已覆盖考点勿再追问】\n- " + "\n- ".join(covered)
             )
         lines.append("【D. 本题对话】")
+        if state.retrieved_questions:
+            lines.append(
+                "【E. 原始召回题目——仅供追问参考，不是固定题单】\n"
+                + self._retrieved_questions_block(state)
+            )
+        if state.tg_material:
+            lines.append(
+                "【F. 已验证 TG 拷打网络——仅供参考，只能沿已有方向向前探索】\n"
+                + self._tg_material_block(state)
+            )
         # 拷打链：项目题注入（追问官可按 trigger 顺着深挖）
         if q["type"] == "project" and state.project_chains:
             from app.services.project_cross import chain_block_for
@@ -274,6 +291,50 @@ class ContextMixin:
             "若继续问只会重复（如反复问缓存穿透）→ needs_follow_up=false"
         )
         return "\n".join(lines)
+
+    def _retrieved_questions_block(self, state: InterviewState) -> str:
+        """执行阶段注入原始 MG/KG 召回题，保留 ID 和召回来源。"""
+        rows = []
+        for i, item in enumerate(state.retrieved_questions[:48], 1):
+            q = str(item.get("question") or "").strip()
+            if not q:
+                continue
+            qid = str(item.get("canonical_question_id") or item.get("question_id") or "")
+            lanes = "/".join(item.get("source_lanes") or []) or "unknown"
+            scene = "/".join(
+                [
+                    str(x)
+                    for x in (item.get("business_scene") or [])[:2]
+                    + (item.get("tech_scene") or [])[:2]
+                    if str(x).strip()
+                ]
+            )
+            meta = f"id={qid}; 来源={lanes}"
+            if scene:
+                meta += f"; 场景={scene}"
+            if item.get("graph_project_name"):
+                meta += f"; 项目={item['graph_project_name']}"
+            answer = str(item.get("answer") or "").strip()
+            rows.append(f"{i}. [{meta}] {q}" + (f"（要点：{answer[:120]}）" if answer else ""))
+        return "\n".join(rows) if rows else "（无原始召回题）"
+
+    def _tg_material_block(self, state: InterviewState) -> str:
+        rows = []
+        for material in state.tg_material:
+            project = str(material.get("project") or material.get("project_id") or "项目")
+            rows.append(f"【项目：{project}】")
+            for chain_index, chain in enumerate(material.get("chains") or [], 1):
+                rows.append("  拷打链%d：%s" % (chain_index, " → ".join(
+                    str(node.get("intent") or node.get("problem") or "") for node in chain
+                )))
+            for node in (material.get("nodes") or [])[:24]:
+                probe_id = str(node.get("id") or node.get("probe_id") or "")
+                rows.append(
+                    f"- TG节点ID={probe_id}; when={node.get('when')}; "
+                    f"problem={node.get('problem')}; intent={node.get('intent')}; "
+                    f"命中={node.get('hit_count', 0)}"
+                )
+        return "\n".join(rows) if rows else "（无已验证 TG 节点）"
 
     def _score_context(
         self, state: InterviewState, qid: str, answer_only: str | None = None

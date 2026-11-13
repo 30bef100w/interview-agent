@@ -35,6 +35,8 @@ type LlmSetting = {
   catalog_version?: number;
   catalog_updated?: string;
   providers: Provider[];
+  custom_base_url?: string;
+  custom_model?: string;
 };
 
 const INPUT_CLS =
@@ -71,6 +73,8 @@ function SettingsBody() {
   const [provider, setProvider] = useState("deepseek");
   const [model, setModel] = useState("deepseek-v4-flash");
   const [apiKey, setApiKey] = useState("");
+  const [customBaseUrl, setCustomBaseUrl] = useState("");
+  const [customModel, setCustomModel] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -101,6 +105,8 @@ function SettingsBody() {
         setData(d);
         setProvider(d.provider);
         setModel(d.model);
+        setCustomBaseUrl(d.custom_base_url ?? "");
+        setCustomModel(d.custom_model ?? (d.provider === "custom" ? d.model : ""));
       })
       .catch((e) => {
         if (e instanceof ApiError && e.status === 401) {
@@ -122,7 +128,13 @@ function SettingsBody() {
     try {
       const res = await api<LlmSetting>("/api/settings/llm", {
         method: "PUT",
-        body: JSON.stringify({ provider, model, api_key: apiKey }),
+        body: JSON.stringify({
+          provider,
+          model: provider === "custom" ? customModel : model,
+          api_key: apiKey,
+          custom_base_url: customBaseUrl,
+          custom_model: customModel,
+        }),
       });
       setData(res);
       setApiKey("");
@@ -166,7 +178,7 @@ function SettingsBody() {
           模型设置
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          选择服务商与模型，填入 API Key 即可使用；留空 Key 则走系统默认模型
+          选择服务商与模型，填入 API Key 即可使用；也支持自定义 OpenAI 兼容接口
           {data?.catalog_updated ? (
             <span className="ml-2 text-xs text-zinc-400">
               · 模型目录 {data.catalog_updated}
@@ -257,6 +269,7 @@ function SettingsBody() {
               onChange={(e) => {
                 const p = providers.find((x) => x.id === e.target.value);
                 setProvider(e.target.value);
+                if (e.target.value === "custom") setCustomModel("");
                 const preferred =
                   p?.models.find((m) => m.recommended) ?? p?.models[0];
                 if (preferred) setModel(preferred.id);
@@ -292,6 +305,38 @@ function SettingsBody() {
             ) : null}
           </div>
 
+          {provider === "custom" ? (
+            <>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Base URL
+                </label>
+                <input
+                  type="url"
+                  value={customBaseUrl}
+                  onChange={(e) => setCustomBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com/v1"
+                  className={INPUT_CLS}
+                  autoComplete="off"
+                />
+                <p className="mt-1.5 text-xs leading-5 text-zinc-500">
+                  填到版本路径（通常是 /v1），系统会自动请求 /chat/completions。
+                </p>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  模型名
+                </label>
+                <input
+                  value={customModel}
+                  onChange={(e) => setCustomModel(e.target.value)}
+                  placeholder="例如 deepseek-chat、qwen-plus 或本地模型名"
+                  className={INPUT_CLS}
+                  autoComplete="off"
+                />
+              </div>
+            </>
+          ) : (
           <div>
             <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               模型
@@ -309,12 +354,13 @@ function SettingsBody() {
               ))}
             </select>
           </div>
+          )}
 
           <div>
             <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               API Key
               <span className="ml-2 text-xs font-normal text-zinc-400 dark:text-zinc-500">
-                留空并保存 = 使用系统默认模型
+                {provider === "custom" ? "自定义本地接口可留空" : "留空并保存 = 使用系统默认模型"}
               </span>
             </label>
             <input
@@ -334,7 +380,7 @@ function SettingsBody() {
             {current?.key_hint ? (
               <p className="mt-1.5 text-xs leading-5 text-zinc-500">{current.key_hint}</p>
             ) : null}
-            {current && currentModel ? (
+            {provider !== "custom" && current && currentModel ? (
               <p className="mt-1 text-xs text-zinc-400">
                 当前选择：{current.name} · {currentModel.name}
               </p>

@@ -6,7 +6,10 @@ cd "$(dirname "$0")/.."
 echo "==> pull latest"
 git pull --ff-only origin main
 echo "==> rebuild & restart"
-docker compose up -d --build --wait --wait-timeout 180
+docker compose build
+echo "==> verify configured graph release before restarting services"
+docker compose run --rm --no-deps backend python scripts/check_graph_release.py
+docker compose up -d --wait --wait-timeout 180
 echo "==> health"
 curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 3 \
   --connect-timeout 3 --max-time 5 http://localhost/api/ready

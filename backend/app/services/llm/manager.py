@@ -4,6 +4,7 @@
 """
 import json
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException
@@ -12,6 +13,7 @@ from app.config import settings
 
 _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 _PROVIDERS_PATH = _DATA_DIR / "llm_providers.json"
+CUSTOM_PROVIDER_ID = "custom"
 
 
 def load_providers() -> dict:
@@ -61,7 +63,7 @@ def normalize_model_id(provider_id: str, model_id: str) -> str:
 
 def list_providers() -> list[dict]:
     """预置 provider 列表（不含 key）。"""
-    return [
+    providers = [
         {
             "id": p["id"],
             "name": p["name"],
@@ -74,19 +76,52 @@ def list_providers() -> list[dict]:
         }
         for p in load_providers()["providers"]
     ]
+    providers.append({
+        "id": CUSTOM_PROVIDER_ID,
+        "name": "自定义 OpenAI 兼容接口",
+        "base_url": "",
+        "doc_url": "",
+        "key_hint": "填写接口 Base URL（例如 https://api.example.com/v1）和模型名；系统会请求 /chat/completions",
+        "key_prefix": "",
+        "note": "仅支持 OpenAI Chat Completions 兼容协议",
+        "models": [],
+    })
+    return providers
 
 
 def find_provider(provider_id: str) -> dict | None:
+    if provider_id == CUSTOM_PROVIDER_ID:
+        return {"id": CUSTOM_PROVIDER_ID, "name": "自定义 OpenAI 兼容接口", "base_url": "", "models": []}
     return next(
         (p for p in load_providers()["providers"] if p["id"] == provider_id), None
     )
 
 
 def find_model(provider_id: str, model_id: str) -> dict | None:
+    if provider_id == CUSTOM_PROVIDER_ID:
+        return None
     p = find_provider(provider_id)
     if not p:
         return None
     return next((m for m in p["models"] if m["id"] == model_id), None)
+
+
+def normalize_custom_base_url(raw: str) -> str:
+    """规范化 OpenAI 兼容 Base URL，避免 SDK 拼出重复的 chat/completions。"""
+    value = str(raw or "").strip()
+    if not value:
+        raise HTTPException(status_code=400, detail="请填写自定义接口 Base URL")
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="Base URL 必须是 http:// 或 https:// 地址")
+    if parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="Base URL 不要包含账号或密码")
+    path = parsed.path.rstrip("/")
+    for suffix in ("/chat/completions", "/v1/chat/completions"):
+        if path.endswith(suffix):
+            path = path[: -len(suffix)]
+            break
+    return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, "")).rstrip("/")
 
 
 def _fernet() -> Fernet:
@@ -113,13 +148,26 @@ def decrypt_key(encrypted: str) -> str:
 
 
 def resolve_llm_config(
-    user_provider: str, user_model: str, user_key_encrypted: str, use_default: bool
+    user_provider: str, user_model: str, user_key_encrypted: str, use_default: bool,
+    custom_base_url: str = "", custom_model: str = "",
 ) -> dict:
     """解析用户的 LLM 配置 → (base_url, api_key, model, provider, input_price, output_price)。
 
     用户未配 key（use_default）→ 系统默认 DeepSeek key 兜底。
     """
-    p = find_provider(user_provider or "deepseek")
+    if user_provider == CUSTOM_PROVIDER_ID and not use_default:
+        model_id = str(custom_model or user_model or "").strip()
+        if not model_id:
+            raise HTTPException(status_code=409, detail="请填写自定义接口模型名")
+        return {
+            "provider": CUSTOM_PROVIDER_ID,
+            "model": model_id[:128],
+            "base_url": normalize_custom_base_url(custom_base_url),
+            "api_key": decrypt_key(user_key_encrypted) if user_key_encrypted else "",
+            "input_price_per_m": 0.0,
+            "output_price_per_m": 0.0,
+        }
+    p = find_provider("deepseek" if use_default else (user_provider or "deepseek"))
     if not p:
         p = find_provider("deepseek")
     model = find_model(p["id"], user_model) or p["models"][0]

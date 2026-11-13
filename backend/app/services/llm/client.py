@@ -35,7 +35,8 @@ def get_openai_client() -> OpenAI:
 
 
 def _new_client(base_url: str, api_key: str) -> OpenAI:
-    return OpenAI(api_key=api_key, base_url=base_url, timeout=90)
+    # SDK 要求非空凭据；无鉴权兼容服务使用无敏感信息的占位值。
+    return OpenAI(api_key=api_key or "local-no-auth", base_url=base_url, timeout=90)
 
 
 class OpenAiLlm:
@@ -64,12 +65,12 @@ class OpenAiLlm:
         self.on_usage = on_usage
         if client is not None:
             self._client = client
-        elif base_url and api_key:
+        elif base_url is not None and api_key is not None:
             self._client = _new_client(base_url, api_key)
         else:
             self._client = get_openai_client()
         # 未显式传入自定义 Key 时走系统默认客户端，视为平台 Key
-        self._used_platform_key = used_platform_key if (base_url and api_key) else True
+        self._used_platform_key = used_platform_key if (base_url is not None and api_key is not None) else True
 
     def _record(self, usage) -> None:
         if not usage or not self.on_usage:

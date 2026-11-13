@@ -48,6 +48,7 @@ class InterviewEngine(
         self._graph_runtime = None
         self._graph_domain_concept_ids: list[str] = []
         self._graph_project_question_ids: set[str] = set()
+        self._tg_project_anchors: dict[str, dict[str, list[str]]] = {}
 
     # ---------- 创建会话：开场白 + 路由 + 规划（题签）→ 面试计划就绪 ----------
 
@@ -88,6 +89,8 @@ class InterviewEngine(
             review_mode=bool(review_mode),
             avoid_topics=list(avoid_topics or [])[:80],
         )
+        # 八股题在已解析知识点的叶子题池内做可复现随机抽样；同一场重试不会每次换一套。
+        self._bagu_seed = int(session_id)
         from app.services.recall_boost import build_recall_boost_terms, recall_boost_context
 
         boost_terms = build_recall_boost_terms(
